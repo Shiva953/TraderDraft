@@ -36,38 +36,49 @@ export function CompetitionBanner({ prizeSol = 26, onHowToPlay, onViewLeaderboar
   const { hours, minutes } = formatDuration(remainingMs);
 
   return (
-    <section className="rounded-2xl border border-rose-400/50 bg-neutral-950/60 p-6 text-center">
-      <div className="text-2xl md:text-3xl tracking-wide text-neutral-200">WEEKLY COMPETITION</div>
+    <div className="relative rounded-2xl p-[3px] overflow-hidden">
+      {/* Gradient border using a pseudo-background div */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 z-0 rounded-2xl bg-opacity-50"
+        style={{
+          background: "linear-gradient(90deg, #fb7185 0%, #f472b6 100%)",
+        }}
+      />
+      <section className="relative z-10 rounded-2xl bg-neutral-950/60 p-6 text-center border-4 border-transparent">
+        <div className="text-2xl md:text-3xl tracking-wide text-neutral-200">WEEKLY COMPETITION</div>
 
-      <div className="mt-6 grid grid-cols-1 items-end gap-6 md:grid-cols-2">
-        <div className="space-y-2">
-          <div className="text-5xl md:text-6xl font-bold text-pink-300">{prizeSol} SOL</div>
-          <div className="text-neutral-400">In Prizes</div>
-        </div>
-
-        <div className="space-y-2">
-          <div className="text-5xl md:text-6xl font-bold text-pink-300">
-            {hours}h {minutes.toString().padStart(2, "0")}m
+        <div className="mt-6 grid grid-cols-1 items-end gap-6 md:grid-cols-2">
+          <div className="space-y-2">
+            <div className="text-5xl md:text-6xl font-bold text-pink-300">{prizeSol} SOL</div>
+            <div className="text-neutral-400">In Prizes</div>
           </div>
-          <div className="text-neutral-400">left</div>
-        </div>
-      </div>
 
-      <div className="mt-8 flex flex-col items-center justify-center gap-4 md:flex-row">
-        <button
-          onClick={onHowToPlay}
-          className="w-full md:w-auto rounded-xl bg-neutral-300 px-6 py-3 font-semibold text-neutral-900 shadow-sm transition hover:bg-neutral-200 cursor-pointer"
-        >
-          How to Play
-        </button>
-        <button
-          onClick={onViewLeaderboard}
-          className="w-full md:w-auto rounded-xl bg-pink-400 px-6 py-3 font-semibold text-neutral-900 shadow-sm transition hover:bg-pink-300 cursor-pointer"
-        >
-          View Leaderboard
-        </button>
-      </div>
-    </section>
+          <div className="space-y-2">
+            <div className="text-5xl md:text-6xl font-bold text-pink-300">
+              {hours}h {minutes.toString().padStart(2, "0")}m
+            </div>
+            <div className="text-neutral-400">left</div>
+          </div>
+        </div>
+
+        <div className="mt-8 flex flex-col items-center justify-center gap-4 md:flex-row">
+          <button
+            onClick={onHowToPlay}
+            className="w-full md:w-auto rounded-xl bg-neutral-300 px-6 py-3 font-semibold text-neutral-900 shadow-sm transition hover:bg-neutral-200 cursor-pointer"
+          >
+            How to Play
+          </button>
+          <button
+            onClick={onViewLeaderboard}
+            className="w-full md:w-auto rounded-xl bg-pink-400 px-6 py-3 font-semibold text-neutral-900 shadow-sm transition hover:bg-pink-300 cursor-pointer"
+          >
+            View Leaderboard
+          </button>
+        </div>
+      </section>
+      {/* The gradient border is handled by the absolutely positioned div above */}
+    </div>
   );
 }
 

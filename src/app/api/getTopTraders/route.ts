@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { KOLScanScraper } from '@/lib/scraper';
 
 export async function POST(request: Request) {
 	try {
@@ -11,9 +12,16 @@ export async function POST(request: Request) {
 		}
 
 		const body = await request.json();
+        const scrape = new KOLScanScraper();
+        const tradersData = await scrape.scrapeKOLScan();
+        const dailyTradersData = tradersData[0];
+        const weeklyTradersData = tradersData[1];
+        const monthlyTradersData = tradersData[2];
+
+        const topTradersForDay = dailyTradersData.traders;
 
 		return NextResponse.json(
-			{ ok: true, message: 'POST request received' },
+			{ ok: true, message: 'POST request received', topTradersForDay: topTradersForDay },
 			{ status: 200 }
 		);
 	} catch (error) {
