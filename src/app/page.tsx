@@ -8,14 +8,14 @@ import { CreateToken } from "../components/CreateToken";
 import { useRouter } from "next/router";
 import {PrivyProvider, useLogin, usePrivy, useSolanaWallets, useLoginWithOAuth, useLogout} from '@privy-io/react-auth';
 import { useEffect, useState } from "react";
+import CompetitionBanner from "../components/CompetitionBanner";
 
 export default function Home() {
   const leaderboardData: LeaderboardEntry[] = [
-    { rank: 1, handle: "gainzy", changePct: 3.2 },
-    { rank: 2, handle: "haylo", changePct: 1.1 },
-    { rank: 3, handle: "zlrk69", changePct: 0.9 },
-    { rank: 4, handle: "gr3g", changePct: 2.4 },
-    { rank: 5, handle: "spuno", changePct: 0.7 },
+    { rank: 1, handle: "gainzy", pnlSol: 37.22, sharePrice: 0.056, shareDeltaPct: 3.5, traderUrl: "/traders/gainzy", xUrl: "https://x.com/gainzy" },
+    { rank: 2, handle: "a31g", pnlSol: 23.10, sharePrice: 0.091, shareDeltaPct: 22.34, traderUrl: "/traders/a31g", xUrl: "https://x.com/a31g" },
+    { rank: 3, handle: "xr7q69", pnlSol: 10.46, sharePrice: 0.068, shareDeltaPct: 10.88, traderUrl: "/traders/xr7q69", xUrl: "https://x.com/xr7q69" },
+    { rank: 4, handle: "pdawg", pnlSol: 17.98, sharePrice: 0.089, shareDeltaPct: 32.4, traderUrl: "/traders/gainzy", xUrl: "https://x.com/gainzy" },
   ];
 
   const trendingData: TrendingItem[] = [
@@ -35,14 +35,13 @@ export default function Home() {
 
   console.log("Current state:", { ready, authenticated, wallets: wallets.length, user });
   
-  const { initOAuth, loading } = useLoginWithOAuth({
-    onError: (err) => console.error('OAuth login failed:', err),
-    onComplete: ({ user, loginMethod }) => {
-      console.log(`Logged in via ${loginMethod}`, user);
-      // Reset wallet loading state when login completes
-      setIsWalletLoading(true);
-    },
-  });
+  // const { initOAuth, loading } = useLoginWithOAuth({
+  //   onError: (err) => console.error('OAuth login failed:', err),
+  //   onComplete: ({ user, loginMethod }) => {
+  //     console.log(`Logged in via ${loginMethod}`, user);
+  //     setIsWalletLoading(true);
+  //   },
+  // });
 
   // Enhanced wallet detection with retry logic
   useEffect(() => {
@@ -55,44 +54,49 @@ export default function Home() {
     const findWallet = () => {
       console.log("Looking for wallets...", wallets);
       
-      // Look for Solana embedded wallet specifically
+
       const embeddedWallet = wallets.find(
         (w) => w.walletClientType === 'privy'
       );
 
-      if (embeddedWallet) {
+      if (embeddedWallet && embeddedWallet.address) {
         console.log('Found embedded wallet:', embeddedWallet);
-        setWalletAddress(embeddedWallet.address.substring(0, 6));
+        console.log("Does the embedded wallet address exist: ", embeddedWallet.address)
+        console.log("Am I able to substring it: ", embeddedWallet.address.substring(0, 6))
+        console.log("Wallet address(before)", walletAddress)
+        const shortAddress = embeddedWallet.address.substring(0, 6)
+        setWalletAddress(shortAddress);
+        console.log("Wallet address(after)", walletAddress)
+        console.log("WALLET LOADING STATE(BEFORE): ",isWalletLoading)
         setIsWalletLoading(false);
+        console.log("WALLET LOADING STATE(AFTER): ",isWalletLoading)
         return true;
       }
       return false;
     };
 
-    // Try to find wallet immediately
     if (findWallet()) {
       return;
     }
 
-    // If no wallet found, set up polling with timeout
     const maxRetries = 10;
     let retryCount = 0;
 
-    const pollForWallet = setInterval(() => {
-      retryCount++;
-      console.log(`Polling for wallet... attempt ${retryCount}`);
+    // const pollForWallet = setInterval(() => {
+    //   retryCount++;
+    //   console.log(`Polling for wallet... attempt ${retryCount}`);
       
-      if (findWallet() || retryCount >= maxRetries) {
-        clearInterval(pollForWallet);
-        if (retryCount >= maxRetries) {
-          console.log('Max retries reached, no wallet found');
-          setIsWalletLoading(false);
-        }
-      }
-    }, 1000); // Poll every second
+    //   if (findWallet() || retryCount >= maxRetries) {
+    //     clearInterval(pollForWallet);
+    //     if (retryCount >= maxRetries) {
+    //       console.log('Max retries reached, no wallet found');
+    //       setIsWalletLoading(false);
+    //     }
+    //   }
+    // }, 1000); // Poll every second
 
-    return () => clearInterval(pollForWallet);
-  }, [ready, authenticated, wallets]);
+    // return () => clearInterval(pollForWallet);
+  }, [wallets]);
 
 
   if (!authenticated) {
@@ -104,7 +108,6 @@ export default function Home() {
           </div>
 
           <button
-              disabled={loading}
               onClick={() => login()}
               className="group relative flex mx-auto items-center justify-center gap-3 rounded-full px-6 py-3 text-base font-semibold text-white bg-gradient-to-r from-pink-500 to-rose-500 shadow-lg shadow-rose-500/30 transition-all duration-200 hover:shadow-rose-500/50 focus:outline-none focus:ring-4 focus:ring-rose-400/30 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
@@ -182,7 +185,12 @@ export default function Home() {
         <h1 className="text-4xl font-semibold text-neutral-100">Kolscan</h1>
       </header>
 
-      <div className="rounded-2xl border border-neutral-800 p-4">
+      <CompetitionBanner onViewLeaderboard={() => {
+        const el = document.getElementById('home-leaderboard');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }} />
+
+      <div id="home-leaderboard" className="rounded-2xl border border-neutral-800 p-4">
         <Leaderboard title="Top Traders This Week" entries={leaderboardData} />
       </div>
 
