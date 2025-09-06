@@ -1,0 +1,44 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Trader {
+  id        String   @id @default(cuid())
+  rank      Int
+  name      String
+  address   String?
+  pnl       String    
+  winRate   Float?   // Win rate percentage
+  avatarUrl String?     
+  xUrl      String?  
+  period    Period   // daily, weekly, monthly
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Composite unique constraint to prevent duplicates for same period
+  @@unique([address, period])
+  @@index([period, rank])
+  @@map("traders")
+}
+
+model ScrapingMetadata {
+  id            String   @id @default(cuid())
+  period        Period
+  totalTraders  Int
+  scrapedAt     DateTime @default(now())
+  isActive      Boolean  @default(true) // To mark the latest scraping session
+  
+  @@unique([period, isActive])
+  @@map("scraping_metadata")
+}
+
+enum Period {
+  DAILY
+  WEEKLY
+  MONTHLY
+}

@@ -1,0 +1,384 @@
+2025-09-06T08:05:09.588Z - INFO - Starting KOLScan scrape
+2025-09-06T08:05:09.589Z - INFO - Setting up Chrome WebDriver
+2025-09-06T08:21:12.863Z - INFO - Starting KOLScan scrape
+2025-09-06T08:21:12.863Z - INFO - Setting up Chrome WebDriver
+2025-09-06T08:23:55.504Z - INFO - Starting KOLScan scrape
+2025-09-06T08:23:55.505Z - INFO - Setting up Chromium browser with Playwright
+2025-09-06T08:26:02.172Z - INFO - Starting KOLScan scrape
+2025-09-06T08:26:02.172Z - INFO - Setting up Chromium browser with Playwright
+2025-09-06T08:26:03.624Z - INFO - Playwright browser initialized
+2025-09-06T08:26:30.006Z - INFO - Extracting data for Daily
+2025-09-06T08:26:30.134Z - INFO - Extracted 286 users for Daily
+2025-09-06T08:26:30.134Z - INFO - Attempting to click Weekly filter button
+2025-09-06T08:26:35.137Z - INFO - Trying selector: text=Weekly
+2025-09-06T08:26:36.328Z - INFO - Clicked Weekly button (regular click)
+2025-09-06T08:26:39.329Z - INFO - Extracting data for Weekly
+2025-09-06T08:26:39.421Z - INFO - Extracted 286 users for Weekly
+2025-09-06T08:26:39.422Z - INFO - Attempting to click Monthly filter button
+2025-09-06T08:26:44.424Z - INFO - Trying selector: text=Monthly
+2025-09-06T08:26:45.576Z - INFO - Clicked Monthly button (regular click)
+2025-09-06T08:26:48.579Z - INFO - Extracting data for Monthly
+2025-09-06T08:26:48.654Z - INFO - Extracted 286 users for Monthly
+2025-09-06T08:26:48.678Z - INFO - Browser cleaned up
+2025-09-06T08:26:48.678Z - INFO - Scrape finished, got 3 periods
+2025-09-06T08:31:30.367Z - INFO - Starting KOLScan scrape
+2025-09-06T08:31:30.368Z - INFO - Setting up Chromium browser with Playwright
+2025-09-06T08:31:30.678Z - INFO - Playwright browser initialized
+2025-09-06T08:31:38.559Z - INFO - Extracting data for Daily
+2025-09-06T08:31:38.657Z - INFO - Extracted 286 users for Daily
+2025-09-06T08:31:38.658Z - INFO - Attempting to click Weekly filter button
+2025-09-06T08:31:43.659Z - INFO - Trying selector: text=Weekly
+2025-09-06T08:31:44.863Z - INFO - Clicked Weekly button (regular click)
+2025-09-06T08:31:47.866Z - INFO - Extracting data for Weekly
+2025-09-06T08:31:47.961Z - INFO - Extracted 286 users for Weekly
+2025-09-06T08:31:47.962Z - INFO - Attempting to click Monthly filter button
+2025-09-06T08:31:52.965Z - INFO - Trying selector: text=Monthly
+2025-09-06T08:31:54.098Z - INFO - Clicked Monthly button (regular click)
+2025-09-06T08:31:57.101Z - INFO - Extracting data for Monthly
+2025-09-06T08:31:57.181Z - INFO - Extracted 286 users for Monthly
+2025-09-06T08:31:57.208Z - INFO - Browser cleaned up
+2025-09-06T08:31:57.208Z - INFO - Scrape finished, got 3 periods
+2025-09-06T08:42:31.983Z - INFO - Starting KOLScan scrape
+2025-09-06T08:42:31.983Z - INFO - Setting up Chromium browser with Playwright
+2025-09-06T08:42:32.554Z - INFO - Playwright browser initialized
+2025-09-06T08:42:42.017Z - INFO - Extracting data for Daily
+2025-09-06T08:42:42.199Z - INFO - Extracted 286 users for Daily
+2025-09-06T08:42:42.199Z - INFO - Attempting to click Weekly filter button
+2025-09-06T08:42:47.202Z - INFO - Trying selector: text=Weekly
+2025-09-06T08:42:48.612Z - INFO - Clicked Weekly button (regular click)
+2025-09-06T08:42:51.614Z - INFO - Extracting data for Weekly
+2025-09-06T08:42:51.769Z - INFO - Extracted 286 users for Weekly
+2025-09-06T08:42:51.769Z - INFO - Attempting to click Monthly filter button
+2025-09-06T08:42:56.772Z - INFO - Trying selector: text=Monthly
+2025-09-06T08:42:57.970Z - INFO - Clicked Monthly button (regular click)
+2025-09-06T08:43:00.974Z - INFO - Extracting data for Monthly
+2025-09-06T08:43:01.053Z - INFO - Extracted 286 users for Monthly
+2025-09-06T08:43:01.117Z - INFO - Browser cleaned up
+2025-09-06T08:43:01.117Z - INFO - Scrape finished, got 3 periods
+2025-09-06T08:43:01.390Z - INFO - Starting KOLScan scrape
+2025-09-06T08:43:01.390Z - INFO - Setting up Chromium browser with Playwright
+2025-09-06T08:43:01.655Z - INFO - Playwright browser initialized
+2025-09-06T08:43:09.306Z - INFO - Extracting data for Daily
+2025-09-06T08:43:09.550Z - INFO - Extracted 286 users for Daily
+2025-09-06T08:43:09.550Z - INFO - Attempting to click Weekly filter button
+2025-09-06T08:43:14.556Z - INFO - Trying selector: text=Weekly
+2025-09-06T08:43:15.937Z - INFO - Clicked Weekly button (regular click)
+2025-09-06T08:43:18.941Z - INFO - Extracting data for Weekly
+2025-09-06T08:43:19.125Z - INFO - Extracted 286 users for Weekly
+2025-09-06T08:43:19.125Z - INFO - Attempting to click Monthly filter button
+2025-09-06T08:43:24.127Z - INFO - Trying selector: text=Monthly
+2025-09-06T08:43:25.323Z - INFO - Clicked Monthly button (regular click)
+2025-09-06T08:43:28.328Z - INFO - Extracting data for Monthly
+2025-09-06T08:43:28.508Z - INFO - Extracted 286 users for Monthly
+2025-09-06T08:43:28.687Z - INFO - Browser cleaned up
+2025-09-06T08:43:28.687Z - INFO - Scrape finished, got 3 periods
+2025-09-06T08:44:37.839Z - INFO - Starting KOLScan scrape
+2025-09-06T08:44:37.839Z - INFO - Setting up Chromium browser with Playwright
+2025-09-06T08:44:38.261Z - INFO - Playwright browser initialized
+2025-09-06T08:44:45.869Z - INFO - Extracting data for Daily
+2025-09-06T08:44:46.078Z - INFO - Extracted 286 users for Daily
+2025-09-06T08:44:46.078Z - INFO - Attempting to click Weekly filter button
+2025-09-06T08:44:51.092Z - INFO - Trying selector: text=Weekly
+2025-09-06T08:44:52.560Z - INFO - Clicked Weekly button (regular click)
+2025-09-06T08:44:55.563Z - INFO - Extracting data for Weekly
+2025-09-06T08:44:55.769Z - INFO - Extracted 286 users for Weekly
+2025-09-06T08:44:55.769Z - INFO - Attempting to click Monthly filter button
+2025-09-06T08:45:00.772Z - INFO - Trying selector: text=Monthly
+2025-09-06T08:45:01.968Z - INFO - Clicked Monthly button (regular click)
+2025-09-06T08:45:04.971Z - INFO - Extracting data for Monthly
+2025-09-06T08:45:05.146Z - INFO - Extracted 286 users for Monthly
+2025-09-06T08:45:05.306Z - INFO - Browser cleaned up
+2025-09-06T08:45:05.307Z - INFO - Scrape finished, got 3 periods
+2025-09-06T08:45:05.388Z - INFO - Starting KOLScan scrape
+2025-09-06T08:45:05.388Z - INFO - Setting up Chromium browser with Playwright
+2025-09-06T08:45:05.604Z - INFO - Playwright browser initialized
+2025-09-06T08:45:13.015Z - INFO - Extracting data for Daily
+2025-09-06T08:45:13.128Z - INFO - Extracted 286 users for Daily
+2025-09-06T08:45:13.129Z - INFO - Attempting to click Weekly filter button
+2025-09-06T08:45:18.130Z - INFO - Trying selector: text=Weekly
+2025-09-06T08:45:19.522Z - INFO - Clicked Weekly button (regular click)
+2025-09-06T08:45:22.524Z - INFO - Extracting data for Weekly
+2025-09-06T08:45:22.706Z - INFO - Extracted 286 users for Weekly
+2025-09-06T08:45:22.706Z - INFO - Attempting to click Monthly filter button
+2025-09-06T08:45:27.710Z - INFO - Trying selector: text=Monthly
+2025-09-06T08:45:28.872Z - INFO - Clicked Monthly button (regular click)
+2025-09-06T08:45:31.875Z - INFO - Extracting data for Monthly
+2025-09-06T08:45:32.056Z - INFO - Extracted 286 users for Monthly
+2025-09-06T08:45:32.230Z - INFO - Browser cleaned up
+2025-09-06T08:45:32.230Z - INFO - Scrape finished, got 3 periods
+2025-09-06T08:46:59.607Z - INFO - Starting KOLScan scrape
+2025-09-06T08:46:59.607Z - INFO - Setting up Chromium browser with Playwright
+2025-09-06T08:47:00.298Z - INFO - Playwright browser initialized
+2025-09-06T08:47:08.405Z - INFO - Extracting data for Daily
+2025-09-06T08:47:08.553Z - INFO - Extracted 286 users for Daily
+2025-09-06T08:47:08.553Z - INFO - Attempting to click Weekly filter button
+2025-09-06T08:47:13.557Z - INFO - Trying selector: text=Weekly
+2025-09-06T08:47:14.947Z - INFO - Clicked Weekly button (regular click)
+2025-09-06T08:47:17.949Z - INFO - Extracting data for Weekly
+2025-09-06T08:47:18.129Z - INFO - Extracted 286 users for Weekly
+2025-09-06T08:47:18.130Z - INFO - Attempting to click Monthly filter button
+2025-09-06T08:47:23.136Z - INFO - Trying selector: text=Monthly
+2025-09-06T08:47:24.333Z - INFO - Clicked Monthly button (regular click)
+2025-09-06T08:47:27.334Z - INFO - Extracting data for Monthly
+2025-09-06T08:47:27.525Z - INFO - Extracted 286 users for Monthly
+2025-09-06T08:47:27.697Z - INFO - Browser cleaned up
+2025-09-06T08:47:27.697Z - INFO - Scrape finished, got 3 periods
+2025-09-06T08:48:50.839Z - INFO - Starting KOLScan scrape
+2025-09-06T08:48:50.839Z - INFO - Setting up Chromium browser with Playwright
+2025-09-06T08:48:51.290Z - INFO - Playwright browser initialized
+2025-09-06T08:48:59.066Z - INFO - Extracting data for Daily
+2025-09-06T08:48:59.293Z - INFO - Extracted 286 users for Daily
+2025-09-06T08:48:59.294Z - INFO - Attempting to click Weekly filter button
+2025-09-06T08:49:04.296Z - INFO - Trying selector: text=Weekly
+2025-09-06T08:49:05.541Z - INFO - Clicked Weekly button (regular click)
+2025-09-06T08:49:08.546Z - INFO - Extracting data for Weekly
+2025-09-06T08:49:08.787Z - INFO - Extracted 286 users for Weekly
+2025-09-06T08:49:08.787Z - INFO - Attempting to click Monthly filter button
+2025-09-06T08:49:13.790Z - INFO - Trying selector: text=Monthly
+2025-09-06T08:49:14.993Z - INFO - Clicked Monthly button (regular click)
+2025-09-06T08:49:17.996Z - INFO - Extracting data for Monthly
+2025-09-06T08:49:18.172Z - INFO - Extracted 286 users for Monthly
+2025-09-06T08:49:18.351Z - INFO - Browser cleaned up
+2025-09-06T08:49:18.352Z - INFO - Scrape finished, got 3 periods
+2025-09-06T08:49:50.016Z - INFO - Starting KOLScan scrape
+2025-09-06T08:49:50.016Z - INFO - Setting up Chromium browser with Playwright
+2025-09-06T08:49:50.430Z - INFO - Playwright browser initialized
+2025-09-06T08:49:58.411Z - INFO - Extracting data for Daily
+2025-09-06T08:49:58.622Z - INFO - Extracted 286 users for Daily
+2025-09-06T08:49:58.623Z - INFO - Attempting to click Weekly filter button
+2025-09-06T08:50:03.625Z - INFO - Trying selector: text=Weekly
+2025-09-06T08:50:05.020Z - INFO - Clicked Weekly button (regular click)
+2025-09-06T08:50:08.021Z - INFO - Extracting data for Weekly
+2025-09-06T08:50:08.137Z - INFO - Extracted 286 users for Weekly
+2025-09-06T08:50:08.138Z - INFO - Attempting to click Monthly filter button
+2025-09-06T08:50:13.142Z - INFO - Trying selector: text=Monthly
+2025-09-06T08:50:14.343Z - INFO - Clicked Monthly button (regular click)
+2025-09-06T08:50:17.346Z - INFO - Extracting data for Monthly
+2025-09-06T08:50:17.470Z - INFO - Extracted 286 users for Monthly
+2025-09-06T08:50:17.530Z - INFO - Browser cleaned up
+2025-09-06T08:50:17.530Z - INFO - Scrape finished, got 3 periods
+2025-09-06T09:19:40.614Z - INFO - Starting KOLScan scrape
+2025-09-06T09:19:40.615Z - INFO - Setting up Chromium browser with Playwright
+2025-09-06T09:19:41.094Z - INFO - Playwright browser initialized
+2025-09-06T09:19:49.396Z - INFO - Extracting data for Daily
+2025-09-06T09:19:49.534Z - INFO - Extracted 286 users for Daily
+2025-09-06T09:19:49.534Z - INFO - Attempting to click Weekly filter button
+2025-09-06T09:19:54.537Z - INFO - Trying selector: text=Weekly
+2025-09-06T09:19:56.171Z - INFO - Clicked Weekly button (regular click)
+2025-09-06T09:19:59.174Z - INFO - Extracting data for Weekly
+2025-09-06T09:19:59.341Z - INFO - Extracted 286 users for Weekly
+2025-09-06T09:19:59.342Z - INFO - Attempting to click Monthly filter button
+2025-09-06T09:20:04.343Z - INFO - Trying selector: text=Monthly
+2025-09-06T09:20:05.539Z - INFO - Clicked Monthly button (regular click)
+2025-09-06T09:20:08.543Z - INFO - Extracting data for Monthly
+2025-09-06T09:20:08.700Z - INFO - Extracted 286 users for Monthly
+2025-09-06T09:20:08.888Z - INFO - Browser cleaned up
+2025-09-06T09:20:08.888Z - INFO - Scrape finished, got 3 periods
+2025-09-06T09:20:08.963Z - INFO - Starting KOLScan scrape
+2025-09-06T09:20:08.963Z - INFO - Setting up Chromium browser with Playwright
+2025-09-06T09:20:09.209Z - INFO - Playwright browser initialized
+2025-09-06T09:20:16.571Z - INFO - Extracting data for Daily
+2025-09-06T09:20:16.658Z - INFO - Extracted 286 users for Daily
+2025-09-06T09:20:16.659Z - INFO - Attempting to click Weekly filter button
+2025-09-06T09:20:21.662Z - INFO - Trying selector: text=Weekly
+2025-09-06T09:20:22.913Z - INFO - Clicked Weekly button (regular click)
+2025-09-06T09:20:25.915Z - INFO - Extracting data for Weekly
+2025-09-06T09:20:25.997Z - INFO - Extracted 286 users for Weekly
+2025-09-06T09:20:25.998Z - INFO - Attempting to click Monthly filter button
+2025-09-06T09:20:30.999Z - INFO - Trying selector: text=Monthly
+2025-09-06T09:20:32.191Z - INFO - Clicked Monthly button (regular click)
+2025-09-06T09:20:35.196Z - INFO - Extracting data for Monthly
+2025-09-06T09:20:35.312Z - INFO - Extracted 286 users for Monthly
+2025-09-06T09:20:35.400Z - INFO - Browser cleaned up
+2025-09-06T09:20:35.401Z - INFO - Scrape finished, got 3 periods
+2025-09-06T11:12:22.206Z - INFO - Starting KOLScan scrape
+2025-09-06T11:12:22.207Z - INFO - Setting up Chromium browser with Playwright
+2025-09-06T11:12:22.780Z - INFO - Playwright browser initialized
+2025-09-06T11:12:31.183Z - INFO - Extracting data for Daily
+2025-09-06T11:12:31.288Z - INFO - Extracted 286 users for Daily
+2025-09-06T11:12:31.289Z - INFO - Attempting to click Weekly filter button
+2025-09-06T11:12:36.292Z - INFO - Trying selector: text=Weekly
+2025-09-06T11:12:37.425Z - INFO - Clicked Weekly button (regular click)
+2025-09-06T11:12:40.427Z - INFO - Extracting data for Weekly
+2025-09-06T11:12:40.518Z - INFO - Extracted 286 users for Weekly
+2025-09-06T11:12:40.519Z - INFO - Attempting to click Monthly filter button
+2025-09-06T11:12:45.521Z - INFO - Trying selector: text=Monthly
+2025-09-06T11:12:46.654Z - INFO - Clicked Monthly button (regular click)
+2025-09-06T11:12:49.657Z - INFO - Extracting data for Monthly
+2025-09-06T11:12:49.749Z - INFO - Extracted 286 users for Monthly
+2025-09-06T11:12:49.777Z - INFO - Browser cleaned up
+2025-09-06T11:12:49.777Z - INFO - Scrape finished, got 3 periods
+2025-09-06T11:15:28.863Z - INFO - Starting KOLScan scrape
+2025-09-06T11:15:28.863Z - INFO - Setting up Chromium browser with Playwright
+2025-09-06T11:15:29.183Z - INFO - Playwright browser initialized
+2025-09-06T11:15:42.079Z - INFO - Extracting data for Daily
+2025-09-06T11:15:42.179Z - INFO - Extracted 286 users for Daily
+2025-09-06T11:15:42.179Z - INFO - Attempting to click Weekly filter button
+2025-09-06T11:15:47.182Z - INFO - Trying selector: text=Weekly
+2025-09-06T11:15:48.351Z - INFO - Clicked Weekly button (regular click)
+2025-09-06T11:15:51.353Z - INFO - Extracting data for Weekly
+2025-09-06T11:15:51.462Z - INFO - Extracted 286 users for Weekly
+2025-09-06T11:15:51.462Z - INFO - Attempting to click Monthly filter button
+2025-09-06T11:15:56.464Z - INFO - Trying selector: text=Monthly
+2025-09-06T11:15:57.597Z - INFO - Clicked Monthly button (regular click)
+2025-09-06T11:16:00.602Z - INFO - Extracting data for Monthly
+2025-09-06T11:16:00.687Z - INFO - Extracted 286 users for Monthly
+2025-09-06T11:16:00.718Z - INFO - Browser cleaned up
+2025-09-06T11:16:00.718Z - INFO - Scrape finished, got 3 periods
+2025-09-06T11:26:38.992Z - INFO - Starting KOLScan scrape
+2025-09-06T11:26:38.993Z - INFO - Setting up Chromium browser with Playwright
+2025-09-06T11:26:39.336Z - INFO - Playwright browser initialized
+2025-09-06T11:26:47.337Z - INFO - Extracting data for Daily
+2025-09-06T11:26:47.412Z - INFO - Extracted 286 users for Daily
+2025-09-06T11:26:47.412Z - INFO - Attempting to click Weekly filter button
+2025-09-06T11:26:52.415Z - INFO - Trying selector: text=Weekly
+2025-09-06T11:26:53.649Z - INFO - Clicked Weekly button (regular click)
+2025-09-06T11:26:56.651Z - INFO - Extracting data for Weekly
+2025-09-06T11:26:56.737Z - INFO - Extracted 286 users for Weekly
+2025-09-06T11:26:56.738Z - INFO - Attempting to click Monthly filter button
+2025-09-06T11:27:01.740Z - INFO - Trying selector: text=Monthly
+2025-09-06T11:27:02.878Z - INFO - Clicked Monthly button (regular click)
+2025-09-06T11:27:05.881Z - INFO - Extracting data for Monthly
+2025-09-06T11:27:05.980Z - INFO - Extracted 286 users for Monthly
+2025-09-06T11:27:06.018Z - INFO - Browser cleaned up
+2025-09-06T11:27:06.018Z - INFO - Scrape finished, got 3 periods
+2025-09-06T11:28:37.599Z - INFO - Starting KOLScan scrape
+2025-09-06T11:28:37.601Z - INFO - Setting up Chromium browser with Playwright
+2025-09-06T11:28:37.965Z - INFO - Playwright browser initialized
+2025-09-06T11:28:46.032Z - INFO - Extracting data for Daily
+2025-09-06T11:28:46.154Z - INFO - Extracted 286 users for Daily
+2025-09-06T11:28:46.155Z - INFO - Attempting to click Weekly filter button
+2025-09-06T11:28:51.158Z - INFO - Trying selector: text=Weekly
+2025-09-06T11:28:52.373Z - INFO - Clicked Weekly button (regular click)
+2025-09-06T11:28:55.376Z - INFO - Extracting data for Weekly
+2025-09-06T11:28:55.459Z - INFO - Extracted 286 users for Weekly
+2025-09-06T11:28:55.460Z - INFO - Attempting to click Monthly filter button
+2025-09-06T11:29:00.462Z - INFO - Trying selector: text=Monthly
+2025-09-06T11:29:01.620Z - INFO - Clicked Monthly button (regular click)
+2025-09-06T11:29:04.624Z - INFO - Extracting data for Monthly
+2025-09-06T11:29:04.693Z - INFO - Extracted 286 users for Monthly
+2025-09-06T11:29:04.743Z - INFO - Browser cleaned up
+2025-09-06T11:29:04.743Z - INFO - Scrape finished, got 3 periods
+2025-09-06T11:31:32.094Z - INFO - Starting KOLScan scrape
+2025-09-06T11:31:32.095Z - INFO - Setting up Chromium browser with Playwright
+2025-09-06T11:31:32.393Z - INFO - Playwright browser initialized
+2025-09-06T11:31:40.337Z - INFO - Extracting data for Daily
+2025-09-06T11:31:40.435Z - INFO - Extracted 286 users for Daily
+2025-09-06T11:31:40.436Z - INFO - Attempting to click Weekly filter button
+2025-09-06T11:31:45.438Z - INFO - Trying selector: text=Weekly
+2025-09-06T11:31:46.617Z - INFO - Clicked Weekly button (regular click)
+2025-09-06T11:31:49.618Z - INFO - Extracting data for Weekly
+2025-09-06T11:31:49.711Z - INFO - Extracted 286 users for Weekly
+2025-09-06T11:31:49.712Z - INFO - Attempting to click Monthly filter button
+2025-09-06T11:31:54.714Z - INFO - Trying selector: text=Monthly
+2025-09-06T11:31:55.883Z - INFO - Clicked Monthly button (regular click)
+2025-09-06T11:31:58.887Z - INFO - Extracting data for Monthly
+2025-09-06T11:31:58.964Z - INFO - Extracted 286 users for Monthly
+2025-09-06T11:31:58.992Z - INFO - Browser cleaned up
+2025-09-06T11:31:58.992Z - INFO - Scrape finished, got 3 periods
+2025-09-06T11:34:58.250Z - INFO - Starting KOLScan scrape
+2025-09-06T11:34:58.250Z - INFO - Setting up Chromium browser with Playwright
+2025-09-06T11:34:58.575Z - INFO - Playwright browser initialized
+2025-09-06T11:35:07.127Z - INFO - Extracting data for Daily
+2025-09-06T11:35:07.213Z - INFO - Extracted 286 users for Daily
+2025-09-06T11:35:07.213Z - INFO - Attempting to click Weekly filter button
+2025-09-06T11:35:12.216Z - INFO - Trying selector: text=Weekly
+2025-09-06T11:35:13.419Z - INFO - Clicked Weekly button (regular click)
+2025-09-06T11:35:16.422Z - INFO - Extracting data for Weekly
+2025-09-06T11:35:16.521Z - INFO - Extracted 286 users for Weekly
+2025-09-06T11:35:16.521Z - INFO - Attempting to click Monthly filter button
+2025-09-06T11:35:21.523Z - INFO - Trying selector: text=Monthly
+2025-09-06T11:35:22.653Z - INFO - Clicked Monthly button (regular click)
+2025-09-06T11:35:25.655Z - INFO - Extracting data for Monthly
+2025-09-06T11:35:25.733Z - INFO - Extracted 286 users for Monthly
+2025-09-06T11:35:25.758Z - INFO - Browser cleaned up
+2025-09-06T11:35:25.758Z - INFO - Scrape finished, got 3 periods
+2025-09-06T11:36:22.118Z - INFO - Starting KOLScan scrape
+2025-09-06T11:36:22.118Z - INFO - Setting up Chromium browser with Playwright
+2025-09-06T11:36:22.419Z - INFO - Playwright browser initialized
+2025-09-06T11:36:30.025Z - INFO - Extracting data for Daily
+2025-09-06T11:36:30.125Z - INFO - Extracted 286 users for Daily
+2025-09-06T11:36:30.125Z - INFO - Attempting to click Weekly filter button
+2025-09-06T11:36:35.129Z - INFO - Trying selector: text=Weekly
+2025-09-06T11:36:36.304Z - INFO - Clicked Weekly button (regular click)
+2025-09-06T11:36:39.306Z - INFO - Extracting data for Weekly
+2025-09-06T11:36:39.403Z - INFO - Extracted 286 users for Weekly
+2025-09-06T11:36:39.403Z - INFO - Attempting to click Monthly filter button
+2025-09-06T11:36:44.405Z - INFO - Trying selector: text=Monthly
+2025-09-06T11:36:45.518Z - INFO - Clicked Monthly button (regular click)
+2025-09-06T11:36:48.522Z - INFO - Extracting data for Monthly
+2025-09-06T11:36:48.593Z - INFO - Extracted 286 users for Monthly
+2025-09-06T11:36:48.621Z - INFO - Browser cleaned up
+2025-09-06T11:36:48.621Z - INFO - Scrape finished, got 3 periods
+2025-09-06T11:50:44.339Z - INFO - Starting KOLScan scrape
+2025-09-06T11:50:44.341Z - INFO - Setting up Chromium browser with Playwright
+2025-09-06T11:50:44.799Z - INFO - Playwright browser initialized
+2025-09-06T11:51:08.460Z - INFO - Extracting data for Daily
+2025-09-06T11:51:08.619Z - INFO - Extracted 286 users for Daily
+2025-09-06T11:51:08.619Z - INFO - Attempting to click Weekly filter button
+2025-09-06T11:51:13.625Z - INFO - Trying selector: text=Weekly
+2025-09-06T11:51:14.835Z - INFO - Clicked Weekly button (regular click)
+2025-09-06T11:51:17.838Z - INFO - Extracting data for Weekly
+2025-09-06T11:51:17.919Z - INFO - Extracted 286 users for Weekly
+2025-09-06T11:51:17.919Z - INFO - Attempting to click Monthly filter button
+2025-09-06T11:51:22.921Z - INFO - Trying selector: text=Monthly
+2025-09-06T11:51:24.078Z - INFO - Clicked Monthly button (regular click)
+2025-09-06T11:51:27.081Z - INFO - Extracting data for Monthly
+2025-09-06T11:51:27.152Z - INFO - Extracted 286 users for Monthly
+2025-09-06T11:51:27.180Z - INFO - Browser cleaned up
+2025-09-06T11:51:27.180Z - INFO - Scrape finished, got 3 periods
+2025-09-06T12:38:59.405Z - INFO - Starting KOLScan scrape
+2025-09-06T12:38:59.406Z - INFO - Setting up Chromium browser with Playwright
+2025-09-06T12:38:59.932Z - INFO - Playwright browser initialized
+2025-09-06T12:39:10.729Z - INFO - Extracting data for Daily
+2025-09-06T12:39:10.817Z - INFO - Extracted 286 users for Daily
+2025-09-06T12:39:10.817Z - INFO - Attempting to click Weekly filter button
+2025-09-06T12:39:15.819Z - INFO - Trying selector: text=Weekly
+2025-09-06T12:39:16.998Z - INFO - Clicked Weekly button (regular click)
+2025-09-06T12:39:20.000Z - INFO - Extracting data for Weekly
+2025-09-06T12:39:20.096Z - INFO - Extracted 286 users for Weekly
+2025-09-06T12:39:20.096Z - INFO - Attempting to click Monthly filter button
+2025-09-06T12:39:25.102Z - INFO - Trying selector: text=Monthly
+2025-09-06T12:39:26.242Z - INFO - Clicked Monthly button (regular click)
+2025-09-06T12:39:29.248Z - INFO - Extracting data for Monthly
+2025-09-06T12:39:29.387Z - INFO - Extracted 286 users for Monthly
+2025-09-06T12:39:29.417Z - INFO - Browser cleaned up
+2025-09-06T12:39:29.417Z - INFO - Scrape finished, got 3 periods
+2025-09-06T13:01:34.993Z - INFO - Starting KOLScan scrape
+2025-09-06T13:01:34.994Z - INFO - Setting up Chromium browser with Playwright
+2025-09-06T13:01:35.656Z - INFO - Playwright browser initialized
+2025-09-06T13:01:35.687Z - INFO - Browser cleaned up
+2025-09-06T13:01:48.826Z - INFO - Starting KOLScan scrape
+2025-09-06T13:01:48.826Z - INFO - Setting up Chromium browser with Playwright
+2025-09-06T13:01:49.254Z - INFO - Playwright browser initialized
+2025-09-06T13:01:57.385Z - INFO - Extracting data for Daily
+2025-09-06T13:01:57.492Z - INFO - Extracted 286 users for Daily
+2025-09-06T13:01:57.492Z - INFO - Attempting to click Weekly filter button
+2025-09-06T13:02:02.496Z - INFO - Trying selector: text=Weekly
+2025-09-06T13:02:03.705Z - INFO - Clicked Weekly button (regular click)
+2025-09-06T13:02:06.706Z - INFO - Extracting data for Weekly
+2025-09-06T13:02:06.788Z - INFO - Extracted 286 users for Weekly
+2025-09-06T13:02:06.789Z - INFO - Attempting to click Monthly filter button
+2025-09-06T13:02:11.792Z - INFO - Trying selector: text=Monthly
+2025-09-06T13:02:12.936Z - INFO - Clicked Monthly button (regular click)
+2025-09-06T13:02:15.939Z - INFO - Extracting data for Monthly
+2025-09-06T13:02:16.023Z - INFO - Extracted 286 users for Monthly
+2025-09-06T13:02:16.054Z - INFO - Browser cleaned up
+2025-09-06T13:02:16.054Z - INFO - Scrape finished, got 3 periods
+2025-09-06T13:23:34.720Z - INFO - Starting KOLScan scrape
+2025-09-06T13:23:34.721Z - INFO - Setting up Chromium browser with Playwright
+2025-09-06T13:23:35.106Z - INFO - Playwright browser initialized
+2025-09-06T13:23:46.331Z - INFO - Extracting data for Daily
+2025-09-06T13:23:46.429Z - INFO - Extracted 286 users for Daily
+2025-09-06T13:23:46.429Z - INFO - Attempting to click Weekly filter button
+2025-09-06T13:23:51.431Z - INFO - Trying selector: text=Weekly
+2025-09-06T13:23:52.623Z - INFO - Clicked Weekly button (regular click)
+2025-09-06T13:23:55.625Z - INFO - Extracting data for Weekly
+2025-09-06T13:23:55.704Z - INFO - Extracted 286 users for Weekly
+2025-09-06T13:23:55.704Z - INFO - Attempting to click Monthly filter button
+2025-09-06T13:24:00.706Z - INFO - Trying selector: text=Monthly
+2025-09-06T13:24:01.844Z - INFO - Clicked Monthly button (regular click)
+2025-09-06T13:24:04.846Z - INFO - Extracting data for Monthly
+2025-09-06T13:24:04.908Z - INFO - Extracted 286 users for Monthly
+2025-09-06T13:24:04.943Z - INFO - Browser cleaned up
+2025-09-06T13:24:04.944Z - INFO - Scrape finished, got 3 periods

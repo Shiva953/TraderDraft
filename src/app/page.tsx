@@ -7,15 +7,75 @@ import Swap from "../components/swap";
 import { CreateToken } from "../components/CreateToken";
 import { useRouter } from "next/router";
 import {PrivyProvider, useLogin, usePrivy, useSolanaWallets, useLoginWithOAuth, useLogout} from '@privy-io/react-auth';
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import CompetitionBanner from "../components/CompetitionBanner";
 
+
+interface TraderData {
+  rank: number;
+  name: string;
+  address: string;
+  pnl: string;
+  winRate: string;
+  avatarUrl?: string;
+  xUrl?: string;
+}
+
+interface PeriodData {
+  traders: TraderData[];
+  totalTraders: number;
+  lastUpdated: string | null;
+  period: string;
+}
+
+interface ApiResponse {
+  ok: boolean;
+  message: string;
+  period: string;
+  timestamp: string;
+  topTradersForDay: TraderData[]; // For backward compatibility
+  data: {
+    daily: PeriodData;
+    weekly: PeriodData;
+    monthly: PeriodData;
+  };
+  selected: PeriodData;
+}
+
+// Function to convert API data to LeaderboardEntry format
+function convertApiDataToLeaderboardEntry(data: TraderData[]): LeaderboardEntry[] {
+  return data.map((trader) => {
+    
+    const traderUrl = trader.address 
+      ? `https://kolscan.io/account/${trader.address}` 
+      : undefined;
+    
+    const xUrl = trader.xUrl 
+      ? trader.xUrl.startsWith('http') 
+        ? trader.xUrl 
+        : `https://twitter.com/${trader.xUrl.replace('@', '')}`
+      : undefined;
+
+    return {
+      rank: trader.rank,
+      handle: trader.name || `Trader ${trader.rank}`,
+      avatarUrl: trader.avatarUrl || undefined,
+      xUrl,
+      traderUrl,
+      pnl: trader.pnl,
+      winRate: Number(trader.winRate).toFixed(2),
+      walletAddress: trader.address,
+    };
+  });
+}
+
 export default function Home() {
-  const leaderboardData: LeaderboardEntry[] = [
-    { rank: 1, handle: "gainzy", pnlSol: 37.22, sharePrice: 0.056, shareDeltaPct: 3.5, traderUrl: "/traders/gainzy", xUrl: "https://x.com/gainzy" },
-    { rank: 2, handle: "a31g", pnlSol: 23.10, sharePrice: 0.091, shareDeltaPct: 22.34, traderUrl: "/traders/a31g", xUrl: "https://x.com/a31g" },
-    { rank: 3, handle: "xr7q69", pnlSol: 10.46, sharePrice: 0.068, shareDeltaPct: 10.88, traderUrl: "/traders/xr7q69", xUrl: "https://x.com/xr7q69" },
-    { rank: 4, handle: "pdawg", pnlSol: 17.98, sharePrice: 0.089, shareDeltaPct: 32.4, traderUrl: "/traders/gainzy", xUrl: "https://x.com/gainzy" },
+
+  const fallbackLeaderboardData: LeaderboardEntry[] = [
+    { rank: 1, handle: "gainzy", pnl: "+37.22 SOL", winRate: "75%", traderUrl: "/traders/gainzy", xUrl: "https://x.com/gainzy" },
+    { rank: 2, handle: "a31g", pnl: "+23.10 SOL", winRate: "68%", traderUrl: "/traders/a31g", xUrl: "https://x.com/a31g" },
+    { rank: 3, handle: "xr7q69", pnl: "+10.46 SOL", winRate: "82%", traderUrl: "/traders/xr7q69", xUrl: "https://x.com/xr7q69" },
+    { rank: 4, handle: "pdawg", pnl: "+17.98 SOL", winRate: "71%", traderUrl: "/traders/gainzy", xUrl: "https://x.com/gainzy" },
   ];
 
   const trendingData: TrendingItem[] = [
@@ -24,26 +84,106 @@ export default function Home() {
     { name: "JADAWGS", price: 0.98, deltaPct: 2.7 },
   ];
 
+
   const [walletAddress, setWalletAddress] = useState('');
   const [isWalletLoading, setIsWalletLoading] = useState(true);
+
+  const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>(fallbackLeaderboardData);
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+  const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [currentPeriod, setCurrentPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+  const [allPeriodsData, setAllPeriodsData] = useState<ApiResponse['data'] | null>(null);
+
+
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [refreshInterval] = useState(60000); // 1 minute
 
   const { ready, authenticated, user } = usePrivy();
   const { login } = useLogin();
   const { wallets } = useSolanaWallets();
   const { logout } = useLogout();
 
-
   console.log("Current state:", { ready, authenticated, wallets: wallets.length, user });
-  
-  // const { initOAuth, loading } = useLoginWithOAuth({
-  //   onError: (err) => console.error('OAuth login failed:', err),
-  //   onComplete: ({ user, loginMethod }) => {
-  //     console.log(`Logged in via ${loginMethod}`, user);
-  //     setIsWalletLoading(true);
-  //   },
-  // });
 
-  // Enhanced wallet detection with retry logic
+
+  const fetchLeaderboardData = useCallback(async () => {
+    setLeaderboardLoading(true);
+    setLeaderboardError(null);
+    
+    try {
+      console.log("🔵 [PAGE] Fetching leaderboard data...");
+      
+      const response = await fetch('/api/getTopTraders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ period: currentPeriod, limit: 20 }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data: ApiResponse = await response.json();
+      console.log("✅ [PAGE] Received data:", data);
+      
+      if (data.ok && data.selected && data.selected.traders && data.selected.traders.length > 0) {
+        const convertedData = convertApiDataToLeaderboardEntry(data.selected.traders);
+        setLeaderboardData(convertedData);
+        setAllPeriodsData(data.data);
+        
+        // Set last updated from the selected period's data
+        if (data.selected.lastUpdated) {
+          setLastUpdated(new Date(data.selected.lastUpdated));
+        } else {
+          setLastUpdated(new Date());
+        }
+        
+        console.log("✅ [PAGE] Converted data:", convertedData);
+      } else {
+        console.warn("⚠️ [PAGE] No data received, using fallback");
+        // Keep existing data or use fallback
+        if (leaderboardData.length === 0) {
+          setLeaderboardData(fallbackLeaderboardData);
+        }
+      }
+    } catch (err) {
+      console.error('❌ [PAGE] Failed to fetch leaderboard data:', err);
+      setLeaderboardError(err instanceof Error ? err.message : 'Failed to fetch data');
+      
+      if (leaderboardData.length === 0) {
+        setLeaderboardData(fallbackLeaderboardData);
+      }
+    } finally {
+      setLeaderboardLoading(false);
+    }
+  }, [currentPeriod, leaderboardData.length]);
+
+
+  const handleRefresh = useCallback(() => {
+    fetchLeaderboardData();
+  }, [fetchLeaderboardData]);
+
+  // switch periods using cached data when available
+  const handlePeriodChange = useCallback((newPeriod: 'daily' | 'weekly' | 'monthly') => {
+    setCurrentPeriod(newPeriod);
+    
+    // If we have cached data for this period, use it immediately
+    if (allPeriodsData && allPeriodsData[newPeriod] && allPeriodsData[newPeriod].traders.length > 0) {
+      const convertedData = convertApiDataToLeaderboardEntry(allPeriodsData[newPeriod].traders);
+      setLeaderboardData(convertedData);
+      
+      if (allPeriodsData[newPeriod].lastUpdated) {
+        setLastUpdated(new Date(allPeriodsData[newPeriod].lastUpdated));
+      }
+      
+      console.log(`✅ [PAGE] Switched to ${newPeriod} using cached data`);
+    }
+  }, [allPeriodsData]);
+
+
   useEffect(() => {
     if (!ready || !authenticated) {
       setWalletAddress('');
@@ -54,7 +194,6 @@ export default function Home() {
     const findWallet = () => {
       console.log("Looking for wallets...", wallets);
       
-
       const embeddedWallet = wallets.find(
         (w) => w.walletClientType === 'privy'
       );
@@ -75,29 +214,32 @@ export default function Home() {
       return false;
     };
 
-    if (findWallet()) {
-      return;
+    findWallet();
+  }, [wallets, walletAddress, isWalletLoading]);
+
+
+  useEffect(() => {
+    if (authenticated && ready) {
+      console.log("🔵 [PAGE] User authenticated, fetching initial data");
+      fetchLeaderboardData();
     }
+  }, [authenticated, ready, fetchLeaderboardData]);
 
-    const maxRetries = 10;
-    let retryCount = 0;
 
-    // const pollForWallet = setInterval(() => {
-    //   retryCount++;
-    //   console.log(`Polling for wallet... attempt ${retryCount}`);
-      
-    //   if (findWallet() || retryCount >= maxRetries) {
-    //     clearInterval(pollForWallet);
-    //     if (retryCount >= maxRetries) {
-    //       console.log('Max retries reached, no wallet found');
-    //       setIsWalletLoading(false);
-    //     }
-    //   }
-    // }, 1000); // Poll every second
+  useEffect(() => {
+    if (!autoRefresh || !authenticated) return;
 
-    // return () => clearInterval(pollForWallet);
-  }, [wallets]);
+    console.log("🔵 [PAGE] Setting up auto-refresh interval");
+    const interval = setInterval(() => {
+      console.log("🔄 [PAGE] Auto-refreshing leaderboard data");
+      fetchLeaderboardData();
+    }, refreshInterval);
 
+    return () => {
+      console.log("🔵 [PAGE] Clearing auto-refresh interval");
+      clearInterval(interval);
+    };
+  }, [autoRefresh, authenticated, refreshInterval, fetchLeaderboardData]);
 
   if (!authenticated) {
     return (
@@ -114,35 +256,6 @@ export default function Home() {
               <span className="absolute inset-0 rounded-full bg-white/10 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
               <span>Login With Privy</span>
             </button>
-
-          {/* <div className="grid gap-3">
-            <button
-              disabled={loading}
-              onClick={() => initOAuth({ provider: 'google' })}
-              className="group relative flex items-center justify-center gap-3 rounded-xl border border-white/10 bg-gradient-to-br from-rose-500/10 to-transparent px-4 py-3 text-sm font-medium text-white transition-all duration-200 hover:border-white/20 hover:from-rose-500/20 focus:outline-none focus:ring-2 focus:ring-rose-400/40 active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-            >
-              <span className="absolute inset-0 rounded-xl bg-gradient-to-tr from-white/5 to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
-              <span>Continue with Google</span>
-            </button>
-
-            <button
-              disabled={loading}
-              onClick={() => initOAuth({ provider: 'github' })}
-              className="group relative flex items-center justify-center gap-3 rounded-xl border border-white/10 bg-gradient-to-br from-violet-500/10 to-transparent px-4 py-3 text-sm font-medium text-white transition-all duration-200 hover:border-white/20 hover:from-violet-500/20 focus:outline-none focus:ring-2 focus:ring-violet-400/40 active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-            >
-              <span className="absolute inset-0 rounded-xl bg-gradient-to-tr from-white/5 to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
-              <span>Continue with GitHub</span>
-            </button>
-
-            <button
-              disabled={loading}
-              onClick={() => initOAuth({ provider: 'twitter' })}
-              className="group relative flex items-center justify-center gap-3 rounded-xl border border-white/10 bg-gradient-to-br from-sky-500/10 to-transparent px-4 py-3 text-sm font-medium text-white transition-all duration-200 hover:border-white/20 hover:from-sky-500/20 focus:outline-none focus:ring-2 focus:ring-sky-400/40 active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-            >
-              <span className="absolute inset-0 rounded-xl bg-gradient-to-tr from-white/5 to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
-              <span>Continue with Twitter</span>
-            </button>
-          </div> */}
         </div>
       </main>
     );
@@ -158,6 +271,18 @@ export default function Home() {
       </div>
     );
   }
+
+  const getPeriodTitle = () => {
+    switch (currentPeriod) {
+      case 'weekly':
+        return 'Top Traders This Week';
+      case 'monthly':
+        return 'Top Traders This Month';
+      case 'daily':
+      default:
+        return 'Top Traders Today';
+    }
+  };
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-4">
@@ -191,15 +316,95 @@ export default function Home() {
       }} />
 
       <div id="home-leaderboard" className="rounded-2xl border border-neutral-800 p-4">
-        <Leaderboard title="Top Traders This Week" entries={leaderboardData} />
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            {/* Period selector */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-neutral-400">Period:</span>
+              <select
+                value={currentPeriod}
+                onChange={(e) => handlePeriodChange(e.target.value as 'daily' | 'weekly' | 'monthly')}
+                className="rounded bg-neutral-800 border border-neutral-600 text-white text-sm px-2 py-1 focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+              >
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </div>
+            
+            <label className="flex items-center gap-2 text-sm text-neutral-400">
+              <input
+                type="checkbox"
+                checked={autoRefresh}
+                onChange={(e) => setAutoRefresh(e.target.checked)}
+                className="rounded bg-neutral-800 border-neutral-600 text-rose-500 focus:ring-rose-500 focus:ring-2"
+              />
+              Auto-refresh (1min)
+            </label>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            {lastUpdated && (
+              <span className="text-xs text-neutral-500">
+                Updated: {lastUpdated.toLocaleTimeString()}
+              </span>
+            )}
+            <button
+              onClick={handleRefresh}
+              disabled={leaderboardLoading}
+              className="rounded bg-neutral-700 px-3 py-1 text-xs text-neutral-300 hover:bg-neutral-600 disabled:opacity-50 transition-all duration-200 flex items-center gap-1"
+            >
+              {leaderboardLoading ? (
+                <svg 
+                  className="animate-spin h-3 w-3" 
+                  fill="none" 
+                  viewBox="0 0 24 24"
+                >
+                  <circle 
+                    className="opacity-25" 
+                    cx="12" 
+                    cy="12" 
+                    r="10" 
+                    stroke="currentColor" 
+                    strokeWidth="4"
+                  />
+                  <path 
+                    className="opacity-75" 
+                    fill="currentColor" 
+                    d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
+                </svg>
+              ) : (
+                '↻'
+              )}
+              {leaderboardLoading ? 'Refreshing...' : 'Refresh'}
+            </button>
+          </div>
+        </div>
+
+        {leaderboardError && (
+          <div className="mb-4 rounded-lg bg-red-900/20 border border-red-800 p-3 text-sm text-red-400">
+            <strong>Error:</strong> {leaderboardError}
+            <button
+              onClick={handleRefresh}
+              className="ml-2 text-red-300 hover:text-red-200 underline"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        <Leaderboard 
+          title={getPeriodTitle()}
+          entries={leaderboardData}
+          loading={leaderboardLoading}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Trending items={trendingData} />
         <Swap />
       </div>
-
-      <CreateToken />
     </main>
   );
 }

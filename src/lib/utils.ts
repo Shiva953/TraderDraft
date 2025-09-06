@@ -250,8 +250,12 @@ export async function swapBuy(DBCPoolAddress: string, amountToBuy: number, amoun
     }
 }
 
+export async function getSwapQuote(tokenMint: string, poolAddress: string){
+
+}
+
 // after given price conditions are met, GP is created
 export async function createGraduationPool(gradSwapFee: number){
-
+    
 }
 
