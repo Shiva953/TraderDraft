@@ -1,4 +1,3 @@
-// app/api/updateTradersData/route.ts (Background Job)
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { KOLScanScraper } from '@/lib/scraper';
@@ -9,7 +8,6 @@ export async function POST(request: Request) {
   console.log("⚡ [UPDATE-API] Background update started");
 
   try {
-    // Optional: Add authentication to prevent unauthorized access
     const authHeader = request.headers.get('authorization');
     const expectedToken = process.env.CRON_SECRET || 'your-secret-token';
     
@@ -18,7 +16,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if we're already running an update to prevent overlapping jobs
     const isUpdating = await checkIfUpdating();
     if (isUpdating) {
       console.log("⚠️ [UPDATE-API] Update already in progress, skipping");
@@ -30,7 +27,6 @@ export async function POST(request: Request) {
       });
     }
 
-    // Mark as updating
     await setUpdatingFlag(true);
 
     console.log("⚡ [UPDATE-API] Starting background scrape...");
@@ -45,23 +41,29 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log("⚡ [UPDATE-API] Scraping completed, updating database...");
+    console.log(`⚡ [UPDATE-API] Scraping completed, got ${tradersData.length} periods of data`);
+    
+    tradersData.forEach((data, idx) => {
+      console.log(`Period ${idx}: ${data.period}, traders: ${data.traders?.length || 0}`);
+    });
 
-    // Update database with new data
     await prisma.$transaction(async (tx) => {
       for (let i = 0; i < tradersData.length; i++) {
         const periodData = tradersData[i];
-        if (!periodData || !periodData.traders) continue;
+        if (!periodData || !periodData.traders) {
+          console.log(`⚠️ [UPDATE-API] Skipping empty period data at index ${i}`);
+          continue;
+        }
 
-        const period = i === 0 ? 'DAILY' : i === 1 ? 'WEEKLY' : 'MONTHLY';
+        const period = periodData.period.toUpperCase();
         
-        // Deactivate previous metadata
+        console.log(`🔄 [UPDATE-API] Processing ${period} data (${periodData.traders.length} traders)`);
+        
         await tx.scrapingMetadata.updateMany({
           where: { period: period as any, isActive: true },
           data: { isActive: false }
         });
 
-        // Create new metadata
         await tx.scrapingMetadata.create({
           data: {
             period: period as any,
@@ -70,21 +72,21 @@ export async function POST(request: Request) {
           }
         });
 
-        // Delete old traders
-        await tx.trader.deleteMany({
+        const deletedCount = await tx.trader.deleteMany({
           where: { period: period as any }
         });
+        
+        console.log(`🗑️ [UPDATE-API] Deleted ${deletedCount.count} old ${period} traders`);
 
-        // Insert new traders
-        const tradersToInsert = periodData.traders.map((trader: any, index: number) => ({
+        const tradersToInsert = periodData.traders.map((trader, index: number) => ({
+          id: `${period.toLowerCase()}_${index + 1}`,
           rank: index + 1,
-          name: trader.name || `Trader ${index + 1}`,
-          address: trader.address,
-          pnl: trader.pnl || 0,
-          roi: trader.roi,
-          winRate: trader.winRate,
-          trades: trader.trades,
-          volume: trader.volume,
+          name: trader.walletName || `Trader ${index + 1}`,
+          address: trader.walletAddress,
+          pnl: trader.pnlSol || '',
+          winRate: (Number(trader.wins) * 100) / (Number(trader.wins) + Number(trader.losses)),
+          avatarUrl: trader.walletAvatar,
+          xUrl: trader.twitter,
           period: period as any,
         }));
 
@@ -95,9 +97,8 @@ export async function POST(request: Request) {
 
         console.log(`✅ [UPDATE-API] Updated ${tradersToInsert.length} ${period.toLowerCase()} traders`);
       }
-    });
+    }, {timeout: 70000});
 
-    // Clear updating flag
     await setUpdatingFlag(false);
 
     console.log("✅ [UPDATE-API] Background update completed successfully");
@@ -106,13 +107,17 @@ export async function POST(request: Request) {
       ok: true,
       message: 'Background update completed successfully',
       timestamp: new Date().toISOString(),
-      periods: ['daily', 'weekly', 'monthly'],
-      totalRecords: tradersData.reduce((sum, data) => sum + (data?.traders?.length || 0), 0)
+      periods: tradersData.map(data => data.period.toLowerCase()),
+      totalRecords: tradersData.reduce((sum, data) => sum + (data?.traders?.length || 0), 0),
+      periodBreakdown: tradersData.map(data => ({
+        period: data.period,
+        count: data.traders?.length || 0
+      }))
     });
 
   } catch (error) {
     console.error('❌ [UPDATE-API] Background update error:', error);
-    await setUpdatingFlag(false); // Clear flag on error
+    await setUpdatingFlag(false);
     
     return NextResponse.json(
       { 
@@ -128,37 +133,28 @@ export async function POST(request: Request) {
   }
 }
 
-// Helper function to check if an update is in progress
 async function checkIfUpdating(): Promise<boolean> {
   try {
-    // You could use Redis or a simple database flag
-    // For simplicity, we'll use a database approach
     const updateStatus = await prisma.scrapingMetadata.findFirst({
       where: {
-        // Use a special period to track updating status
         period: 'DAILY',
-        // Check if last update was less than 10 minutes ago (overlap protection)
         scrapedAt: {
-          gt: new Date(Date.now() - 10 * 60 * 1000) // 10 minutes
+          gt: new Date(Date.now() - 10 * 60 * 1000)
         }
       },
       orderBy: { scrapedAt: 'desc' }
     });
     
-    return false; // For now, allow overlaps but you can implement proper locking
+    return false;
   } catch {
     return false;
   }
 }
 
-// Helper function to set updating flag
 async function setUpdatingFlag(isUpdating: boolean): Promise<void> {
-  // Implement your locking mechanism here
-  // Could be Redis, database flag, or file system flag
   console.log(`⚡ [UPDATE-API] Setting update flag to: ${isUpdating}`);
 }
 
-// GET endpoint for manual trigger
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization');
   const expectedToken = process.env.CRON_SECRET || 'your-secret-token';

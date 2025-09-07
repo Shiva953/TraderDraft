@@ -1,10 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { KOLScanScraper } from '@/lib/scraper';
 
 const prisma = new PrismaClient();
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   console.log("🟡 [SCRAPE-API] POST /scrapeAndPushToDB called");
 
   try {
@@ -46,25 +46,25 @@ export async function POST(request: Request) {
           continue;
         }
 
-        const period = periodData.period.toUpperCase();
+        const period = periodData.period.toUpperCase() as 'DAILY' | 'WEEKLY' | 'MONTHLY';
         
         console.log(`🔄 [SCRAPE-API] Processing ${period} data (${periodData.traders.length} traders)`);
         
         await tx.scrapingMetadata.updateMany({
-          where: { period: period as any, isActive: true },
+          where: { period: period, isActive: true },
           data: { isActive: false }
         });
 
         await tx.scrapingMetadata.create({
           data: {
-            period: period as any,
+            period: period,
             totalTraders: periodData.totalTraders,
             isActive: true,
           }
         });
 
         const deletedCount = await tx.trader.deleteMany({
-          where: { period: period as any }
+          where: { period: period }
         });
         
         console.log(`🗑️ [SCRAPE-API] Deleted ${deletedCount.count} old ${period} traders`);
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
           winRate: (Number(trader.wins) * 100) / (Number(trader.wins) + Number(trader.losses)),
           avatarUrl: trader.walletAvatar,
           xUrl: trader.twitter,
-          period: period as any,
+          period: period,
         }));
 
         await tx.trader.createMany({
@@ -117,11 +117,11 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const force = searchParams.get('force') === 'true';
 
-  const mockRequest = new Request(request.url, {
+  const mockRequest = new NextRequest(request.url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ force })

@@ -9,6 +9,7 @@ import { useRouter } from "next/router";
 import {PrivyProvider, useLogin, usePrivy, useSolanaWallets, useLoginWithOAuth, useLogout} from '@privy-io/react-auth';
 import { useEffect, useState, useCallback } from "react";
 import CompetitionBanner from "../components/CompetitionBanner";
+import { useDevBackgroundJobs } from "../hooks/useDevBackgroundJobs";
 
 
 interface TraderData {
@@ -84,6 +85,7 @@ export default function Home() {
     { name: "JADAWGS", price: 0.98, deltaPct: 2.7 },
   ];
 
+  // RUN A BG JOB/API REQUEST to the /api/updateDBPeriodically endpoint which runs the scraping job again and updates the DB with new data
 
   const [walletAddress, setWalletAddress] = useState('');
   const [isWalletLoading, setIsWalletLoading] = useState(true);
@@ -94,6 +96,8 @@ export default function Home() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [currentPeriod, setCurrentPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const [allPeriodsData, setAllPeriodsData] = useState<ApiResponse['data'] | null>(null);
+
+  const { triggerManualUpdate, isTriggering } = useDevBackgroundJobs();
 
 
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -300,6 +304,15 @@ export default function Home() {
           <button onClick={logout} className="rounded-full border border-white/20 px-4 py-2 text-sm text-white hover:border-white/40 hover:bg-white/5 transition-all duration-200 cursor-pointer">
             Log Out
           </button>
+          {process.env.NODE_ENV === 'development' && (
+          <button 
+            onClick={triggerManualUpdate} 
+            disabled={isTriggering}
+            className="rounded-full border border-orange-500/20 px-4 py-2 text-sm text-orange-300 hover:border-orange-500/40 hover:bg-orange-500/5 transition-all duration-200 cursor-pointer disabled:opacity-50"
+          >
+            {isTriggering ? 'Updating...' : 'Trigger Update'}
+          </button>
+        )}
           <div className="h-9 w-9 overflow-hidden rounded-full ring-1 ring-white/20">
             <div className="h-full w-full bg-neutral-700" />
           </div>
