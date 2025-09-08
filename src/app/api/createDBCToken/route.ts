@@ -175,13 +175,11 @@ export async function POST(request: Request) {
       );
       console.log(`✅ Config and Pool Created Successfully! Signature: ${signature}`);
 
-
     await connection.confirmTransaction(signature, 'confirmed');
 
     console.log("\n💰 Preparing First Token Buy (0.1 SOL)...");
 
     // EXECUTE FIRST TOKEN BUYBACK WITH 0.1 SOL
-
     const poolAddress = await deriveDbcPoolAddress(quoteMint, baseMintKeypair.publicKey, configKeypair.publicKey);
     console.log(`🏊 Derived Pool Address: ${poolAddress.toString()}`);
 

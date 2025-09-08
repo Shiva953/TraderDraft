@@ -1,84 +1,97 @@
 // hooks/useDevBackgroundJobs.ts
-'use client';
+import { useEffect, useState, useCallback } from 'react';
 
-import { useState } from 'react';
-
-interface BackgroundJobStatus {
-  ok?: boolean;
-  status?: {
-    activeJobs: string[];
-    isRunning: boolean;
-    timestamp: string;
-  };
-  message: string;
-  error?: string;
+interface BackgroundJobsConfig {
+  enabled: boolean;
+  interval: number; // in milliseconds
+  autoStart: boolean;
 }
 
-export function useDevBackgroundJobs() {
+export function useDevBackgroundJobs(config: BackgroundJobsConfig = {
+  enabled: process.env.NODE_ENV === 'development',
+  interval: 5 * 60 * 1000, // 5 minutes in development
+  autoStart: false
+}) {
+  const [isRunning, setIsRunning] = useState(false);
   const [isTriggering, setIsTriggering] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const triggerManualUpdate = async (): Promise<BackgroundJobStatus | null> => {
-    if (process.env.NODE_ENV !== 'development') return null;
+  const triggerUpdate = useCallback(async () => {
+    if (!config.enabled || isTriggering) return;
 
     setIsTriggering(true);
-    
+    setError(null);
+
     try {
-      const response = await fetch('/api/cron-status', {
-        method: 'POST'
+      console.log("🔄 [DEV-JOBS] Triggering background update...");
+      
+      const response = await fetch('/api/updateDBPeriodically', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_CRON_SECRET || 'dev-secret'}`
+        },
+        body: JSON.stringify({})
       });
+
+      if (!response.ok) {
+        throw new Error(`Update failed: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log("✅ [DEV-JOBS] Background update completed:", result);
       
-      const result: BackgroundJobStatus = await response.json();
-      console.log('✅ [DEV] Manual update result:', result);
-      
-      return result;
-    } catch (error) {
-      console.error('❌ [DEV] Failed to trigger manual update:', error);
-      return { 
-        message: 'Failed to trigger update',
-        error: error instanceof Error ? error.message : 'Unknown error' 
-      };
+      setLastUpdate(new Date());
+    } catch (err) {
+      console.error('❌ [DEV-JOBS] Background update failed:', err);
+      setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setIsTriggering(false);
     }
-  };
+  }, [config.enabled, isTriggering]);
 
-  const getStatus = async (): Promise<BackgroundJobStatus | null> => {
-    if (process.env.NODE_ENV !== 'development') return null;
+  const startBackgroundJobs = useCallback(() => {
+    if (!config.enabled || isRunning) return;
 
-    try {
-      const response = await fetch('/api/cron-status');
-      return await response.json();
-    } catch (error) {
-      console.error('❌ [DEV] Failed to get background job status:', error);
-      return { 
-        message: 'Failed to get status',
-        error: error instanceof Error ? error.message : 'Unknown error' 
-      };
+    console.log(`🚀 [DEV-JOBS] Starting background jobs (interval: ${config.interval / 1000}s)`);
+    setIsRunning(true);
+
+    const interval = setInterval(triggerUpdate, config.interval);
+
+    return () => {
+      console.log("🛑 [DEV-JOBS] Stopping background jobs");
+      clearInterval(interval);
+      setIsRunning(false);
+    };
+  }, [config.enabled, config.interval, isRunning, triggerUpdate]);
+
+  const stopBackgroundJobs = useCallback(() => {
+    setIsRunning(false);
+  }, []);
+
+  // Manual trigger for testing
+  const triggerManualUpdate = useCallback(() => {
+    console.log("🔧 [DEV-JOBS] Manual update triggered");
+    triggerUpdate();
+  }, [triggerUpdate]);
+
+  // Auto-start if configured
+  useEffect(() => {
+    if (config.autoStart && config.enabled) {
+      const cleanup = startBackgroundJobs();
+      return cleanup;
     }
-  };
+  }, [config.autoStart, config.enabled, startBackgroundJobs]);
 
   return {
+    isRunning,
+    isTriggering,
+    lastUpdate,
+    error,
+    startBackgroundJobs,
+    stopBackgroundJobs,
     triggerManualUpdate,
-    getStatus,
-    isTriggering
+    triggerUpdate
   };
 }
-
-// To add to your existing app/page.tsx, add this import:
-// import { useDevBackgroundJobs } from "../hooks/useDevBackgroundJobs";
-
-// Then in your Home component, add:
-// const { triggerManualUpdate, isTriggering } = useDevBackgroundJobs();
-
-// And add this button next to your logout button in the header:
-/*
-{process.env.NODE_ENV === 'development' && (
-  <button 
-    onClick={triggerManualUpdate} 
-    disabled={isTriggering}
-    className="rounded-full border border-orange-500/20 px-4 py-2 text-sm text-orange-300 hover:border-orange-500/40 hover:bg-orange-500/5 transition-all duration-200 cursor-pointer disabled:opacity-50"
-  >
-    {isTriggering ? 'Updating...' : 'Trigger Update'}
-  </button>
-)}
-*/

@@ -111,32 +111,40 @@ export default function Home() {
   console.log("Current state:", { ready, authenticated, wallets: wallets.length, user });
 
 
-  const fetchLeaderboardData = useCallback(async () => {
+  const fetchLeaderboardData = useCallback(async (fetchAllPeriods = false) => {
     setLeaderboardLoading(true);
     setLeaderboardError(null);
     
     try {
-      console.log("🔵 [PAGE] Fetching leaderboard data...");
+      console.log(`🔵 [PAGE] Fetching ${fetchAllPeriods ? 'all periods' : currentPeriod} data...`);
       
       const response = await fetch('/api/getTopTraders', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ period: currentPeriod, limit: 20 }),
+        body: JSON.stringify({ 
+          period: currentPeriod, 
+          limit: 20,
+          fetchAll: fetchAllPeriods 
+        }),
       });
-
+  
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-
-      const data: ApiResponse = await response.json();
+  
+      const data = await response.json();
       console.log("✅ [PAGE] Received data:", data);
       
       if (data.ok && data.selected && data.selected.traders && data.selected.traders.length > 0) {
         const convertedData = convertApiDataToLeaderboardEntry(data.selected.traders);
         setLeaderboardData(convertedData);
-        setAllPeriodsData(data.data);
+        
+        // Only update all periods data if we fetched it
+        if (fetchAllPeriods && data.data) {
+          setAllPeriodsData(data.data);
+        }
         
         // Set last updated from the selected period's data
         if (data.selected.lastUpdated) {
@@ -148,7 +156,6 @@ export default function Home() {
         console.log("✅ [PAGE] Converted data:", convertedData);
       } else {
         console.warn("⚠️ [PAGE] No data received, using fallback");
-        // Keep existing data or use fallback
         if (leaderboardData.length === 0) {
           setLeaderboardData(fallbackLeaderboardData);
         }
@@ -166,26 +173,84 @@ export default function Home() {
   }, [currentPeriod, leaderboardData.length]);
 
 
-  const handleRefresh = useCallback(() => {
-    fetchLeaderboardData();
-  }, [fetchLeaderboardData]);
+  // Update refresh handler to be smarter about what to fetch
+    const handleRefresh = useCallback(() => {
+      // If we have cached data for other periods, refresh all
+      // Otherwise, just refresh the current period
+      const shouldFetchAll = allPeriodsData && Object.keys(allPeriodsData).length > 1;
+      fetchLeaderboardData(shouldFetchAll!);
+    }, [fetchLeaderboardData, allPeriodsData]);
 
   // switch periods using cached data when available
-  const handlePeriodChange = useCallback((newPeriod: 'daily' | 'weekly' | 'monthly') => {
-    setCurrentPeriod(newPeriod);
+  // Enhanced period change handler that fetches data if not cached
+const handlePeriodChange = useCallback(async (newPeriod: 'daily' | 'weekly' | 'monthly') => {
+  const oldPeriod = currentPeriod;
+  setCurrentPeriod(newPeriod);
+  
+  // If we have cached data for this period, use it immediately
+  if (allPeriodsData && allPeriodsData[newPeriod] && allPeriodsData[newPeriod].traders.length > 0) {
+    const convertedData = convertApiDataToLeaderboardEntry(allPeriodsData[newPeriod].traders);
+    setLeaderboardData(convertedData);
     
-    // If we have cached data for this period, use it immediately
-    if (allPeriodsData && allPeriodsData[newPeriod] && allPeriodsData[newPeriod].traders.length > 0) {
-      const convertedData = convertApiDataToLeaderboardEntry(allPeriodsData[newPeriod].traders);
-      setLeaderboardData(convertedData);
-      
-      if (allPeriodsData[newPeriod].lastUpdated) {
-        setLastUpdated(new Date(allPeriodsData[newPeriod].lastUpdated));
-      }
-      
-      console.log(`✅ [PAGE] Switched to ${newPeriod} using cached data`);
+    if (allPeriodsData[newPeriod].lastUpdated) {
+      setLastUpdated(new Date(allPeriodsData[newPeriod].lastUpdated));
     }
-  }, [allPeriodsData]);
+    
+    console.log(`✅ [PAGE] Switched to ${newPeriod} using cached data`);
+  } else {
+    // No cached data, fetch it
+    console.log(`🔄 [PAGE] No cached data for ${newPeriod}, fetching...`);
+    
+    try {
+      setLeaderboardLoading(true);
+      const response = await fetch('/api/getTopTraders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          period: newPeriod, 
+          limit: 20,
+          fetchAll: false // Only fetch the specific period
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.ok && data.selected && data.selected.traders) {
+          const convertedData = convertApiDataToLeaderboardEntry(data.selected.traders);
+          setLeaderboardData(convertedData);
+          
+          if (data.selected.lastUpdated) {
+            setLastUpdated(new Date(data.selected.lastUpdated));
+          }
+          
+          // Cache this data for future use
+          if (allPeriodsData) {
+            setAllPeriodsData({
+              ...allPeriodsData,
+              [newPeriod]: {
+                traders: data.selected.traders,
+                totalTraders: data.selected.totalTraders,
+                lastUpdated: data.selected.lastUpdated,
+                period: newPeriod
+              }
+            });
+          }
+        }
+      } else {
+        throw new Error(`Failed to fetch ${newPeriod} data`);
+      }
+    } catch (error) {
+      console.error(`❌ [PAGE] Failed to fetch ${newPeriod} data:`, error);
+      setLeaderboardError(`Failed to load ${newPeriod} data`);
+      // Revert to old period on error
+      setCurrentPeriod(oldPeriod);
+    } finally {
+      setLeaderboardLoading(false);
+    }
+  }
+}, [allPeriodsData, currentPeriod]);
 
 
   useEffect(() => {
@@ -222,12 +287,13 @@ export default function Home() {
   }, [wallets, walletAddress, isWalletLoading]);
 
 
+  // Update initial fetch to get all periods data
   useEffect(() => {
     if (authenticated && ready) {
-      console.log("🔵 [PAGE] User authenticated, fetching initial data");
-      fetchLeaderboardData();
+      console.log("🔵 [PAGE] User authenticated, fetching initial data (all periods)");
+      fetchLeaderboardData(true); // Fetch all periods on initial load
     }
-  }, [authenticated, ready, fetchLeaderboardData]);
+  }, [authenticated, ready]);
 
 
   useEffect(() => {
