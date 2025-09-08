@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Providers from "@/components/PrivyAuthProvider";
-import { CronInitializer } from "@/components/CronInitializer";
+// import { CronInitializer } from "@/components/CronInitializer";
 import {PrivyProvider} from '@privy-io/react-auth';
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -32,7 +32,7 @@ export default function RootLayout({
         className={`${geistSans.className}`}
       >
         <Providers appId={appId}>
-        <CronInitializer />
+        {/* <CronInitializer /> */}
         {children}
         </Providers>
       </body>
