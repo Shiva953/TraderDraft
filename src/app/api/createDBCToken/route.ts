@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server';
 import { DynamicBondingCurveClient, buildCurve, MigrationOption, TokenDecimal, BaseFeeMode, ActivationType, CollectFeeMode, MigrationFeeOption, TokenType, TokenUpdateAuthorityOption, DammV2DynamicFeeMode, deriveDbcPoolAddress, prepareSwapAmountParam, getCurrentPoint, SwapMode } from "@meteora-ag/dynamic-bonding-curve-sdk";
+import { CpAmm } from "@meteora-ag/cp-amm-sdk"
 import { Connection, Keypair, PublicKey, sendAndConfirmTransaction, Transaction } from "@solana/web3.js";
 import { NATIVE_MINT, createAssociatedTokenAccountInstruction, getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import BN from 'bn.js';
 
 const connection = new Connection("https://api.devnet.solana.com", "confirmed");
 const dbcClient = new DynamicBondingCurveClient(connection, "confirmed");
+
+const cpAmm = new CpAmm(connection)
 
 export async function POST(request: Request) {
   try {
