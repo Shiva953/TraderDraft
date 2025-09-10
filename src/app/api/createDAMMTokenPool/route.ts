@@ -1,21 +1,25 @@
 // using DAMM v2
 import { NextResponse } from 'next/server';
 import { CpAmm, FeeSchedulerMode, getBaseFeeParams, getDynamicFeeParams, getSqrtPriceFromPrice, PoolFeesParams } from "@meteora-ag/cp-amm-sdk"
-import { Connection, Keypair, PublicKey, sendAndConfirmTransaction, Transaction } from "@solana/web3.js";
-import { NATIVE_MINT, createMint, createAssociatedTokenAccountInstruction, getAssociatedTokenAddress, TOKEN_PROGRAM_ID, mintTo } from "@solana/spl-token";
+import { Connection, Keypair, PublicKey, sendAndConfirmTransaction, Transaction, clusterApiUrl } from "@solana/web3.js";
+import { NATIVE_MINT, createMint, getAccount, createAssociatedTokenAccountInstruction, getAssociatedTokenAddress, TOKEN_PROGRAM_ID, mintTo } from "@solana/spl-token";
 import { 
   createCreateMetadataAccountV3Instruction,
   PROGRAM_ID as TOKEN_METADATA_PROGRAM_ID,
   DataV2
 } from "@metaplex-foundation/mpl-token-metadata";
 import BN from 'bn.js';
+import { Pnlpackprogram, IDL } from "@/lib/idl";
+import { AnchorProvider, Program } from "@coral-xyz/anchor"
+import * as anchor from "@coral-xyz/anchor";
+import NodeWallet from '@coral-xyz/anchor/dist/cjs/nodewallet';
 
 const connection = new Connection("https://api.devnet.solana.com", "confirmed");
 console.log("🌐 Connected to Solana Devnet with commitment: confirmed");
 
 // JUST AFTER SALE RAISE ENDS
-// GET KOL DATA -> CREATE TOKEN (1B) -> INIT_TOKEN_VAULT()[FOR THE GLOBAL PACK POOL ACCOUNT] -> TRANSFER 940M TO PACK VAULT -> CREATE POOL WITH REMAINING 60M
-// REPEAT WITH 50 TXNS WITH EACH KOL PER TXN(NOT TO CALL THE API ENDPOINT 50 TIMES),
+// GET KOL DATA -> CREATE TOKEN (1B) -> INIT_TOKEN_VAULT()[FOR THE GLOBAL PACK POOL ACCOUNT] -> TRANSFER 940M TO PACK VAULT(transfer_to_pack_vault()) -> CREATE POOL WITH REMAINING 60M
+// EACH KOL -> A SINGLE TXN, SEND 50 TXNS IN BATCHES OF 5(USING JITO BUNDLES)
 
 const cpAmm = new CpAmm(connection)
 const tokenADecimal = 6;
@@ -47,6 +51,14 @@ export async function POST(request: Request) {
 
     const wallet = Keypair.fromSecretKey(Uint8Array.from(walletKeypairInBytes));
     console.log(`👛 Admin Wallet Public Key: ${wallet.publicKey.toString()}`);
+
+    // const wallet = { publicKey: userPubKey } as anchor.Wallet;
+    const anchorWallet = new NodeWallet(wallet);
+    const provider = new AnchorProvider(connection, anchorWallet, {commitment: "confirmed"});
+    anchor.setProvider(provider);
+
+    const programId = new PublicKey("Cn3xRT72q5c99rMZKseUF8TkTFrpWTFBqMoLs3pNu2ZX");
+    const program = new Program<Pnlpackprogram>(IDL as Pnlpackprogram, provider);
 
     const decimals = 6;
     const baseMintKeypair = Keypair.generate();
@@ -147,7 +159,87 @@ export async function POST(request: Request) {
     console.log(`✅ Minted ${totalSupply.toString()} tokens to Admin ATA. Signature: ${mintSignature}`);
 
     // TODO: Vault transfer step (not implemented)
-    // init_token_vault() + TRANSFER 940M TO PACK TREASURY VAULT(transfer_to_vault())
+    // init_token_vault() + TRANSFER 940M FROM ADMIN TO PACK TREASURY VAULT(transfer_to_vault())
+    // CLUB THE TOKEN VAULT CREATION + TRANSFER INTO A SINGLE IXN AND TXN(createTokenVaultAndReserveTokens)
+    // and then send [1B token mint txn + createTokenVaultAndReserveTokens() txn] in a SINGLE JITO BUNDLE to avoid having tokens inside admin
+
+    
+    const [globalPackPoolAccount] = anchor.web3.PublicKey.findProgramAddressSync(
+        [Buffer.from("global_pack_pool")], 
+        program.programId
+      );
+      
+      const [tokenVaultAccount] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("token_vault"),
+          Buffer.from(traderTokenTicker),
+          globalPackPoolAccount.toBuffer()
+        ],
+        program.programId
+      );
+      
+      console.log("Global pack pool:", globalPackPoolAccount.toString());
+      console.log("Token vault PDA:", tokenVaultAccount.toString());
+      console.log("Mint address:", baseMintKeypair.toString());
+      
+      const initTokenVaultTx = await program.methods.initTokenVault(traderTokenTicker)
+        .accountsPartial({
+          globalPackPool: globalPackPoolAccount,
+          admin: wallet.publicKey,
+          mint: baseMintKeypair.publicKey,
+          tokenVault: tokenVaultAccount,
+          systemProgram: anchor.web3.SystemProgram.programId,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
+          rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+        })
+        .signers([wallet])
+        .rpc({ commitment: "confirmed" });
+      
+      console.log("Token vault initialized successfully:", initTokenVaultTx);
+
+      // ONLY AFTER THIS, THE 94% TRANSFER(940M TOKENS HAPPEN FROM ADMIN -> TOKEN VAULT)
+      // TODO: USE JITO BUNDLES TO CLUB THEM(TOKEN MINT TO ADMIN + TOKEN VAULT CREATION + ADMIN->VAULT TRANSFER)
+      // OR MAKE THEM A SINGLE INSTRUCTION IN THE PROGRAM
+
+      const adminTokenAccountPDA = await getAssociatedTokenAddress(
+        baseMintKeypair.publicKey,
+        wallet.publicKey,
+        false,
+        TOKEN_PROGRAM_ID
+      );
+      
+      const adminBalanceBefore = await getAccount(connection, adminTokenAccountPDA);
+      const vaultBalanceBefore = await getAccount(connection, tokenVaultAccount);
+      
+      console.log("Admin balance before:", Number(adminBalanceBefore.amount) / Math.pow(10, 6));
+      console.log("Vault balance before:", Number(vaultBalanceBefore.amount) / Math.pow(10, 6));
+      
+      const transferAmount = new anchor.BN("940000000000000"); // 940M tokens with 6 decimals
+      const reservingTokensToVaultTx = await program.methods.transferKolTokensToVault(traderTokenTicker, transferAmount)
+        .accountsPartial({
+          globalPackPool: globalPackPoolAccount,
+          admin: wallet.publicKey,
+          mint: baseMintKeypair.publicKey,
+          adminTokenAccount: adminTokenAccountPDA,
+          tokenVault: tokenVaultAccount,
+          systemProgram: anchor.web3.SystemProgram.programId,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
+          rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+        })
+        .signers([wallet])
+        .rpc({ commitment: "confirmed" });
+      
+      console.log("Transfer completed successfully:", reservingTokensToVaultTx);
+      
+      const adminBalanceAfter = await getAccount(connection, adminTokenAccountPDA);
+      const vaultBalanceAfter = await getAccount(connection, tokenVaultAccount);
+      
+      console.log("Admin balance after:", Number(adminBalanceAfter.amount) / Math.pow(10, 6));
+      console.log("Vault balance after:", Number(vaultBalanceAfter.amount) / Math.pow(10, 6));
+
+
 
     // POOL CREATION IN THE END
     console.log("📡 Fetching all cpAmm configs...");
@@ -167,7 +259,6 @@ export async function POST(request: Request) {
     const tokenAMint = baseMintKeypair.publicKey; 
     const tokenBMint = NATIVE_MINT; 
     const solAmount = new BN(1_000_000_000); 
-    const initPrice = 0.001; // initial price, 1 token = 0.001 SOL
 
     console.log("📐 Calculating Price Ranges...");
     // const initSqrtPrice = getSqrtPriceFromPrice(initPrice.toString(), tokenADecimal, tokenBDecimal);
