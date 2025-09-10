@@ -170,22 +170,23 @@ export async function POST(request: Request) {
     const initPrice = 0.001; // initial price, 1 token = 0.001 SOL
 
     console.log("📐 Calculating Price Ranges...");
-    const initSqrtPrice = getSqrtPriceFromPrice(initPrice.toString(), tokenADecimal, tokenBDecimal);
+    // const initSqrtPrice = getSqrtPriceFromPrice(initPrice.toString(), tokenADecimal, tokenBDecimal);
     const sqrtMinPrice = getSqrtPriceFromPrice("0.0001", tokenADecimal, tokenBDecimal);
     const sqrtMaxPrice = getSqrtPriceFromPrice("0.01", tokenADecimal, tokenBDecimal);
-    console.log(`📐 Prices -> Init: ${initSqrtPrice.toString()}, Min: ${sqrtMinPrice.toString()}, Max: ${sqrtMaxPrice.toString()}`);
+    console.log(`📐 Min: ${sqrtMinPrice.toString()}, Max: ${sqrtMaxPrice.toString()}`);
 
     console.log("💧 Calculating Liquidity Delta...");
-    const liquidityDelta = cpAmm.getLiquidityDelta({
-      maxAmountTokenA: poolAmount,
-      maxAmountTokenB: solAmount,
-      sqrtMaxPrice,
-      sqrtMinPrice,
-      sqrtPrice: initSqrtPrice,
-    });
+
+    const { initSqrtPrice, liquidityDelta } = cpAmm.preparePoolCreationParams({
+        tokenAAmount: poolAmount, // 60M tokens
+        tokenBAmount: solAmount,  // 1 SOL
+        minSqrtPrice: sqrtMinPrice,
+        maxSqrtPrice: sqrtMaxPrice
+      });
+
     console.log("✅ Liquidity Delta Calculated");
 
-    // Configure fees
+
     console.log("💰 Configuring Pool Fees...");
     const baseFeeParams = getBaseFeeParams(500, 500, FeeSchedulerMode.Linear, 0, 0); // 5% base swap fee
     const dynamicFeeParams = getDynamicFeeParams(100); // 1% max dynamic fee
@@ -196,11 +197,9 @@ export async function POST(request: Request) {
     };
     console.log("✅ Pool Fees Configured:", poolFees);
 
-    // Generate position NFT mint
     const positionNftMint = Keypair.generate();
     console.log(`🎲 Generated Position NFT Mint: ${positionNftMint.publicKey.toString()}`);
 
-    // Create custom pool with dynamic config
     console.log("🚀 Creating Custom Pool with Dynamic Config...");
     const { tx, pool, position } = await cpAmm.createCustomPool({
       payer: wallet.publicKey,
@@ -208,7 +207,7 @@ export async function POST(request: Request) {
       positionNft: positionNftMint.publicKey,
       tokenAMint,
       tokenBMint,
-      tokenAAmount: new BN(60_000_000), //60M
+      tokenAAmount: poolAmount, 
       tokenBAmount: solAmount,
       sqrtMinPrice,
       sqrtMaxPrice,
@@ -224,11 +223,10 @@ export async function POST(request: Request) {
     });
     console.log("✅ Pool Transaction Prepared: ", tx);
 
-    // Sign and send the pool creation transaction
+
     console.log("✍️ Signing & Sending Pool Creation Transaction...");
     let blockhash = (await connection.getLatestBlockhash('confirmed')).blockhash;
     tx.recentBlockhash = blockhash;
-    // tx.feePayer = wallet.publicKey;
     tx.sign(wallet, positionNftMint); // Include position NFT keypair in signers
     const poolCreationSignature = await sendAndConfirmTransaction(
         connection,
