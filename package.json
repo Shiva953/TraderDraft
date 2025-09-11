@@ -24,6 +24,7 @@
     "bn.js": "^5.2.2",
     "cheerio": "^1.1.2",
     "fs": "^0.0.1-security",
+    "jito-ts": "^4.2.1",
     "next": "15.5.2",
     "node-cron": "^4.2.1",
     "playwright": "^1.55.0",
