@@ -14,6 +14,540 @@ export type Pnlpackprogram = {
     },
     "instructions": [
       {
+        "name": "claimFromPack",
+        "discriminator": [
+          76,
+          120,
+          104,
+          71,
+          176,
+          199,
+          211,
+          164
+        ],
+        "accounts": [
+          {
+            "name": "pack",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "const",
+                  "value": [
+                    112,
+                    97,
+                    99,
+                    107
+                  ]
+                },
+                {
+                  "kind": "arg",
+                  "path": "packId"
+                }
+              ]
+            }
+          },
+          {
+            "name": "user",
+            "writable": true,
+            "signer": true
+          },
+          {
+            "name": "mintKolA",
+            "writable": true
+          },
+          {
+            "name": "packKolATa",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "account",
+                  "path": "pack"
+                },
+                {
+                  "kind": "account",
+                  "path": "tokenProgram"
+                },
+                {
+                  "kind": "account",
+                  "path": "mintKolA"
+                }
+              ],
+              "program": {
+                "kind": "const",
+                "value": [
+                  140,
+                  151,
+                  37,
+                  143,
+                  78,
+                  36,
+                  137,
+                  241,
+                  187,
+                  61,
+                  16,
+                  41,
+                  20,
+                  142,
+                  13,
+                  131,
+                  11,
+                  90,
+                  19,
+                  153,
+                  218,
+                  255,
+                  16,
+                  132,
+                  4,
+                  142,
+                  123,
+                  216,
+                  219,
+                  233,
+                  248,
+                  89
+                ]
+              }
+            }
+          },
+          {
+            "name": "userKolATa",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "account",
+                  "path": "user"
+                },
+                {
+                  "kind": "account",
+                  "path": "tokenProgram"
+                },
+                {
+                  "kind": "account",
+                  "path": "mintKolA"
+                }
+              ],
+              "program": {
+                "kind": "const",
+                "value": [
+                  140,
+                  151,
+                  37,
+                  143,
+                  78,
+                  36,
+                  137,
+                  241,
+                  187,
+                  61,
+                  16,
+                  41,
+                  20,
+                  142,
+                  13,
+                  131,
+                  11,
+                  90,
+                  19,
+                  153,
+                  218,
+                  255,
+                  16,
+                  132,
+                  4,
+                  142,
+                  123,
+                  216,
+                  219,
+                  233,
+                  248,
+                  89
+                ]
+              }
+            }
+          },
+          {
+            "name": "mintKolB",
+            "writable": true
+          },
+          {
+            "name": "packKolBTa",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "account",
+                  "path": "pack"
+                },
+                {
+                  "kind": "account",
+                  "path": "tokenProgram"
+                },
+                {
+                  "kind": "account",
+                  "path": "mintKolB"
+                }
+              ],
+              "program": {
+                "kind": "const",
+                "value": [
+                  140,
+                  151,
+                  37,
+                  143,
+                  78,
+                  36,
+                  137,
+                  241,
+                  187,
+                  61,
+                  16,
+                  41,
+                  20,
+                  142,
+                  13,
+                  131,
+                  11,
+                  90,
+                  19,
+                  153,
+                  218,
+                  255,
+                  16,
+                  132,
+                  4,
+                  142,
+                  123,
+                  216,
+                  219,
+                  233,
+                  248,
+                  89
+                ]
+              }
+            }
+          },
+          {
+            "name": "userKolBTa",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "account",
+                  "path": "user"
+                },
+                {
+                  "kind": "account",
+                  "path": "tokenProgram"
+                },
+                {
+                  "kind": "account",
+                  "path": "mintKolB"
+                }
+              ],
+              "program": {
+                "kind": "const",
+                "value": [
+                  140,
+                  151,
+                  37,
+                  143,
+                  78,
+                  36,
+                  137,
+                  241,
+                  187,
+                  61,
+                  16,
+                  41,
+                  20,
+                  142,
+                  13,
+                  131,
+                  11,
+                  90,
+                  19,
+                  153,
+                  218,
+                  255,
+                  16,
+                  132,
+                  4,
+                  142,
+                  123,
+                  216,
+                  219,
+                  233,
+                  248,
+                  89
+                ]
+              }
+            }
+          },
+          {
+            "name": "mintKolC",
+            "writable": true
+          },
+          {
+            "name": "packKolCTa",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "account",
+                  "path": "pack"
+                },
+                {
+                  "kind": "account",
+                  "path": "tokenProgram"
+                },
+                {
+                  "kind": "account",
+                  "path": "mintKolC"
+                }
+              ],
+              "program": {
+                "kind": "const",
+                "value": [
+                  140,
+                  151,
+                  37,
+                  143,
+                  78,
+                  36,
+                  137,
+                  241,
+                  187,
+                  61,
+                  16,
+                  41,
+                  20,
+                  142,
+                  13,
+                  131,
+                  11,
+                  90,
+                  19,
+                  153,
+                  218,
+                  255,
+                  16,
+                  132,
+                  4,
+                  142,
+                  123,
+                  216,
+                  219,
+                  233,
+                  248,
+                  89
+                ]
+              }
+            }
+          },
+          {
+            "name": "userKolCTa",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "account",
+                  "path": "user"
+                },
+                {
+                  "kind": "account",
+                  "path": "tokenProgram"
+                },
+                {
+                  "kind": "account",
+                  "path": "mintKolC"
+                }
+              ],
+              "program": {
+                "kind": "const",
+                "value": [
+                  140,
+                  151,
+                  37,
+                  143,
+                  78,
+                  36,
+                  137,
+                  241,
+                  187,
+                  61,
+                  16,
+                  41,
+                  20,
+                  142,
+                  13,
+                  131,
+                  11,
+                  90,
+                  19,
+                  153,
+                  218,
+                  255,
+                  16,
+                  132,
+                  4,
+                  142,
+                  123,
+                  216,
+                  219,
+                  233,
+                  248,
+                  89
+                ]
+              }
+            }
+          },
+          {
+            "name": "mintKolD",
+            "writable": true
+          },
+          {
+            "name": "packKolDTa",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "account",
+                  "path": "pack"
+                },
+                {
+                  "kind": "account",
+                  "path": "tokenProgram"
+                },
+                {
+                  "kind": "account",
+                  "path": "mintKolD"
+                }
+              ],
+              "program": {
+                "kind": "const",
+                "value": [
+                  140,
+                  151,
+                  37,
+                  143,
+                  78,
+                  36,
+                  137,
+                  241,
+                  187,
+                  61,
+                  16,
+                  41,
+                  20,
+                  142,
+                  13,
+                  131,
+                  11,
+                  90,
+                  19,
+                  153,
+                  218,
+                  255,
+                  16,
+                  132,
+                  4,
+                  142,
+                  123,
+                  216,
+                  219,
+                  233,
+                  248,
+                  89
+                ]
+              }
+            }
+          },
+          {
+            "name": "userKolDTa",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "account",
+                  "path": "user"
+                },
+                {
+                  "kind": "account",
+                  "path": "tokenProgram"
+                },
+                {
+                  "kind": "account",
+                  "path": "mintKolD"
+                }
+              ],
+              "program": {
+                "kind": "const",
+                "value": [
+                  140,
+                  151,
+                  37,
+                  143,
+                  78,
+                  36,
+                  137,
+                  241,
+                  187,
+                  61,
+                  16,
+                  41,
+                  20,
+                  142,
+                  13,
+                  131,
+                  11,
+                  90,
+                  19,
+                  153,
+                  218,
+                  255,
+                  16,
+                  132,
+                  4,
+                  142,
+                  123,
+                  216,
+                  219,
+                  233,
+                  248,
+                  89
+                ]
+              }
+            }
+          },
+          {
+            "name": "systemProgram",
+            "address": "11111111111111111111111111111111"
+          },
+          {
+            "name": "tokenProgram"
+          },
+          {
+            "name": "associatedTokenProgram",
+            "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+          }
+        ],
+        "args": [
+          {
+            "name": "packId",
+            "type": "string"
+          },
+          {
+            "name": "amountPerKol",
+            "type": "u64"
+          }
+        ]
+      },
+      {
         "name": "initGlobalPackPool",
         "discriminator": [
           111,
@@ -70,292 +604,6 @@ export type Pnlpackprogram = {
           {
             "name": "totalKols",
             "type": "u8"
-          }
-        ]
-      },
-      {
-        "name": "initKolTokenVaultAndTransfer",
-        "discriminator": [
-          124,
-          152,
-          218,
-          182,
-          98,
-          151,
-          20,
-          35
-        ],
-        "accounts": [
-          {
-            "name": "globalPackPool",
-            "writable": true,
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    103,
-                    108,
-                    111,
-                    98,
-                    97,
-                    108,
-                    95,
-                    112,
-                    97,
-                    99,
-                    107,
-                    95,
-                    112,
-                    111,
-                    111,
-                    108
-                  ]
-                }
-              ]
-            }
-          },
-          {
-            "name": "admin",
-            "writable": true,
-            "signer": true,
-            "address": "7E85TTXg5FjT5G6q14nZUSE3KAgjM2kjBs8ddAW6eBeR"
-          },
-          {
-            "name": "mint",
-            "docs": [
-              "The token mint for the vault"
-            ]
-          },
-          {
-            "name": "adminTokenAccount",
-            "docs": [
-              "Admin's token account (source of tokens)"
-            ],
-            "writable": true,
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "account",
-                  "path": "admin"
-                },
-                {
-                  "kind": "account",
-                  "path": "tokenProgram"
-                },
-                {
-                  "kind": "account",
-                  "path": "mint"
-                }
-              ],
-              "program": {
-                "kind": "const",
-                "value": [
-                  140,
-                  151,
-                  37,
-                  143,
-                  78,
-                  36,
-                  137,
-                  241,
-                  187,
-                  61,
-                  16,
-                  41,
-                  20,
-                  142,
-                  13,
-                  131,
-                  11,
-                  90,
-                  19,
-                  153,
-                  218,
-                  255,
-                  16,
-                  132,
-                  4,
-                  142,
-                  123,
-                  216,
-                  219,
-                  233,
-                  248,
-                  89
-                ]
-              }
-            }
-          },
-          {
-            "name": "tokenVault",
-            "docs": [
-              "The token vault (destination for tokens)",
-              "Owned by the global pack pool - will be initialized in this instruction"
-            ],
-            "writable": true,
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    116,
-                    111,
-                    107,
-                    101,
-                    110,
-                    95,
-                    118,
-                    97,
-                    117,
-                    108,
-                    116
-                  ]
-                },
-                {
-                  "kind": "arg",
-                  "path": "kolTicker"
-                },
-                {
-                  "kind": "account",
-                  "path": "globalPackPool"
-                }
-              ]
-            }
-          },
-          {
-            "name": "systemProgram",
-            "address": "11111111111111111111111111111111"
-          },
-          {
-            "name": "tokenProgram"
-          },
-          {
-            "name": "associatedTokenProgram",
-            "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
-          },
-          {
-            "name": "rent",
-            "address": "SysvarRent111111111111111111111111111111111"
-          }
-        ],
-        "args": [
-          {
-            "name": "kolTicker",
-            "type": "string"
-          },
-          {
-            "name": "amount",
-            "type": "u64"
-          }
-        ]
-      },
-      {
-        "name": "initTokenVault",
-        "discriminator": [
-          203,
-          26,
-          194,
-          169,
-          252,
-          226,
-          179,
-          180
-        ],
-        "accounts": [
-          {
-            "name": "globalPackPool",
-            "writable": true,
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    103,
-                    108,
-                    111,
-                    98,
-                    97,
-                    108,
-                    95,
-                    112,
-                    97,
-                    99,
-                    107,
-                    95,
-                    112,
-                    111,
-                    111,
-                    108
-                  ]
-                }
-              ]
-            }
-          },
-          {
-            "name": "admin",
-            "writable": true,
-            "signer": true,
-            "address": "7E85TTXg5FjT5G6q14nZUSE3KAgjM2kjBs8ddAW6eBeR"
-          },
-          {
-            "name": "mint",
-            "docs": [
-              "The token mint for the vault"
-            ]
-          },
-          {
-            "name": "tokenVault",
-            "writable": true,
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    116,
-                    111,
-                    107,
-                    101,
-                    110,
-                    95,
-                    118,
-                    97,
-                    117,
-                    108,
-                    116
-                  ]
-                },
-                {
-                  "kind": "arg",
-                  "path": "kolTicker"
-                },
-                {
-                  "kind": "account",
-                  "path": "globalPackPool"
-                }
-              ]
-            }
-          },
-          {
-            "name": "systemProgram",
-            "address": "11111111111111111111111111111111"
-          },
-          {
-            "name": "tokenProgram"
-          },
-          {
-            "name": "associatedTokenProgram",
-            "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
-          },
-          {
-            "name": "rent",
-            "address": "SysvarRent111111111111111111111111111111111"
-          }
-        ],
-        "args": [
-          {
-            "name": "kolTicker",
-            "type": "string"
           }
         ]
       },
@@ -424,16 +672,10 @@ export type Pnlpackprogram = {
           },
           {
             "name": "mint",
-            "docs": [
-              "The token mint for the vault (must already be created)"
-            ],
             "writable": true
           },
           {
             "name": "adminTokenAccount",
-            "docs": [
-              "Admin's token account (destination for initial mint, source for transfer)"
-            ],
             "writable": true,
             "pda": {
               "seeds": [
@@ -557,16 +799,16 @@ export type Pnlpackprogram = {
         ]
       },
       {
-        "name": "transferKolTokensToVault",
+        "name": "packReveal",
         "discriminator": [
+          248,
+          180,
+          65,
+          134,
+          121,
+          14,
           74,
-          120,
-          27,
-          232,
-          251,
-          160,
-          161,
-          101
+          157
         ],
         "accounts": [
           {
@@ -605,22 +847,38 @@ export type Pnlpackprogram = {
             "address": "7E85TTXg5FjT5G6q14nZUSE3KAgjM2kjBs8ddAW6eBeR"
           },
           {
-            "name": "mint",
-            "docs": [
-              "The token mint for the vault"
-            ]
+            "name": "packAccount",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "const",
+                  "value": [
+                    112,
+                    97,
+                    99,
+                    107
+                  ]
+                },
+                {
+                  "kind": "arg",
+                  "path": "packId"
+                }
+              ]
+            }
           },
           {
-            "name": "adminTokenAccount",
-            "docs": [
-              "Admin's token account (source of tokens)"
-            ],
+            "name": "mintKolA",
+            "writable": true
+          },
+          {
+            "name": "packKolATa",
             "writable": true,
             "pda": {
               "seeds": [
                 {
                   "kind": "account",
-                  "path": "admin"
+                  "path": "packAccount"
                 },
                 {
                   "kind": "account",
@@ -628,7 +886,7 @@ export type Pnlpackprogram = {
                 },
                 {
                   "kind": "account",
-                  "path": "mint"
+                  "path": "mintKolA"
                 }
               ],
               "program": {
@@ -671,11 +929,287 @@ export type Pnlpackprogram = {
             }
           },
           {
-            "name": "tokenVault",
-            "docs": [
-              "The token vault (destination for tokens)",
-              "Owned by the global pack pool"
-            ],
+            "name": "mintKolB",
+            "writable": true
+          },
+          {
+            "name": "packKolBTa",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "account",
+                  "path": "packAccount"
+                },
+                {
+                  "kind": "account",
+                  "path": "tokenProgram"
+                },
+                {
+                  "kind": "account",
+                  "path": "mintKolB"
+                }
+              ],
+              "program": {
+                "kind": "const",
+                "value": [
+                  140,
+                  151,
+                  37,
+                  143,
+                  78,
+                  36,
+                  137,
+                  241,
+                  187,
+                  61,
+                  16,
+                  41,
+                  20,
+                  142,
+                  13,
+                  131,
+                  11,
+                  90,
+                  19,
+                  153,
+                  218,
+                  255,
+                  16,
+                  132,
+                  4,
+                  142,
+                  123,
+                  216,
+                  219,
+                  233,
+                  248,
+                  89
+                ]
+              }
+            }
+          },
+          {
+            "name": "mintKolC",
+            "writable": true
+          },
+          {
+            "name": "packKolCTa",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "account",
+                  "path": "packAccount"
+                },
+                {
+                  "kind": "account",
+                  "path": "tokenProgram"
+                },
+                {
+                  "kind": "account",
+                  "path": "mintKolC"
+                }
+              ],
+              "program": {
+                "kind": "const",
+                "value": [
+                  140,
+                  151,
+                  37,
+                  143,
+                  78,
+                  36,
+                  137,
+                  241,
+                  187,
+                  61,
+                  16,
+                  41,
+                  20,
+                  142,
+                  13,
+                  131,
+                  11,
+                  90,
+                  19,
+                  153,
+                  218,
+                  255,
+                  16,
+                  132,
+                  4,
+                  142,
+                  123,
+                  216,
+                  219,
+                  233,
+                  248,
+                  89
+                ]
+              }
+            }
+          },
+          {
+            "name": "mintKolD",
+            "writable": true
+          },
+          {
+            "name": "packKolDTa",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "account",
+                  "path": "packAccount"
+                },
+                {
+                  "kind": "account",
+                  "path": "tokenProgram"
+                },
+                {
+                  "kind": "account",
+                  "path": "mintKolD"
+                }
+              ],
+              "program": {
+                "kind": "const",
+                "value": [
+                  140,
+                  151,
+                  37,
+                  143,
+                  78,
+                  36,
+                  137,
+                  241,
+                  187,
+                  61,
+                  16,
+                  41,
+                  20,
+                  142,
+                  13,
+                  131,
+                  11,
+                  90,
+                  19,
+                  153,
+                  218,
+                  255,
+                  16,
+                  132,
+                  4,
+                  142,
+                  123,
+                  216,
+                  219,
+                  233,
+                  248,
+                  89
+                ]
+              }
+            }
+          },
+          {
+            "name": "systemProgram",
+            "address": "11111111111111111111111111111111"
+          },
+          {
+            "name": "tokenProgram"
+          },
+          {
+            "name": "associatedTokenProgram",
+            "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+          }
+        ],
+        "args": [
+          {
+            "name": "packId",
+            "type": "string"
+          },
+          {
+            "name": "kols",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "kolInfoInput"
+                }
+              }
+            }
+          }
+        ]
+      },
+      {
+        "name": "transferToIndividualPack",
+        "discriminator": [
+          213,
+          22,
+          167,
+          141,
+          61,
+          207,
+          176,
+          128
+        ],
+        "accounts": [
+          {
+            "name": "globalPackPool",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "const",
+                  "value": [
+                    103,
+                    108,
+                    111,
+                    98,
+                    97,
+                    108,
+                    95,
+                    112,
+                    97,
+                    99,
+                    107,
+                    95,
+                    112,
+                    111,
+                    111,
+                    108
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "packAccount",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "const",
+                  "value": [
+                    112,
+                    97,
+                    99,
+                    107
+                  ]
+                },
+                {
+                  "kind": "account",
+                  "path": "pack_account.pack_id",
+                  "account": "pack"
+                }
+              ]
+            }
+          },
+          {
+            "name": "kolMint",
+            "writable": true
+          },
+          {
+            "name": "kolTokenVault",
             "writable": true,
             "pda": {
               "seeds": [
@@ -697,7 +1231,7 @@ export type Pnlpackprogram = {
                 },
                 {
                   "kind": "arg",
-                  "path": "kolTicker"
+                  "path": "kol"
                 },
                 {
                   "kind": "account",
@@ -707,8 +1241,61 @@ export type Pnlpackprogram = {
             }
           },
           {
-            "name": "systemProgram",
-            "address": "11111111111111111111111111111111"
+            "name": "packKolTa",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "account",
+                  "path": "packAccount"
+                },
+                {
+                  "kind": "account",
+                  "path": "tokenProgram"
+                },
+                {
+                  "kind": "account",
+                  "path": "kolMint"
+                }
+              ],
+              "program": {
+                "kind": "const",
+                "value": [
+                  140,
+                  151,
+                  37,
+                  143,
+                  78,
+                  36,
+                  137,
+                  241,
+                  187,
+                  61,
+                  16,
+                  41,
+                  20,
+                  142,
+                  13,
+                  131,
+                  11,
+                  90,
+                  19,
+                  153,
+                  218,
+                  255,
+                  16,
+                  132,
+                  4,
+                  142,
+                  123,
+                  216,
+                  219,
+                  233,
+                  248,
+                  89
+                ]
+              }
+            }
           },
           {
             "name": "tokenProgram"
@@ -716,15 +1303,11 @@ export type Pnlpackprogram = {
           {
             "name": "associatedTokenProgram",
             "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
-          },
-          {
-            "name": "rent",
-            "address": "SysvarRent111111111111111111111111111111111"
           }
         ],
         "args": [
           {
-            "name": "kolTicker",
+            "name": "kol",
             "type": "string"
           },
           {
@@ -806,6 +1389,101 @@ export type Pnlpackprogram = {
           151,
           253
         ]
+      },
+      {
+        "name": "pack",
+        "discriminator": [
+          244,
+          192,
+          97,
+          212,
+          134,
+          91,
+          198,
+          200
+        ]
+      }
+    ],
+    "errors": [
+      {
+        "code": 6000,
+        "name": "invalidSeedLength",
+        "msg": "Seed longer than 32 bytes"
+      },
+      {
+        "code": 6001,
+        "name": "invalidTotalKols",
+        "msg": "Invalid total KOLs count"
+      },
+      {
+        "code": 6002,
+        "name": "vaultTransferExceedsSupply",
+        "msg": "Vault transfer amount exceeds total supply"
+      },
+      {
+        "code": 6003,
+        "name": "invalidSupplyAmount",
+        "msg": "Invalid supply amount"
+      },
+      {
+        "code": 6004,
+        "name": "invalidKolCount",
+        "msg": "Expected exactly 4 KOLs for pack reveal"
+      },
+      {
+        "code": 6005,
+        "name": "mintAddressMismatch",
+        "msg": "Mint address doesn't match KOL info"
+      },
+      {
+        "code": 6006,
+        "name": "invalidKolName",
+        "msg": "Invalid KOL name length"
+      },
+      {
+        "code": 6007,
+        "name": "invalidPfpUrl",
+        "msg": "Invalid PFP URL length"
+      },
+      {
+        "code": 6008,
+        "name": "invalidWinrate",
+        "msg": "Invalid winrate (must be <= 10000 bps)"
+      },
+      {
+        "code": 6009,
+        "name": "duplicateKolAddress",
+        "msg": "Duplicate KOL address in pack"
+      },
+      {
+        "code": 6010,
+        "name": "duplicateMintAddress",
+        "msg": "Duplicate mint address in pack"
+      },
+      {
+        "code": 6011,
+        "name": "invalidTransferAmount",
+        "msg": "Invalid transfer amount"
+      },
+      {
+        "code": 6012,
+        "name": "insufficientVaultBalance",
+        "msg": "Insufficient vault balance"
+      },
+      {
+        "code": 6013,
+        "name": "invalidPackPrice",
+        "msg": "Invalid pack price (must be 0.1 SOL)"
+      },
+      {
+        "code": 6014,
+        "name": "invalidClaimAmount",
+        "msg": "Invalid claim amount"
+      },
+      {
+        "code": 6015,
+        "name": "insufficientPackBalance",
+        "msg": "Insufficient pack balance"
       }
     ],
     "types": [
@@ -824,10 +1502,122 @@ export type Pnlpackprogram = {
             }
           ]
         }
+      },
+      {
+        "name": "kolInfo",
+        "type": {
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "address",
+              "type": "pubkey"
+            },
+            {
+              "name": "pfpUrl",
+              "type": "string"
+            },
+            {
+              "name": "pnl",
+              "type": "i64"
+            },
+            {
+              "name": "winrateBps",
+              "type": "u16"
+            },
+            {
+              "name": "kolTokenMintAddress",
+              "type": "pubkey"
+            }
+          ]
+        }
+      },
+      {
+        "name": "kolInfoInput",
+        "type": {
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "address",
+              "type": "pubkey"
+            },
+            {
+              "name": "pfpUrl",
+              "type": "string"
+            },
+            {
+              "name": "pnl",
+              "type": "i64"
+            },
+            {
+              "name": "winrateBps",
+              "type": "u16"
+            },
+            {
+              "name": "kolTokenMintAddress",
+              "type": "pubkey"
+            }
+          ]
+        }
+      },
+      {
+        "name": "pack",
+        "type": {
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "bump",
+              "type": "u8"
+            },
+            {
+              "name": "packId",
+              "type": "string"
+            },
+            {
+              "name": "kolA",
+              "type": {
+                "defined": {
+                  "name": "kolInfo"
+                }
+              }
+            },
+            {
+              "name": "kolB",
+              "type": {
+                "defined": {
+                  "name": "kolInfo"
+                }
+              }
+            },
+            {
+              "name": "kolC",
+              "type": {
+                "defined": {
+                  "name": "kolInfo"
+                }
+              }
+            },
+            {
+              "name": "kolD",
+              "type": {
+                "defined": {
+                  "name": "kolInfo"
+                }
+              }
+            }
+          ]
+        }
       }
     ]
   };
-
+  
   export const IDL = {
     "address": "Cn3xRT72q5c99rMZKseUF8TkTFrpWTFBqMoLs3pNu2ZX",
     "metadata": {
@@ -837,6 +1627,540 @@ export type Pnlpackprogram = {
       "description": "Created with Anchor"
     },
     "instructions": [
+      {
+        "name": "claim_from_pack",
+        "discriminator": [
+          76,
+          120,
+          104,
+          71,
+          176,
+          199,
+          211,
+          164
+        ],
+        "accounts": [
+          {
+            "name": "pack",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "const",
+                  "value": [
+                    112,
+                    97,
+                    99,
+                    107
+                  ]
+                },
+                {
+                  "kind": "arg",
+                  "path": "pack_id"
+                }
+              ]
+            }
+          },
+          {
+            "name": "user",
+            "writable": true,
+            "signer": true
+          },
+          {
+            "name": "mint_kol_a",
+            "writable": true
+          },
+          {
+            "name": "pack_kol_a_ta",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "account",
+                  "path": "pack"
+                },
+                {
+                  "kind": "account",
+                  "path": "token_program"
+                },
+                {
+                  "kind": "account",
+                  "path": "mint_kol_a"
+                }
+              ],
+              "program": {
+                "kind": "const",
+                "value": [
+                  140,
+                  151,
+                  37,
+                  143,
+                  78,
+                  36,
+                  137,
+                  241,
+                  187,
+                  61,
+                  16,
+                  41,
+                  20,
+                  142,
+                  13,
+                  131,
+                  11,
+                  90,
+                  19,
+                  153,
+                  218,
+                  255,
+                  16,
+                  132,
+                  4,
+                  142,
+                  123,
+                  216,
+                  219,
+                  233,
+                  248,
+                  89
+                ]
+              }
+            }
+          },
+          {
+            "name": "user_kol_a_ta",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "account",
+                  "path": "user"
+                },
+                {
+                  "kind": "account",
+                  "path": "token_program"
+                },
+                {
+                  "kind": "account",
+                  "path": "mint_kol_a"
+                }
+              ],
+              "program": {
+                "kind": "const",
+                "value": [
+                  140,
+                  151,
+                  37,
+                  143,
+                  78,
+                  36,
+                  137,
+                  241,
+                  187,
+                  61,
+                  16,
+                  41,
+                  20,
+                  142,
+                  13,
+                  131,
+                  11,
+                  90,
+                  19,
+                  153,
+                  218,
+                  255,
+                  16,
+                  132,
+                  4,
+                  142,
+                  123,
+                  216,
+                  219,
+                  233,
+                  248,
+                  89
+                ]
+              }
+            }
+          },
+          {
+            "name": "mint_kol_b",
+            "writable": true
+          },
+          {
+            "name": "pack_kol_b_ta",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "account",
+                  "path": "pack"
+                },
+                {
+                  "kind": "account",
+                  "path": "token_program"
+                },
+                {
+                  "kind": "account",
+                  "path": "mint_kol_b"
+                }
+              ],
+              "program": {
+                "kind": "const",
+                "value": [
+                  140,
+                  151,
+                  37,
+                  143,
+                  78,
+                  36,
+                  137,
+                  241,
+                  187,
+                  61,
+                  16,
+                  41,
+                  20,
+                  142,
+                  13,
+                  131,
+                  11,
+                  90,
+                  19,
+                  153,
+                  218,
+                  255,
+                  16,
+                  132,
+                  4,
+                  142,
+                  123,
+                  216,
+                  219,
+                  233,
+                  248,
+                  89
+                ]
+              }
+            }
+          },
+          {
+            "name": "user_kol_b_ta",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "account",
+                  "path": "user"
+                },
+                {
+                  "kind": "account",
+                  "path": "token_program"
+                },
+                {
+                  "kind": "account",
+                  "path": "mint_kol_b"
+                }
+              ],
+              "program": {
+                "kind": "const",
+                "value": [
+                  140,
+                  151,
+                  37,
+                  143,
+                  78,
+                  36,
+                  137,
+                  241,
+                  187,
+                  61,
+                  16,
+                  41,
+                  20,
+                  142,
+                  13,
+                  131,
+                  11,
+                  90,
+                  19,
+                  153,
+                  218,
+                  255,
+                  16,
+                  132,
+                  4,
+                  142,
+                  123,
+                  216,
+                  219,
+                  233,
+                  248,
+                  89
+                ]
+              }
+            }
+          },
+          {
+            "name": "mint_kol_c",
+            "writable": true
+          },
+          {
+            "name": "pack_kol_c_ta",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "account",
+                  "path": "pack"
+                },
+                {
+                  "kind": "account",
+                  "path": "token_program"
+                },
+                {
+                  "kind": "account",
+                  "path": "mint_kol_c"
+                }
+              ],
+              "program": {
+                "kind": "const",
+                "value": [
+                  140,
+                  151,
+                  37,
+                  143,
+                  78,
+                  36,
+                  137,
+                  241,
+                  187,
+                  61,
+                  16,
+                  41,
+                  20,
+                  142,
+                  13,
+                  131,
+                  11,
+                  90,
+                  19,
+                  153,
+                  218,
+                  255,
+                  16,
+                  132,
+                  4,
+                  142,
+                  123,
+                  216,
+                  219,
+                  233,
+                  248,
+                  89
+                ]
+              }
+            }
+          },
+          {
+            "name": "user_kol_c_ta",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "account",
+                  "path": "user"
+                },
+                {
+                  "kind": "account",
+                  "path": "token_program"
+                },
+                {
+                  "kind": "account",
+                  "path": "mint_kol_c"
+                }
+              ],
+              "program": {
+                "kind": "const",
+                "value": [
+                  140,
+                  151,
+                  37,
+                  143,
+                  78,
+                  36,
+                  137,
+                  241,
+                  187,
+                  61,
+                  16,
+                  41,
+                  20,
+                  142,
+                  13,
+                  131,
+                  11,
+                  90,
+                  19,
+                  153,
+                  218,
+                  255,
+                  16,
+                  132,
+                  4,
+                  142,
+                  123,
+                  216,
+                  219,
+                  233,
+                  248,
+                  89
+                ]
+              }
+            }
+          },
+          {
+            "name": "mint_kol_d",
+            "writable": true
+          },
+          {
+            "name": "pack_kol_d_ta",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "account",
+                  "path": "pack"
+                },
+                {
+                  "kind": "account",
+                  "path": "token_program"
+                },
+                {
+                  "kind": "account",
+                  "path": "mint_kol_d"
+                }
+              ],
+              "program": {
+                "kind": "const",
+                "value": [
+                  140,
+                  151,
+                  37,
+                  143,
+                  78,
+                  36,
+                  137,
+                  241,
+                  187,
+                  61,
+                  16,
+                  41,
+                  20,
+                  142,
+                  13,
+                  131,
+                  11,
+                  90,
+                  19,
+                  153,
+                  218,
+                  255,
+                  16,
+                  132,
+                  4,
+                  142,
+                  123,
+                  216,
+                  219,
+                  233,
+                  248,
+                  89
+                ]
+              }
+            }
+          },
+          {
+            "name": "user_kol_d_ta",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "account",
+                  "path": "user"
+                },
+                {
+                  "kind": "account",
+                  "path": "token_program"
+                },
+                {
+                  "kind": "account",
+                  "path": "mint_kol_d"
+                }
+              ],
+              "program": {
+                "kind": "const",
+                "value": [
+                  140,
+                  151,
+                  37,
+                  143,
+                  78,
+                  36,
+                  137,
+                  241,
+                  187,
+                  61,
+                  16,
+                  41,
+                  20,
+                  142,
+                  13,
+                  131,
+                  11,
+                  90,
+                  19,
+                  153,
+                  218,
+                  255,
+                  16,
+                  132,
+                  4,
+                  142,
+                  123,
+                  216,
+                  219,
+                  233,
+                  248,
+                  89
+                ]
+              }
+            }
+          },
+          {
+            "name": "system_program",
+            "address": "11111111111111111111111111111111"
+          },
+          {
+            "name": "token_program"
+          },
+          {
+            "name": "associated_token_program",
+            "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+          }
+        ],
+        "args": [
+          {
+            "name": "pack_id",
+            "type": "string"
+          },
+          {
+            "name": "amount_per_kol",
+            "type": "u64"
+          }
+        ]
+      },
       {
         "name": "init_global_pack_pool",
         "discriminator": [
@@ -894,292 +2218,6 @@ export type Pnlpackprogram = {
           {
             "name": "total_kols",
             "type": "u8"
-          }
-        ]
-      },
-      {
-        "name": "init_kol_token_vault_and_transfer",
-        "discriminator": [
-          124,
-          152,
-          218,
-          182,
-          98,
-          151,
-          20,
-          35
-        ],
-        "accounts": [
-          {
-            "name": "global_pack_pool",
-            "writable": true,
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    103,
-                    108,
-                    111,
-                    98,
-                    97,
-                    108,
-                    95,
-                    112,
-                    97,
-                    99,
-                    107,
-                    95,
-                    112,
-                    111,
-                    111,
-                    108
-                  ]
-                }
-              ]
-            }
-          },
-          {
-            "name": "admin",
-            "writable": true,
-            "signer": true,
-            "address": "7E85TTXg5FjT5G6q14nZUSE3KAgjM2kjBs8ddAW6eBeR"
-          },
-          {
-            "name": "mint",
-            "docs": [
-              "The token mint for the vault"
-            ]
-          },
-          {
-            "name": "admin_token_account",
-            "docs": [
-              "Admin's token account (source of tokens)"
-            ],
-            "writable": true,
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "account",
-                  "path": "admin"
-                },
-                {
-                  "kind": "account",
-                  "path": "token_program"
-                },
-                {
-                  "kind": "account",
-                  "path": "mint"
-                }
-              ],
-              "program": {
-                "kind": "const",
-                "value": [
-                  140,
-                  151,
-                  37,
-                  143,
-                  78,
-                  36,
-                  137,
-                  241,
-                  187,
-                  61,
-                  16,
-                  41,
-                  20,
-                  142,
-                  13,
-                  131,
-                  11,
-                  90,
-                  19,
-                  153,
-                  218,
-                  255,
-                  16,
-                  132,
-                  4,
-                  142,
-                  123,
-                  216,
-                  219,
-                  233,
-                  248,
-                  89
-                ]
-              }
-            }
-          },
-          {
-            "name": "token_vault",
-            "docs": [
-              "The token vault (destination for tokens)",
-              "Owned by the global pack pool - will be initialized in this instruction"
-            ],
-            "writable": true,
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    116,
-                    111,
-                    107,
-                    101,
-                    110,
-                    95,
-                    118,
-                    97,
-                    117,
-                    108,
-                    116
-                  ]
-                },
-                {
-                  "kind": "arg",
-                  "path": "kol_ticker"
-                },
-                {
-                  "kind": "account",
-                  "path": "global_pack_pool"
-                }
-              ]
-            }
-          },
-          {
-            "name": "system_program",
-            "address": "11111111111111111111111111111111"
-          },
-          {
-            "name": "token_program"
-          },
-          {
-            "name": "associated_token_program",
-            "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
-          },
-          {
-            "name": "rent",
-            "address": "SysvarRent111111111111111111111111111111111"
-          }
-        ],
-        "args": [
-          {
-            "name": "kol_ticker",
-            "type": "string"
-          },
-          {
-            "name": "amount",
-            "type": "u64"
-          }
-        ]
-      },
-      {
-        "name": "init_token_vault",
-        "discriminator": [
-          203,
-          26,
-          194,
-          169,
-          252,
-          226,
-          179,
-          180
-        ],
-        "accounts": [
-          {
-            "name": "global_pack_pool",
-            "writable": true,
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    103,
-                    108,
-                    111,
-                    98,
-                    97,
-                    108,
-                    95,
-                    112,
-                    97,
-                    99,
-                    107,
-                    95,
-                    112,
-                    111,
-                    111,
-                    108
-                  ]
-                }
-              ]
-            }
-          },
-          {
-            "name": "admin",
-            "writable": true,
-            "signer": true,
-            "address": "7E85TTXg5FjT5G6q14nZUSE3KAgjM2kjBs8ddAW6eBeR"
-          },
-          {
-            "name": "mint",
-            "docs": [
-              "The token mint for the vault"
-            ]
-          },
-          {
-            "name": "token_vault",
-            "writable": true,
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "const",
-                  "value": [
-                    116,
-                    111,
-                    107,
-                    101,
-                    110,
-                    95,
-                    118,
-                    97,
-                    117,
-                    108,
-                    116
-                  ]
-                },
-                {
-                  "kind": "arg",
-                  "path": "kol_ticker"
-                },
-                {
-                  "kind": "account",
-                  "path": "global_pack_pool"
-                }
-              ]
-            }
-          },
-          {
-            "name": "system_program",
-            "address": "11111111111111111111111111111111"
-          },
-          {
-            "name": "token_program"
-          },
-          {
-            "name": "associated_token_program",
-            "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
-          },
-          {
-            "name": "rent",
-            "address": "SysvarRent111111111111111111111111111111111"
-          }
-        ],
-        "args": [
-          {
-            "name": "kol_ticker",
-            "type": "string"
           }
         ]
       },
@@ -1248,16 +2286,10 @@ export type Pnlpackprogram = {
           },
           {
             "name": "mint",
-            "docs": [
-              "The token mint for the vault (must already be created)"
-            ],
             "writable": true
           },
           {
             "name": "admin_token_account",
-            "docs": [
-              "Admin's token account (destination for initial mint, source for transfer)"
-            ],
             "writable": true,
             "pda": {
               "seeds": [
@@ -1381,16 +2413,16 @@ export type Pnlpackprogram = {
         ]
       },
       {
-        "name": "transfer_kol_tokens_to_vault",
+        "name": "pack_reveal",
         "discriminator": [
+          248,
+          180,
+          65,
+          134,
+          121,
+          14,
           74,
-          120,
-          27,
-          232,
-          251,
-          160,
-          161,
-          101
+          157
         ],
         "accounts": [
           {
@@ -1429,22 +2461,38 @@ export type Pnlpackprogram = {
             "address": "7E85TTXg5FjT5G6q14nZUSE3KAgjM2kjBs8ddAW6eBeR"
           },
           {
-            "name": "mint",
-            "docs": [
-              "The token mint for the vault"
-            ]
+            "name": "pack_account",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "const",
+                  "value": [
+                    112,
+                    97,
+                    99,
+                    107
+                  ]
+                },
+                {
+                  "kind": "arg",
+                  "path": "pack_id"
+                }
+              ]
+            }
           },
           {
-            "name": "admin_token_account",
-            "docs": [
-              "Admin's token account (source of tokens)"
-            ],
+            "name": "mint_kol_a",
+            "writable": true
+          },
+          {
+            "name": "pack_kol_a_ta",
             "writable": true,
             "pda": {
               "seeds": [
                 {
                   "kind": "account",
-                  "path": "admin"
+                  "path": "pack_account"
                 },
                 {
                   "kind": "account",
@@ -1452,7 +2500,7 @@ export type Pnlpackprogram = {
                 },
                 {
                   "kind": "account",
-                  "path": "mint"
+                  "path": "mint_kol_a"
                 }
               ],
               "program": {
@@ -1495,11 +2543,287 @@ export type Pnlpackprogram = {
             }
           },
           {
-            "name": "token_vault",
-            "docs": [
-              "The token vault (destination for tokens)",
-              "Owned by the global pack pool"
-            ],
+            "name": "mint_kol_b",
+            "writable": true
+          },
+          {
+            "name": "pack_kol_b_ta",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "account",
+                  "path": "pack_account"
+                },
+                {
+                  "kind": "account",
+                  "path": "token_program"
+                },
+                {
+                  "kind": "account",
+                  "path": "mint_kol_b"
+                }
+              ],
+              "program": {
+                "kind": "const",
+                "value": [
+                  140,
+                  151,
+                  37,
+                  143,
+                  78,
+                  36,
+                  137,
+                  241,
+                  187,
+                  61,
+                  16,
+                  41,
+                  20,
+                  142,
+                  13,
+                  131,
+                  11,
+                  90,
+                  19,
+                  153,
+                  218,
+                  255,
+                  16,
+                  132,
+                  4,
+                  142,
+                  123,
+                  216,
+                  219,
+                  233,
+                  248,
+                  89
+                ]
+              }
+            }
+          },
+          {
+            "name": "mint_kol_c",
+            "writable": true
+          },
+          {
+            "name": "pack_kol_c_ta",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "account",
+                  "path": "pack_account"
+                },
+                {
+                  "kind": "account",
+                  "path": "token_program"
+                },
+                {
+                  "kind": "account",
+                  "path": "mint_kol_c"
+                }
+              ],
+              "program": {
+                "kind": "const",
+                "value": [
+                  140,
+                  151,
+                  37,
+                  143,
+                  78,
+                  36,
+                  137,
+                  241,
+                  187,
+                  61,
+                  16,
+                  41,
+                  20,
+                  142,
+                  13,
+                  131,
+                  11,
+                  90,
+                  19,
+                  153,
+                  218,
+                  255,
+                  16,
+                  132,
+                  4,
+                  142,
+                  123,
+                  216,
+                  219,
+                  233,
+                  248,
+                  89
+                ]
+              }
+            }
+          },
+          {
+            "name": "mint_kol_d",
+            "writable": true
+          },
+          {
+            "name": "pack_kol_d_ta",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "account",
+                  "path": "pack_account"
+                },
+                {
+                  "kind": "account",
+                  "path": "token_program"
+                },
+                {
+                  "kind": "account",
+                  "path": "mint_kol_d"
+                }
+              ],
+              "program": {
+                "kind": "const",
+                "value": [
+                  140,
+                  151,
+                  37,
+                  143,
+                  78,
+                  36,
+                  137,
+                  241,
+                  187,
+                  61,
+                  16,
+                  41,
+                  20,
+                  142,
+                  13,
+                  131,
+                  11,
+                  90,
+                  19,
+                  153,
+                  218,
+                  255,
+                  16,
+                  132,
+                  4,
+                  142,
+                  123,
+                  216,
+                  219,
+                  233,
+                  248,
+                  89
+                ]
+              }
+            }
+          },
+          {
+            "name": "system_program",
+            "address": "11111111111111111111111111111111"
+          },
+          {
+            "name": "token_program"
+          },
+          {
+            "name": "associated_token_program",
+            "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+          }
+        ],
+        "args": [
+          {
+            "name": "pack_id",
+            "type": "string"
+          },
+          {
+            "name": "kols",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "KolInfoInput"
+                }
+              }
+            }
+          }
+        ]
+      },
+      {
+        "name": "transfer_to_individual_pack",
+        "discriminator": [
+          213,
+          22,
+          167,
+          141,
+          61,
+          207,
+          176,
+          128
+        ],
+        "accounts": [
+          {
+            "name": "global_pack_pool",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "const",
+                  "value": [
+                    103,
+                    108,
+                    111,
+                    98,
+                    97,
+                    108,
+                    95,
+                    112,
+                    97,
+                    99,
+                    107,
+                    95,
+                    112,
+                    111,
+                    111,
+                    108
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "pack_account",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "const",
+                  "value": [
+                    112,
+                    97,
+                    99,
+                    107
+                  ]
+                },
+                {
+                  "kind": "account",
+                  "path": "pack_account.pack_id",
+                  "account": "Pack"
+                }
+              ]
+            }
+          },
+          {
+            "name": "kol_mint",
+            "writable": true
+          },
+          {
+            "name": "kol_token_vault",
             "writable": true,
             "pda": {
               "seeds": [
@@ -1521,7 +2845,7 @@ export type Pnlpackprogram = {
                 },
                 {
                   "kind": "arg",
-                  "path": "kol_ticker"
+                  "path": "kol"
                 },
                 {
                   "kind": "account",
@@ -1531,8 +2855,61 @@ export type Pnlpackprogram = {
             }
           },
           {
-            "name": "system_program",
-            "address": "11111111111111111111111111111111"
+            "name": "pack_kol_ta",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "account",
+                  "path": "pack_account"
+                },
+                {
+                  "kind": "account",
+                  "path": "token_program"
+                },
+                {
+                  "kind": "account",
+                  "path": "kol_mint"
+                }
+              ],
+              "program": {
+                "kind": "const",
+                "value": [
+                  140,
+                  151,
+                  37,
+                  143,
+                  78,
+                  36,
+                  137,
+                  241,
+                  187,
+                  61,
+                  16,
+                  41,
+                  20,
+                  142,
+                  13,
+                  131,
+                  11,
+                  90,
+                  19,
+                  153,
+                  218,
+                  255,
+                  16,
+                  132,
+                  4,
+                  142,
+                  123,
+                  216,
+                  219,
+                  233,
+                  248,
+                  89
+                ]
+              }
+            }
           },
           {
             "name": "token_program"
@@ -1540,15 +2917,11 @@ export type Pnlpackprogram = {
           {
             "name": "associated_token_program",
             "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
-          },
-          {
-            "name": "rent",
-            "address": "SysvarRent111111111111111111111111111111111"
           }
         ],
         "args": [
           {
-            "name": "kol_ticker",
+            "name": "kol",
             "type": "string"
           },
           {
@@ -1630,6 +3003,101 @@ export type Pnlpackprogram = {
           151,
           253
         ]
+      },
+      {
+        "name": "Pack",
+        "discriminator": [
+          244,
+          192,
+          97,
+          212,
+          134,
+          91,
+          198,
+          200
+        ]
+      }
+    ],
+    "errors": [
+      {
+        "code": 6000,
+        "name": "InvalidSeedLength",
+        "msg": "Seed longer than 32 bytes"
+      },
+      {
+        "code": 6001,
+        "name": "InvalidTotalKols",
+        "msg": "Invalid total KOLs count"
+      },
+      {
+        "code": 6002,
+        "name": "VaultTransferExceedsSupply",
+        "msg": "Vault transfer amount exceeds total supply"
+      },
+      {
+        "code": 6003,
+        "name": "InvalidSupplyAmount",
+        "msg": "Invalid supply amount"
+      },
+      {
+        "code": 6004,
+        "name": "InvalidKolCount",
+        "msg": "Expected exactly 4 KOLs for pack reveal"
+      },
+      {
+        "code": 6005,
+        "name": "MintAddressMismatch",
+        "msg": "Mint address doesn't match KOL info"
+      },
+      {
+        "code": 6006,
+        "name": "InvalidKolName",
+        "msg": "Invalid KOL name length"
+      },
+      {
+        "code": 6007,
+        "name": "InvalidPfpUrl",
+        "msg": "Invalid PFP URL length"
+      },
+      {
+        "code": 6008,
+        "name": "InvalidWinrate",
+        "msg": "Invalid winrate (must be <= 10000 bps)"
+      },
+      {
+        "code": 6009,
+        "name": "DuplicateKolAddress",
+        "msg": "Duplicate KOL address in pack"
+      },
+      {
+        "code": 6010,
+        "name": "DuplicateMintAddress",
+        "msg": "Duplicate mint address in pack"
+      },
+      {
+        "code": 6011,
+        "name": "InvalidTransferAmount",
+        "msg": "Invalid transfer amount"
+      },
+      {
+        "code": 6012,
+        "name": "InsufficientVaultBalance",
+        "msg": "Insufficient vault balance"
+      },
+      {
+        "code": 6013,
+        "name": "InvalidPackPrice",
+        "msg": "Invalid pack price (must be 0.1 SOL)"
+      },
+      {
+        "code": 6014,
+        "name": "InvalidClaimAmount",
+        "msg": "Invalid claim amount"
+      },
+      {
+        "code": 6015,
+        "name": "InsufficientPackBalance",
+        "msg": "Insufficient pack balance"
       }
     ],
     "types": [
@@ -1645,6 +3113,118 @@ export type Pnlpackprogram = {
             {
               "name": "total_kols",
               "type": "u8"
+            }
+          ]
+        }
+      },
+      {
+        "name": "KolInfo",
+        "type": {
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "address",
+              "type": "pubkey"
+            },
+            {
+              "name": "pfp_url",
+              "type": "string"
+            },
+            {
+              "name": "pnl",
+              "type": "i64"
+            },
+            {
+              "name": "winrate_bps",
+              "type": "u16"
+            },
+            {
+              "name": "kol_token_mint_address",
+              "type": "pubkey"
+            }
+          ]
+        }
+      },
+      {
+        "name": "KolInfoInput",
+        "type": {
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "address",
+              "type": "pubkey"
+            },
+            {
+              "name": "pfp_url",
+              "type": "string"
+            },
+            {
+              "name": "pnl",
+              "type": "i64"
+            },
+            {
+              "name": "winrate_bps",
+              "type": "u16"
+            },
+            {
+              "name": "kol_token_mint_address",
+              "type": "pubkey"
+            }
+          ]
+        }
+      },
+      {
+        "name": "Pack",
+        "type": {
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "bump",
+              "type": "u8"
+            },
+            {
+              "name": "pack_id",
+              "type": "string"
+            },
+            {
+              "name": "kol_a",
+              "type": {
+                "defined": {
+                  "name": "KolInfo"
+                }
+              }
+            },
+            {
+              "name": "kol_b",
+              "type": {
+                "defined": {
+                  "name": "KolInfo"
+                }
+              }
+            },
+            {
+              "name": "kol_c",
+              "type": {
+                "defined": {
+                  "name": "KolInfo"
+                }
+              }
+            },
+            {
+              "name": "kol_d",
+              "type": {
+                "defined": {
+                  "name": "KolInfo"
+                }
+              }
             }
           ]
         }
