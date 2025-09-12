@@ -5,7 +5,6 @@
 // 3. call [pack_reveal()(for pack PDA creation) + (4 X [transfer_to_individual_pack(KOL_TOKEN_MINT, 40K amount)]], for the 4 KOLs)(for 160K from global token vault -> pack account)[BUNDLED TXN, use jito bundles to execute that] with those 4 KOLs
 // 4. return all the metadata associated with them to display in the UI after user opens the pack
 
-// IN MAINNET, GROUP ALL THE 4 TXNS IN JITO BUNDLES SO THAT IT ORDER+ATOMICITY REMAINS FOR 4*transfer_to_individual_pack()
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import {
@@ -24,8 +23,8 @@ import {
 } from '@solana/spl-token';
 import { Pnlpackprogram, IDL } from '../../../lib/idl';
 import bs58 from 'bs58';
-import NodeWallet from '@coral-xyz/anchor/dist/cjs/nodewallet';
 
+// ----------------- Constants -----------------
 const DEVNET_RPC = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 const PROGRAM_ID = new PublicKey('2Bv9DtsyPmwKJSpbhNdK5tEPu4WTugyoWJmx8cBfuAid');
 const ADMIN_KEY = new PublicKey('7E85TTXg5FjT5G6q14nZUSE3KAgjM2kjBs8ddAW6eBeR');
@@ -44,7 +43,7 @@ interface KolData {
   rank: number;
   ticker?: string;
   tokenMintAddress?: PublicKey;
-  tokenPrice?: number;
+  // tokenPrice?: number;
 }
 
 interface PackRevealRequest {
@@ -52,23 +51,26 @@ interface PackRevealRequest {
   userPublicKey?: string;
 }
 
-function generatePackId(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let id = '';
-  for (let i = 0; i < 4; i++) {
-    const r = crypto.getRandomValues(new Uint32Array(1))[0] % chars.length;
-    id += chars[r];
-  }
-  return id;
-}
-
+// ----------------- Main Handler -----------------
 export async function POST(request: Request) {
   console.log('🚀 [API] /packReveal called at', new Date().toISOString());
-
   try {
-    const packId = generatePackId();
-    console.log('🎁 Generated random packId:', packId);
+    const body = (await request.json()) as PackRevealRequest;
+    console.log('📩 Request body:', body);
 
+    const { packId } = body;
+    console.log('🎁 Starting pack reveal for packId:', packId);
+
+    // Validation
+    if (!packId || packId.length === 0 || packId.length > 32) {
+      console.warn('⚠️ Invalid packId received:', packId);
+      return NextResponse.json(
+        { success: false, error: 'Invalid pack ID. Must be between 1-32 characters.' },
+        { status: 400 }
+      );
+    }
+
+    // Step 1: readiness check
     console.log('🔍 Checking token readiness…');
     const tokenReadinessCheck = await verifyAllTokensReady();
     console.log('🔍 Token readiness result:', tokenReadinessCheck);
@@ -77,8 +79,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          error:
-            'Cannot reveal pack: Not all KOL tokens have been created yet.',
+          error: 'Cannot reveal pack: Not all KOL tokens have been created yet.',
           details: tokenReadinessCheck.details,
           suggestion:
             'Please run /api/createTokensAndPool first and ensure all 40 tokens are created successfully.',
@@ -87,6 +88,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Step 2: fetch KOL data
     console.log('📊 Fetching top traders with tokens…');
     const kolsData = await fetchTopTradersWithTokens();
     console.log(`📊 Retrieved ${kolsData.length} KOLs from DB`);
@@ -98,6 +100,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Step 3: random selection
     const selectedKols = selectRandomKols(kolsData, 4);
     console.log(
       '🎲 Selected KOLs:',
@@ -108,14 +111,17 @@ export async function POST(request: Request) {
       }))
     );
 
+    // Step 4: add token price/ticker data
     console.log('🧮 Preparing token data for selected KOLs…');
     const kolsWithTokenData = await prepareKolTokenData(selectedKols);
     console.log('🧮 Prepared KOL token data:', kolsWithTokenData);
 
+    // Step 5: verify vaults
     console.log('🔐 Verifying token vaults exist…');
     await verifyTokenVaultsExist(kolsWithTokenData);
     console.log('🔐 Vault verification done.');
 
+    // Step 6: execute transactions
     console.log('⚡ Executing on-chain pack reveal transactions…');
     const txResult = await executePackRevealTransactions(packId, kolsWithTokenData);
     console.log('⚡ Transaction execution result:', txResult);
@@ -128,6 +134,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Step 7: create metadata
     console.log('📝 Creating pack metadata…');
     const packMetadata = createPackMetadata(packId, kolsWithTokenData, txResult);
     console.log('✅ Pack metadata prepared:', packMetadata);
@@ -152,6 +159,7 @@ export async function POST(request: Request) {
   }
 }
 
+// ----------------- Helper Functions -----------------
 async function verifyTokenVaultsExist(kols: KolData[]): Promise<void> {
   console.log('🔍 [verifyTokenVaultsExist] Checking vaults for', kols.length, 'KOLs');
   const connection = new Connection(DEVNET_RPC, 'confirmed');
@@ -194,6 +202,7 @@ async function executePackRevealTransactions(
 
     let secretKey: Uint8Array;
     try {
+      // Parse the string as a JSON array, e.g. "[66, 269, ...]"
       const arr = JSON.parse(adminPrivateKey);
       if (!Array.isArray(arr) || arr.some(n => typeof n !== 'number')) {
         throw new Error('ADMIN_KEYPAIR must be a JSON array of numbers');
@@ -212,7 +221,7 @@ async function executePackRevealTransactions(
       throw new Error('Admin keypair does not match expected admin key');
     }
 
-    const adminWallet = new NodeWallet(adminKeypair);
+    const adminWallet = new Wallet(adminKeypair);
     const provider = new AnchorProvider(connection, adminWallet, {
       commitment: 'confirmed',
       preflightCommitment: 'confirmed',
@@ -242,29 +251,37 @@ async function executeSequentialTransactions(
     console.log('🔄 Executing transactions sequentially...');
 
     const signatures: string[] = [];
+    
+    // Get recent blockhash
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
 
+    // Step 1: Execute pack reveal first
     console.log('📦 Creating pack reveal transaction...');
     const packRevealSig = await executePackReveal(program, packId, kols, connection, adminKeypair, blockhash);
     signatures.push(packRevealSig);
     console.log('✅ Pack reveal confirmed:', packRevealSig);
 
-    console.log('💰 Executing individual token transfers...');
-    for (let i = 0; i < kols.length; i++) {
-      const kol = kols[i];
-      console.log(`💸 Processing transfer ${i + 1}/${kols.length} for ${kol.name} (${kol.ticker})`);
-      const transferSig = await executeIndividualTransfer(
+    // Step 2: Execute transfers in smaller batches (2 transfers per transaction to avoid size limits)
+    console.log('💰 Executing token transfers...');
+    const transferBatches = [];
+    for (let i = 0; i < kols.length; i += 2) {
+      transferBatches.push(kols.slice(i, i + 2));
+    }
+
+    for (let batchIndex = 0; batchIndex < transferBatches.length; batchIndex++) {
+      const batch = transferBatches[batchIndex];
+      console.log(`💸 Processing transfer batch ${batchIndex + 1}/${transferBatches.length} (${batch.length} transfers)`);
+      
+      const batchSig = await executeTransferBatch(
         program, 
         packId, 
-        kol, 
+        batch, 
         connection, 
         adminKeypair
       );
-      signatures.push(transferSig);
-      console.log(`✅ Transfer ${i + 1} confirmed for ${kol.name}:`, transferSig);
-      if (i < kols.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
+      
+      signatures.push(batchSig);
+      console.log(`✅ Transfer batch ${batchIndex + 1} confirmed:`, batchSig);
     }
 
     return {
@@ -286,6 +303,7 @@ async function executePackReveal(
   adminKeypair: Keypair,
   blockhash: string
 ): Promise<string> {
+  // Get PDAs
   const [globalPackPool] = PublicKey.findProgramAddressSync(
     [Buffer.from('global_pack_pool')],
     PROGRAM_ID
@@ -296,6 +314,7 @@ async function executePackReveal(
     PROGRAM_ID
   );
 
+  // Get all associated token addresses
   const tokenAccounts = await Promise.all(
     kols.map(async (kol) => {
       return await getAssociatedTokenAddress(
@@ -307,21 +326,23 @@ async function executePackReveal(
     })
   );
 
+  // Build KOL info inputs with proper validation
   const kolInfoInputs = kols.map(kol => {
     const pnlValue = parseFloat(kol.pnl.replace(/[^\d.-]/g, '')) || 0;
     const pnlInLamports = new BN(Math.floor(Math.abs(pnlValue) * LAMPORTS_PER_SOL));
     const winrateBps = Math.min(10000, Math.max(0, Math.floor((kol.winRate || 0) * 100)));
 
     return {
-      name: kol.name.substring(0, 32),
-      address: kol.address ? new PublicKey(kol.address) : ADMIN_KEY,
-      pfpUrl: (kol.avatarUrl || '').substring(0, 200),
-      pnl: pnlValue >= 0 ? pnlInLamports : pnlInLamports.neg(),
+      name: kol.name.substring(0, 32), // Limit name length
+      address: kol.address ? new PublicKey(kol.address) : ADMIN_KEY, // Use admin as fallback
+      pfpUrl: (kol.avatarUrl || '').substring(0, 200), // Limit URL length
+      pnl: pnlValue >= 0 ? pnlInLamports : pnlInLamports.neg(), // Handle negative PNL
       winrateBps,
       kolTokenMintAddress: kol.tokenMintAddress!
     };
   });
 
+  // Create pack reveal instruction
   const packRevealIx = await program.methods
     .packReveal(packId, kolInfoInputs)
     .accountsPartial({
@@ -342,20 +363,19 @@ async function executePackReveal(
     })
     .instruction();
 
+  // Create and send transaction
   const transaction = new Transaction();
   transaction.add(packRevealIx);
   transaction.recentBlockhash = blockhash;
   transaction.feePayer = adminKeypair.publicKey;
   transaction.sign(adminKeypair);
 
-  const serializedTx = transaction.serialize();
-  console.log(`📏 Pack reveal transaction size: ${serializedTx.length} bytes`);
-
-  const signature = await connection.sendRawTransaction(serializedTx, {
+  const signature = await connection.sendRawTransaction(transaction.serialize(), {
     skipPreflight: false,
     preflightCommitment: 'confirmed'
   });
 
+  // Wait for confirmation
   const { lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
   await connection.confirmTransaction({
     signature,
@@ -366,15 +386,16 @@ async function executePackReveal(
   return signature;
 }
 
-async function executeIndividualTransfer(
+async function executeTransferBatch(
   program: Program<Pnlpackprogram>,
   packId: string,
-  kol: KolData,
+  kolBatch: KolData[],
   connection: Connection,
   adminKeypair: Keypair
 ): Promise<string> {
   const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
 
+  // Get PDAs
   const [globalPackPool] = PublicKey.findProgramAddressSync(
     [Buffer.from('global_pack_pool')],
     PROGRAM_ID
@@ -385,49 +406,48 @@ async function executeIndividualTransfer(
     PROGRAM_ID
   );
 
-  const [tokenVault] = PublicKey.findProgramAddressSync(
-    [Buffer.from('token_vault'), Buffer.from(kol.ticker!), globalPackPool.toBuffer()],
-    PROGRAM_ID
-  );
-
-  const packKolTa = await getAssociatedTokenAddress(
-    kol.tokenMintAddress!,
-    packAccount,
-    true,
-    TOKEN_2022_PROGRAM_ID
-  );
-
-  const transferIx = await program.methods
-    .transferToIndividualPack(kol.ticker!, TOKENS_PER_KOL)
-    .accountsPartial({
-      globalPackPool,
-      packAccount,
-      kolMint: kol.tokenMintAddress!,
-      kolTokenVault: tokenVault,
-      packKolTa,
-      tokenProgram: TOKEN_2022_PROGRAM_ID,
-      associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-    })
-    .instruction();
-
   const transaction = new Transaction();
-  transaction.add(transferIx);
+
+  // Add transfer instruction for each KOL in the batch
+  for (const kol of kolBatch) {
+    const [tokenVault] = PublicKey.findProgramAddressSync(
+      [Buffer.from('token_vault'), Buffer.from(kol.ticker!), globalPackPool.toBuffer()],
+      PROGRAM_ID
+    );
+
+    const packKolTa = await getAssociatedTokenAddress(
+      kol.tokenMintAddress!,
+      packAccount,
+      true,
+      TOKEN_2022_PROGRAM_ID
+    );
+
+    const transferIx = await program.methods
+      .transferToIndividualPack(kol.ticker!, TOKENS_PER_KOL)
+      .accountsPartial({
+        globalPackPool,
+        packAccount,
+        kolMint: kol.tokenMintAddress!,
+        kolTokenVault: tokenVault,
+        packKolTa,
+        tokenProgram: TOKEN_2022_PROGRAM_ID,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+      })
+      .instruction();
+
+    transaction.add(transferIx);
+  }
+
   transaction.recentBlockhash = blockhash;
   transaction.feePayer = adminKeypair.publicKey;
   transaction.sign(adminKeypair);
 
-  const serializedTx = transaction.serialize();
-  console.log(`📏 Transaction size for ${kol.name}: ${serializedTx.length} bytes`);
-  
-  if (serializedTx.length > 1232) {
-    throw new Error(`Transaction still too large: ${serializedTx.length} > 1232 bytes for KOL: ${kol.name}`);
-  }
-
-  const signature = await connection.sendRawTransaction(serializedTx, {
+  const signature = await connection.sendRawTransaction(transaction.serialize(), {
     skipPreflight: false,
     preflightCommitment: 'confirmed'
   });
 
+  // Wait for confirmation
   await connection.confirmTransaction({
     signature,
     blockhash,
@@ -439,20 +459,22 @@ async function executeIndividualTransfer(
 
 function createPackMetadata(packId: string, kols: KolData[], txResult: any) {
   const totalTokensReceived = TOKENS_PER_KOL.toNumber() * 4;
-  const totalEstimatedValue = kols.reduce(
-    (sum, kol) => sum + ((kol.tokenPrice || 0) * TOKENS_PER_KOL.toNumber()), 
-    0
-  );
+  // const totalEstimatedValue = kols.reduce(
+  //   (sum, kol) => sum + ((kol.tokenPrice || 0) * TOKENS_PER_KOL.toNumber()), 
+  //   0
+  // );
 
   return {
     packId,
     revealedAt: new Date().toISOString(),
     transactionSignatures: txResult.signatures || [],
     bundleId: txResult.bundleId || null,
-    executionMode: 'Individual Sequential Transactions (Devnet)',
+    executionMode: 'Sequential Transactions (Devnet)',
     network: 'devnet',
+    
+    // KOL details
     kols: kols.map((kol, index) => ({
-      slot: String.fromCharCode(65 + index),
+      slot: String.fromCharCode(65 + index), // A, B, C, D
       name: kol.name,
       ticker: kol.ticker,
       address: kol.address,
@@ -462,17 +484,18 @@ function createPackMetadata(packId: string, kols: KolData[], txResult: any) {
       avatarUrl: kol.avatarUrl,
       xUrl: kol.xUrl,
       rank: kol.rank,
-      tokenPrice: kol.tokenPrice || 0,
+      // tokenPrice: kol.tokenPrice || 0,
       tokensReceived: TOKENS_PER_KOL.toString(),
-      estimatedValueSOL: (kol.tokenPrice || 0) * TOKENS_PER_KOL.toNumber(),
-      estimatedValueUSD: ((kol.tokenPrice || 0) * TOKENS_PER_KOL.toNumber()) * 100,
-      transferSignature: txResult.signatures?.[index + 1] || null
+      // estimatedValueSOL: (kol.tokenPrice || 0) * TOKENS_PER_KOL.toNumber(),
+      // estimatedValueUSD: ((kol.tokenPrice || 0) * TOKENS_PER_KOL.toNumber()) * 100 // Assuming 100 SOL/USD for example
     })),
+    
+    // Pack statistics
     stats: {
       totalKols: 4,
       totalTokensReceived,
-      totalEstimatedValueSOL: totalEstimatedValue,
-      totalEstimatedValueUSD: totalEstimatedValue * 100,
+      // totalEstimatedValueSOL: totalEstimatedValue,
+      // totalEstimatedValueUSD: totalEstimatedValue * 100,
       avgWinRate: kols.reduce((sum, kol) => sum + (kol.winRate || 0), 0) / 4,
       totalPnl: kols.reduce((sum, kol) => {
         const pnlValue = parseFloat(kol.pnl.replace(/[^\d.-]/g, '')) || 0;
@@ -482,13 +505,11 @@ function createPackMetadata(packId: string, kols: KolData[], txResult: any) {
       bestRank: Math.min(...kols.map(k => k.rank)),
       worstRank: Math.max(...kols.map(k => k.rank))
     },
+
+    // Transaction details
     transactions: {
       packReveal: txResult.signatures?.[0] || null,
-      transfers: kols.map((kol, index) => ({
-        kol: kol.name,
-        ticker: kol.ticker,
-        signature: txResult.signatures?.[index + 1] || null
-      }))
+      transfers: txResult.signatures?.slice(1) || []
     }
   };
 }
@@ -550,7 +571,7 @@ async function fetchTopTradersWithTokens(): Promise<KolData[]> {
     const traders = await prisma.trader.findMany({
       where: { 
         period: 'DAILY',
-        tokenMintAddress: { not: null }
+        tokenMintAddress: { not: null } // Only get KOLs that have tokens created
       },
       orderBy: { rank: 'asc' },
       select: {
@@ -581,8 +602,9 @@ async function fetchTopTradersWithTokens(): Promise<KolData[]> {
       avatarUrl: trader.avatarUrl,
       xUrl: trader.xUrl,
       rank: trader.rank || 0,
+      // Convert tokenMintAddress string to PublicKey
       tokenMintAddress: trader.tokenMintAddress ? new PublicKey(trader.tokenMintAddress) : undefined
-    })).filter(kol => kol.tokenMintAddress !== undefined) as KolData[];
+    })).filter(kol => kol.tokenMintAddress !== undefined) as KolData[]; // Type assertion after filtering
 
   } catch (error) {
     console.error('❌ Error fetching traders with tokens:', error);
@@ -596,33 +618,43 @@ function selectRandomKols(kols: KolData[], count: number): KolData[] {
   }
 
   const shuffled = [...kols];
+  
+  // Use crypto.getRandomValues for better randomness
   for (let i = shuffled.length - 1; i > 0; i--) {
     const randomBytes = new Uint32Array(1);
     crypto.getRandomValues(randomBytes);
     const j = randomBytes[0] % (i + 1);
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
+  
   return shuffled.slice(0, count);
 }
 
 async function prepareKolTokenData(kols: KolData[]): Promise<KolData[]> {
   return Promise.all(kols.map(async (kol, index) => {
+    // Create a clean ticker from name (max 10 chars for safety)
     const cleanName = kol.name.replace(/[^a-zA-Z0-9]/g, '');
     const ticker = cleanName.substring(0, Math.min(10, cleanName.length)).toUpperCase() || `KOL${index + 1}`;
+    
+    // Token mint address is already available from database
     if (!kol.tokenMintAddress) {
       throw new Error(`Token mint address missing for KOL: ${kol.name}`);
     }
-    const rankFactor = Math.max(0.1, (51 - kol.rank) / 40);
+
+    // Calculate token price based on performance metrics
+    const rankFactor = Math.max(0.1, (51 - kol.rank) / 40); // Higher rank = higher price
     const pnlValue = parseFloat(kol.pnl.replace(/[^\d.-]/g, '')) || 0;
-    const pnlFactor = Math.max(0.1, Math.min(3, 1 + (pnlValue / 100000)));
-    const winRateFactor = Math.max(0.5, Math.min(2, (kol.winRate || 0) / 40));
-    const basePrice = 0.001;
+    const pnlFactor = Math.max(0.1, Math.min(3, 1 + (pnlValue / 100000))); // Cap at 3x
+    const winRateFactor = Math.max(0.5, Math.min(2, (kol.winRate || 0) / 40)); // 40% winrate = 1x
+    
+    const basePrice = 0.001; // Base price in SOL
     const tokenPrice = basePrice * rankFactor * pnlFactor * winRateFactor;
 
     return {
       ...kol,
       ticker,
-      tokenPrice: Math.round(tokenPrice * 1000000) / 1000000
+      tokenPrice: Math.round(tokenPrice * 1000000) / 1000000 // Round to 6 decimal places
     };
   }));
 }
+  

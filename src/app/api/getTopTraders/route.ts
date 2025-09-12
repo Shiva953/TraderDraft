@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
 
     let response;
 
+    // THIS NEEDS TO BE SORTED BY PNL ON THE BACKEND SIDE, NOT THE FRONTEND
     if (fetchAll) {
       // Fetch all periods (for initial load or when explicitly requested)
       const [dailyData, weeklyData, monthlyData] = await Promise.all([
