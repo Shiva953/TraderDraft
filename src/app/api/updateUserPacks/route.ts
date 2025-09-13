@@ -9,7 +9,7 @@ export async function POST(request: Request) {
     
     const body = await request.json();
     console.log('🟢 [updateUserPacks] Request body:', body);
-    const { userPrivyWalletAddress, packsBought, totalValue } = body;
+    const { userPrivyWalletAddress, packsBought, totalValue, transactionHash } = body;
     
     if (!userPrivyWalletAddress || packsBought === undefined || totalValue === undefined) {
       throw new Error('Missing required parameters: userPrivyWalletAddress, packsBought, and totalValue');
@@ -22,6 +22,8 @@ export async function POST(request: Request) {
       where: { userPrivyWalletAddress }
     });
 
+    let userId: number;
+
     if (existingUser) {
       // Update existing user
       const updatedUser = await prisma.user.update({
@@ -32,6 +34,7 @@ export async function POST(request: Request) {
           unclaimedPacks: (existingUser.unclaimedPacks || 0) + packsBought,
         }
       });
+      userId = updatedUser.id;
       console.log('✅ [updateUserPacks] Updated existing user:', updatedUser);
     } else {
       // Create new user
@@ -44,8 +47,21 @@ export async function POST(request: Request) {
           claimedPacks: 0,
         }
       });
+      userId = newUser.id;
       console.log('✅ [updateUserPacks] Created new user:', newUser);
     }
+
+    // Create order record
+    const order = await prisma.order.create({
+      data: {
+        userPrivyWalletAddress,
+        userId,
+        packsBought,
+        totalValue,
+        transactionHash: transactionHash || null,
+      }
+    });
+    console.log('✅ [updateUserPacks] Created order record:', order);
 
     return NextResponse.json({
       success: true,

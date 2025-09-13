@@ -8,9 +8,8 @@ import { CreateToken } from "../components/CreateToken";
 import { useRouter } from "next/router";
 import {PrivyProvider, useLogin, usePrivy, useSolanaWallets, useLoginWithOAuth, useLogout} from '@privy-io/react-auth';
 import { useEffect, useState, useCallback } from "react";
-import CompetitionBanner from "../components/CompetitionBanner";
+import {PackSaleBannerNew} from "../components/PackSaleBannerNew";
 import { useDevBackgroundJobs } from "../hooks/useDevBackgroundJobs";
-import PackSaleBanner from "../components/PackSaleBanner";
 import UserPacks from "../components/UserPacks";
 
 
@@ -391,14 +390,15 @@ const handlePeriodChange = useCallback(async (newPeriod: 'daily' | 'weekly' | 'm
         <h1 className="text-4xl font-semibold text-neutral-100">Kolscan</h1>
       </header>
 
-      <PackSaleBanner />
-
-      <UserPacks />
-
-      <CompetitionBanner onViewLeaderboard={() => {
+      <PackSaleBannerNew onViewLeaderboard={() => {
         const el = document.getElementById('home-leaderboard');
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }} />
+
+      {/* <PackSaleBanner /> */}
+
+      <UserPacks />
+
 
       <div id="home-leaderboard" className="rounded-2xl border border-neutral-800 p-4">
         <div className="mb-4 flex items-center justify-between">

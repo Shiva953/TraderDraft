@@ -45,6 +45,22 @@ model user {
   totalValueOfPackHoldings Decimal? @db.Decimal
   claimedPacks             Int?
   unclaimedPacks           Int?
+  orders                   Order[]  @relation("UserOrders")
+}
+
+model Order {
+  id                     String   @id @default(cuid())
+  userPrivyWalletAddress String
+  userId                 Int
+  packsBought            Int
+  totalValue             Decimal  @db.Decimal
+  transactionHash        String?
+  createdAt              DateTime @default(now())
+  user                   user     @relation("UserOrders", fields: [userId], references: [id])
+
+  @@index([userPrivyWalletAddress])
+  @@index([createdAt])
+  @@map("orders")
 }
 
 enum Period {

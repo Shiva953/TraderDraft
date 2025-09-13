@@ -1,15 +1,17 @@
-'use client';
+"use client"
 
-import { useState } from 'react';
-import BuyPackModal from './BuyPackModal';
+import type React from "react"
+
+import { useState } from "react"
+import BuyPackModal from "./BuyPackModal"
 
 interface BuyPackButtonProps {
-  className?: string;
-  children?: React.ReactNode;
+  className?: string
+  children?: React.ReactNode
 }
 
-export default function BuyPackButton({ className = '', children }: BuyPackButtonProps) {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+export default function BuyPackButton({ className = "", children }: BuyPackButtonProps) {
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   return (
     <>
@@ -28,10 +30,7 @@ export default function BuyPackButton({ className = '', children }: BuyPackButto
         )}
       </button>
 
-      <BuyPackModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-      />
+      <BuyPackModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </>
-  );
+  )
 }
