@@ -19,7 +19,7 @@ import {
 import { Program, AnchorProvider, Wallet, BN } from '@coral-xyz/anchor';
 import {
   getAssociatedTokenAddress,
-  TOKEN_2022_PROGRAM_ID,
+  TOKEN_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
 import { Pnlpackprogram, IDL } from '../../../lib/idl';
@@ -185,33 +185,20 @@ async function executePackRevealTransactions(
   console.log('⚙️ [executePackRevealTransactions] Starting for packId:', packId);
   try {
     const connection = new Connection(DEVNET_RPC, 'confirmed');
-
     const adminPrivateKey = process.env.ADMIN_KEYPAIR;
     if (!adminPrivateKey) {
-      console.error('❌ ADMIN_KEYPAIR env variable missing');
       throw new Error('ADMIN_KEYPAIR environment variable not set');
     }
 
     let secretKey: Uint8Array;
     try {
       const arr = JSON.parse(adminPrivateKey);
-      if (!Array.isArray(arr) || arr.some(n => typeof n !== 'number')) {
-        throw new Error('ADMIN_KEYPAIR must be a JSON array of numbers');
-      }
       secretKey = Uint8Array.from(arr);
     } catch (e) {
-      console.error('❌ Failed to parse ADMIN_KEYPAIR:', e);
-      throw new Error('ADMIN_KEYPAIR must be a JSON array string, e.g. "[1,2,3,...]"');
+      throw new Error('ADMIN_KEYPAIR must be a JSON array string');
     }
 
     const adminKeypair = Keypair.fromSecretKey(secretKey);
-    console.log('🔑 Loaded admin keypair. Pubkey:', adminKeypair.publicKey.toBase58());
-
-    if (!adminKeypair.publicKey.equals(ADMIN_KEY)) {
-      console.error('❌ Admin key mismatch!');
-      throw new Error('Admin keypair does not match expected admin key');
-    }
-
     const adminWallet = new NodeWallet(adminKeypair);
     const provider = new AnchorProvider(connection, adminWallet, {
       commitment: 'confirmed',
@@ -219,11 +206,8 @@ async function executePackRevealTransactions(
     });
     const program = new Program<Pnlpackprogram>(IDL, provider);
 
-    const isDevnet = DEVNET_RPC.includes('devnet');
-    console.log(`🌐 Network detected: ${isDevnet ? 'Devnet' : 'Mainnet'}`);
-
-    const result = await executeSequentialTransactions(program, packId, kols, connection, adminKeypair);
-    console.log('✅ Sequential transaction execution finished with result:', result);
+    const result = await executeSimplifiedSequentialTransactions(program, packId, kols, connection, adminKeypair);
+    console.log('✅ Simplified execution finished with result:', result);
     return result;
   } catch (error) {
     console.error('❌ Error in executePackRevealTransactions:', error);
@@ -231,7 +215,7 @@ async function executePackRevealTransactions(
   }
 }
 
-async function executeSequentialTransactions(
+async function executeSimplifiedSequentialTransactions(
   program: Program<Pnlpackprogram>,
   packId: string,
   kols: KolData[],
@@ -239,21 +223,21 @@ async function executeSequentialTransactions(
   adminKeypair: Keypair
 ): Promise<{success: boolean, signatures?: string[], error?: string}> {
   try {
-    console.log('🔄 Executing transactions sequentially...');
-
+    console.log('🔄 Executing simplified sequential transactions...');
     const signatures: string[] = [];
-    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
 
+    // Step 1: Pack reveal (now much smaller - no ATA creation)
     console.log('📦 Creating pack reveal transaction...');
-    const packRevealSig = await executePackReveal(program, packId, kols, connection, adminKeypair, blockhash);
+    const packRevealSig = await executeSimplifiedPackReveal(program, packId, kols, connection, adminKeypair);
     signatures.push(packRevealSig);
     console.log('✅ Pack reveal confirmed:', packRevealSig);
 
-    console.log('💰 Executing individual token transfers...');
+    // Step 2: Individual transfers (will create ATAs automatically)
+    console.log('💰 Executing individual token transfers with ATA creation...');
     for (let i = 0; i < kols.length; i++) {
       const kol = kols[i];
       console.log(`💸 Processing transfer ${i + 1}/${kols.length} for ${kol.name} (${kol.ticker})`);
-      const transferSig = await executeIndividualTransfer(
+      const transferSig = await executeTransferWithATACreation(
         program, 
         packId, 
         kol, 
@@ -262,6 +246,7 @@ async function executeSequentialTransactions(
       );
       signatures.push(transferSig);
       console.log(`✅ Transfer ${i + 1} confirmed for ${kol.name}:`, transferSig);
+      
       if (i < kols.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
@@ -273,19 +258,20 @@ async function executeSequentialTransactions(
     };
 
   } catch (error) {
-    console.error('❌ Sequential transaction execution error:', error);
+    console.error('❌ Simplified sequential execution error:', error);
     throw error;
   }
 }
 
-async function executePackReveal(
+async function executeSimplifiedPackReveal(
   program: Program<Pnlpackprogram>,
   packId: string,
   kols: KolData[],
   connection: Connection,
-  adminKeypair: Keypair,
-  blockhash: string
+  adminKeypair: Keypair
 ): Promise<string> {
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+
   const [globalPackPool] = PublicKey.findProgramAddressSync(
     [Buffer.from('global_pack_pool')],
     PROGRAM_ID
@@ -296,32 +282,22 @@ async function executePackReveal(
     PROGRAM_ID
   );
 
-  const tokenAccounts = await Promise.all(
-    kols.map(async (kol) => {
-      return await getAssociatedTokenAddress(
-        kol.tokenMintAddress!,
-        packAccount,
-        true,
-        TOKEN_2022_PROGRAM_ID
-      );
-    })
-  );
-
   const kolInfoInputs = kols.map(kol => {
     const pnlValue = parseFloat(kol.pnl.replace(/[^\d.-]/g, '')) || 0;
     const pnlInLamports = new BN(Math.floor(Math.abs(pnlValue) * LAMPORTS_PER_SOL));
     const winrateBps = Math.min(10000, Math.max(0, Math.floor((kol.winRate || 0) * 100)));
-
+    const shrinkedName = kol.ticker?.substring(0, 4)!;
     return {
-      name: kol.name.substring(0, 32),
+      name: shrinkedName, // Shortened to reduce size
       address: kol.address ? new PublicKey(kol.address) : ADMIN_KEY,
-      pfpUrl: (kol.avatarUrl || '').substring(0, 200),
+      pfpUrl: (kol.avatarUrl || '').substring(0, 128), // Shortened
       pnl: pnlValue >= 0 ? pnlInLamports : pnlInLamports.neg(),
       winrateBps,
       kolTokenMintAddress: kol.tokenMintAddress!
     };
   });
 
+  // Much simpler instruction - no ATA accounts needed
   const packRevealIx = await program.methods
     .packReveal(packId, kolInfoInputs)
     .accountsPartial({
@@ -329,16 +305,11 @@ async function executePackReveal(
       admin: ADMIN_KEY,
       packAccount,
       mintKolA: kols[0].tokenMintAddress!,
-      packKolATa: tokenAccounts[0],
       mintKolB: kols[1].tokenMintAddress!,
-      packKolBTa: tokenAccounts[1],
       mintKolC: kols[2].tokenMintAddress!,
-      packKolCTa: tokenAccounts[2],
       mintKolD: kols[3].tokenMintAddress!,
-      packKolDTa: tokenAccounts[3],
       systemProgram: SystemProgram.programId,
-      tokenProgram: TOKEN_2022_PROGRAM_ID,
-      associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+      tokenProgram: TOKEN_PROGRAM_ID,
     })
     .instruction();
 
@@ -349,14 +320,91 @@ async function executePackReveal(
   transaction.sign(adminKeypair);
 
   const serializedTx = transaction.serialize();
-  console.log(`📏 Pack reveal transaction size: ${serializedTx.length} bytes`);
+  console.log(`📏 Simplified pack reveal transaction size: ${serializedTx.length} bytes`);
+
+  if (serializedTx.length > 1232) {
+    throw new Error(`Pack reveal transaction still too large: ${serializedTx.length} > 1232 bytes`);
+  }
 
   const signature = await connection.sendRawTransaction(serializedTx, {
     skipPreflight: false,
     preflightCommitment: 'confirmed'
   });
 
-  const { lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+  await connection.confirmTransaction({
+    signature,
+    blockhash,
+    lastValidBlockHeight
+  }, 'confirmed');
+
+  return signature;
+}
+
+async function executeTransferWithATACreation(
+  program: Program<Pnlpackprogram>,
+  packId: string,
+  kol: KolData,
+  connection: Connection,
+  adminKeypair: Keypair
+): Promise<string> {
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+
+  const [globalPackPool] = PublicKey.findProgramAddressSync(
+    [Buffer.from('global_pack_pool')],
+    PROGRAM_ID
+  );
+
+  const [packAccount] = PublicKey.findProgramAddressSync(
+    [Buffer.from('pack'), Buffer.from(packId)],
+    PROGRAM_ID
+  );
+
+  const [tokenVault] = PublicKey.findProgramAddressSync(
+    [Buffer.from('token_vault'), Buffer.from(kol.ticker!), globalPackPool.toBuffer()],
+    PROGRAM_ID
+  );
+
+  const packKolTa = await getAssociatedTokenAddress(
+    kol.tokenMintAddress!,
+    packAccount,
+    true,
+    TOKEN_PROGRAM_ID
+  );
+
+  // This instruction will now create the ATA if it doesn't exist
+  const transferIx = await program.methods
+    .transferToIndividualPack(kol.ticker!, TOKENS_PER_KOL)
+    .accountsPartial({
+      globalPackPool,
+      packAccount,
+      kolMint: kol.tokenMintAddress!,
+      kolTokenVault: tokenVault,
+      packKolTa,
+      admin: ADMIN_KEY, // Required as payer for ATA creation
+      systemProgram: SystemProgram.programId,
+      tokenProgram: TOKEN_PROGRAM_ID,
+      associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+    })
+    .instruction();
+
+  const transaction = new Transaction();
+  transaction.add(transferIx);
+  transaction.recentBlockhash = blockhash;
+  transaction.feePayer = adminKeypair.publicKey;
+  transaction.sign(adminKeypair);
+
+  const serializedTx = transaction.serialize();
+  console.log(`📏 Transfer transaction size for ${kol.name}: ${serializedTx.length} bytes`);
+  
+  if (serializedTx.length > 1232) {
+    throw new Error(`Transfer transaction too large: ${serializedTx.length} > 1232 bytes for KOL: ${kol.name}`);
+  }
+
+  const signature = await connection.sendRawTransaction(serializedTx, {
+    skipPreflight: false,
+    preflightCommitment: 'confirmed'
+  });
+
   await connection.confirmTransaction({
     signature,
     blockhash,
@@ -394,7 +442,7 @@ async function executeIndividualTransfer(
     kol.tokenMintAddress!,
     packAccount,
     true,
-    TOKEN_2022_PROGRAM_ID
+    TOKEN_PROGRAM_ID
   );
 
   const transferIx = await program.methods
@@ -405,7 +453,7 @@ async function executeIndividualTransfer(
       kolMint: kol.tokenMintAddress!,
       kolTokenVault: tokenVault,
       packKolTa,
-      tokenProgram: TOKEN_2022_PROGRAM_ID,
+      tokenProgram: TOKEN_PROGRAM_ID,
       associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
     })
     .instruction();

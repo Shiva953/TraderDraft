@@ -12,31 +12,39 @@ model Trader {
   rank             Int
   name             String
   address          String?
-  pnl              String    
-  winRate          Float?   // Win rate percentage
-  avatarUrl        String?     
-  xUrl             String?  
-  tokenMintAddress String?  // NEW COLUMN: Stores the token mint address after creation
-  period           Period   // daily, weekly, monthly
+  pnl              String
+  winRate          Float?
+  avatarUrl        String?
+  xUrl             String?
+  tokenMintAddress String?
+  period           Period
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
-  
-  // Composite unique constraint to prevent duplicates for same period
+
   @@unique([address, period])
   @@index([period, rank])
-  @@index([tokenMintAddress]) // Index for faster queries by mint address
+  @@index([tokenMintAddress])
   @@map("traders")
 }
 
 model ScrapingMetadata {
-  id            String   @id @default(cuid())
-  period        Period
-  totalTraders  Int
-  scrapedAt     DateTime @default(now())
-  isActive      Boolean  @default(true) // To mark the latest scraping session
-  
+  id           String   @id @default(cuid())
+  period       Period
+  totalTraders Int
+  scrapedAt    DateTime @default(now())
+  isActive     Boolean  @default(true)
+
   @@unique([period, isActive])
   @@map("scraping_metadata")
+}
+
+model user {
+  id                       Int      @id @default(autoincrement())
+  userPrivyWalletAddress   String?
+  packHoldings             Int?
+  totalValueOfPackHoldings Decimal? @db.Decimal
+  claimedPacks             Int?
+  unclaimedPacks           Int?
 }
 
 enum Period {

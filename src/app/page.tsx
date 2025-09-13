@@ -10,6 +10,8 @@ import {PrivyProvider, useLogin, usePrivy, useSolanaWallets, useLoginWithOAuth, 
 import { useEffect, useState, useCallback } from "react";
 import CompetitionBanner from "../components/CompetitionBanner";
 import { useDevBackgroundJobs } from "../hooks/useDevBackgroundJobs";
+import PackSaleBanner from "../components/PackSaleBanner";
+import UserPacks from "../components/UserPacks";
 
 
 interface TraderData {
@@ -388,6 +390,10 @@ const handlePeriodChange = useCallback(async (newPeriod: 'daily' | 'weekly' | 'm
       <header className="text-center">
         <h1 className="text-4xl font-semibold text-neutral-100">Kolscan</h1>
       </header>
+
+      <PackSaleBanner />
+
+      <UserPacks />
 
       <CompetitionBanner onViewLeaderboard={() => {
         const el = document.getElementById('home-leaderboard');
