@@ -13,7 +13,7 @@ interface BuyPackModalProps {
 const connection = new Connection("http://api.devnet.solana.com", { commitment: "confirmed" })
 
 export default function BuyPackModal({ isOpen, onClose }: BuyPackModalProps) {
-  const [packCount, setPackCount] = useState(100) // Start with 100 as shown in image
+  const [packCount, setPackCount] = useState(0) // Start with 100 as shown in image
   const [isLoading, setIsLoading] = useState(false)
   const [txnHash, setTxnHash] = useState<string | null>(null)
   const [showSuccess, setShowSuccess] = useState(false)
@@ -21,7 +21,7 @@ export default function BuyPackModal({ isOpen, onClose }: BuyPackModalProps) {
   const { sendTransaction } = useSendTransaction()
 
   const totalPrice = packCount * 0.1
-  const maxPacks = 2500 // Maximum packs as shown in image
+  const maxPacks = 2500 
 
   const handleBuyPacks = async () => {
     if (!wallets || wallets.length === 0) {
@@ -40,8 +40,11 @@ export default function BuyPackModal({ isOpen, onClose }: BuyPackModalProps) {
       console.log("🔵 [BuyPack] Starting transaction process")
       console.log("🔵 [BuyPack] Wallet address:", embeddedWallet.address)
       console.log(" [BuyPack] Total price:", totalPrice)
+      console.log("🔍 [BuyPack] packCount:", packCount)
+      console.log("🔍 [BuyPack] totalPrice:", totalPrice)
+      console.log("🔍 [BuyPack] Expected: packCount * 0.1 =", packCount * 0.1)
 
-      // Call the buyPack API
+
       const response = await fetch("/api/buyPack", {
         method: "POST",
         headers: {
@@ -130,7 +133,7 @@ export default function BuyPackModal({ isOpen, onClose }: BuyPackModalProps) {
       onClose()
       setShowSuccess(false)
       setTxnHash(null)
-      setPackCount(100)
+      setPackCount(0)
     }
   }
 
@@ -140,7 +143,7 @@ export default function BuyPackModal({ isOpen, onClose }: BuyPackModalProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleClose} />
 
-      <div className="relative w-full max-w-lg rounded-2xl bg-gray-200 p-6 shadow-2xl">
+      <div className="relative w-full max-w-lg rounded-2xl bg-gray-200 p-6 shadow-2xl font-mono">
         {!showSuccess ? (
           <div className="space-y-4">
             <div className="mb-6 text-center">

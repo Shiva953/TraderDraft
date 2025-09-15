@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
 
         const tradersToInsert = periodData.traders.map((trader, index: number) => ({
           id: `${period.toLowerCase()}_${index + 1}`,
-          rank: index + 1,
+          rank: trader.rank || 0,
           name: trader.walletName || `Trader ${index + 1}`,
           address: trader.walletAddress,
           pnl: trader.pnlSol || '',

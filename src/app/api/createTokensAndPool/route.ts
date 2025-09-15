@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import {
   CpAmm,
+  derivePoolAddress,
   FeeSchedulerMode,
   getBaseFeeParams,
   getDynamicFeeParams,
@@ -75,13 +76,16 @@ function createTicker(name: string, index: number): string {
   return ticker;
 }
 
+// CURRENTLY ALL POOL LIQUIDITY COMES FROM THE ADMIN ITSELF
+// IT SHOULD COME FROM THE PACK SALE RAISE, I.E, THE GLOBAL PACK POOL -> LIQUIDITY POOL TRANSFER INSTEAD OF ADMIN
+
 async function createSingleKolToken(
   kol: KolData,
   index: number,
   wallet: Keypair,
   program: Program<Pnlpackprogram>,
   globalPackPoolAccount: PublicKey
-): Promise<{ success: boolean; mintAddress?: string; error?: string }> {
+): Promise<{ success: boolean; mintAddress?: string; poolAddress?: string; error?: string, }> {
   try {
     console.log(`\n🎯 [CREATE] KOL ${index + 1}/50: ${kol.name} (Rank ${kol.rank})`);
     const ticker = createTicker(kol.name, index);
@@ -141,6 +145,7 @@ async function createSingleKolToken(
     const adminTokenAccount = await getAssociatedTokenAddress(baseMintKeypair.publicKey, wallet.publicKey);
     console.log(`🏧 [STEP 2] Admin associated token account: ${adminTokenAccount.toBase58()}`);
 
+    // MINT 1B TO ADMIN + TRANSFER 940M FROM ADMIN -> GLOBAL PACK POOL TOKEN VAULT(SIMULTANEOUS, ADMIN DOESNT HOLD 940M IN THE END ALL GOES TO THE GLOBAL PACK POOL)
     const superCombinedTx = await program.methods
       .mintAndInitKolTokenVaultAndTransfer(ticker, totalSupply, vaultAmount)
       .accountsPartial({
@@ -159,6 +164,8 @@ async function createSingleKolToken(
     console.log(`✅ [STEP 2] Vault+transfer transaction confirmed: ${superCombinedTx}`);
 
     // --- Step 3: Liquidity Pool
+    // here 6% token supply goes from admin -> pool
+    // but the SOL LIQUIDITY in the meteora pool should come from global pack pool instead of admin
     console.log("🚀 [STEP 3] Creating liquidity pool");
     const configs = await cpAmm.getAllConfigs();
     console.log(`🔍 [STEP 3] Available configs: ${configs.length}`);
@@ -168,6 +175,7 @@ async function createSingleKolToken(
     const tokenAMint = baseMintKeypair.publicKey;
     const tokenBMint = NATIVE_MINT;
     const solAmount = new BN(1_000_000_000);
+    const poolAddress = derivePoolAddress(publicConfig.publicKey, tokenAMint, tokenAMint);
 
     const sqrtMinPrice = getSqrtPriceFromPrice("0.0001", tokenADecimal, tokenBDecimal);
     const sqrtMaxPrice = getSqrtPriceFromPrice("0.01", tokenADecimal, tokenBDecimal);
@@ -219,7 +227,7 @@ async function createSingleKolToken(
     console.log(`✅ [STEP 3] Pool creation confirmed: ${poolCreationSignature}`);
     console.log(`🎉 [SUCCESS] ${kol.name} token created!`);
 
-    return { success: true, mintAddress: baseMintKeypair.publicKey.toBase58() };
+    return { success: true, mintAddress: baseMintKeypair.publicKey.toBase58(), poolAddress: poolAddress.toString()! };
   } catch (error) {
     console.error(`❌ [ERROR] Failed to create token for ${kol.name}:`, error);
     return { success: false, error: error instanceof Error ? error.message : String(error) };
@@ -262,7 +270,7 @@ export async function POST(request: Request) {
     );
     console.log(`🔗 [ANCHOR] GlobalPackPoolAccount: ${globalPackPoolAccount.toBase58()}`);
 
-    const results: { kolId: string; kolName: string; success: boolean; mintAddress?: string; error?: string }[] = [];
+    const results: { kolId: string; kolName: string; success: boolean; mintAddress?: string; poolAddress: string; error?: string }[] = [];
     let successCount = 0, failureCount = 0;
 
     console.log("🔄 [PROCESS] Starting creation loop for 50 KOLs");
@@ -280,6 +288,7 @@ export async function POST(request: Request) {
         kolId: kol.id,
         kolName: kol.name,
         success: result.success,
+        poolAddress: result.poolAddress || '',
         mintAddress: result.mintAddress,
         error: result.error
       });

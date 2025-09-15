@@ -54,20 +54,20 @@ export default function UserPacks() {
 
   return (
     <>
-      <div className="rounded-2xl border border-neutral-800 bg-gradient-to-r from-purple-900/20 to-pink-900/20 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-bold text-white">Your Packs</h3>
+      <div className="rounded-2xl bg-gray-200 p-6 font-mono">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-light text-gray-600 uppercase tracking-wide">Your Packs</h3>
           <div className="flex items-center gap-3">
             <button
               onClick={() => setShowOrdersModal(true)}
-              className="px-4 py-2 text-sm font-medium text-white bg-neutral-700 hover:bg-neutral-600 rounded-lg transition-colors"
+              className="cursor-pointer px-4 py-2 text-sm font-light text-gray-600 hover:text-black transition-colors"
             >
               View Orders
             </button>
             <button
               onClick={fetchUserPacks}
               disabled={loading}
-              className="text-sm text-neutral-400 hover:text-white transition-colors disabled:opacity-50"
+              className="cursor-pointer text-sm text-gray-500 hover:text-black transition-colors disabled:opacity-50"
             >
               {loading ? "Refreshing..." : "Refresh"}
             </button>
@@ -75,24 +75,24 @@ export default function UserPacks() {
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <div className="rounded-lg border border-neutral-700 p-4 bg-neutral-800/50">
-            <div className="text-sm text-neutral-400 mb-1">Total Packs</div>
-            <div className="text-2xl font-bold text-white">{userPacks.packHoldings}</div>
+          <div className="rounded-lg bg-gray-300 p-4">
+            <div className="text-sm text-gray-600 uppercase tracking-wide font-light mb-1">Total Packs</div>
+            <div className="text-2xl font-light text-black">{userPacks.packHoldings}</div>
           </div>
 
-          <div className="rounded-lg border border-neutral-700 p-4 bg-neutral-800/50">
-            <div className="text-sm text-neutral-400 mb-1">Total Value</div>
-            <div className="text-2xl font-bold text-purple-400">{userPacks.totalValueOfPackHoldings} SOL</div>
+          <div className="rounded-lg bg-gray-300 p-4">
+            <div className="text-sm text-gray-600 uppercase tracking-wide font-light mb-1">Total Value</div>
+            <div className="text-2xl font-light text-black">{userPacks.totalValueOfPackHoldings} SOL</div>
           </div>
 
-          <div className="rounded-lg border border-neutral-700 p-4 bg-neutral-800/50">
-            <div className="text-sm text-neutral-400 mb-1">Unclaimed</div>
-            <div className="text-2xl font-bold text-orange-400">{userPacks.unclaimedPacks}</div>
+          <div className="rounded-lg bg-gray-300 p-4">
+            <div className="text-sm text-gray-600 uppercase tracking-wide font-light mb-1">Unclaimed</div>
+            <div className="text-2xl font-light text-black">{userPacks.unclaimedPacks}</div>
           </div>
 
-          <div className="rounded-lg border border-neutral-700 p-4 bg-neutral-800/50">
-            <div className="text-sm text-neutral-400 mb-1">Claimed</div>
-            <div className="text-2xl font-bold text-green-400">{userPacks.claimedPacks}</div>
+          <div className="rounded-lg bg-gray-300 p-4">
+            <div className="text-sm text-gray-600 uppercase tracking-wide font-light mb-1">Claimed</div>
+            <div className="text-2xl font-light text-black">{userPacks.claimedPacks}</div>
           </div>
         </div>
       </div>

@@ -76,7 +76,7 @@ export default function ViewOrdersModal({ isOpen, onClose }: ViewOrdersModalProp
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative w-full max-w-3xl rounded-2xl bg-gray-200 p-6 shadow-2xl">
+      <div className="relative w-full max-w-3xl rounded-2xl bg-gray-200 p-6 shadow-2xl font-mono">
         <div className="mb-6 text-center">
           <h2 className="text-xl font-light text-gray-600 uppercase tracking-wide">Your Orders</h2>
         </div>
