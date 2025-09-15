@@ -13,6 +13,7 @@ import { useDevBackgroundJobs } from "../hooks/useDevBackgroundJobs";
 import UserPacks from "../components/UserPacks";
 
 
+// Updated interface to match backend data
 interface TraderData {
   rank: number;
   name: string;
@@ -21,6 +22,11 @@ interface TraderData {
   winRate: string;
   avatarUrl?: string;
   xUrl?: string;
+  tokenMintAddress?: string;
+  poolAddress?: string;
+  tokenPrice?: string;
+  priceChange24h?: string;
+  priceChange24hPercent?: number;
 }
 
 interface PeriodData {
@@ -44,7 +50,6 @@ interface ApiResponse {
   selected: PeriodData;
 }
 
-// Function to convert API data to LeaderboardEntry format
 function convertApiDataToLeaderboardEntry(data: TraderData[]): LeaderboardEntry[] {
   return data.map((trader) => {
     
@@ -67,9 +72,15 @@ function convertApiDataToLeaderboardEntry(data: TraderData[]): LeaderboardEntry[
       pnl: trader.pnl,
       winRate: Number(trader.winRate).toFixed(2),
       walletAddress: trader.address,
+      tokenPrice: trader.tokenPrice,
+      priceChange24h: trader.priceChange24h,
+      priceChange24hPercent: trader.priceChange24hPercent,
+      poolAddress: trader.poolAddress,
+      tokenMintAddress: trader.tokenMintAddress,
     };
   });
 }
+
 
 export default function Home() {
 

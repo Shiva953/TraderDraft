@@ -10,6 +10,7 @@ import {
   getSqrtPriceFromPrice,
   PoolFeesParams
 } from "@meteora-ag/cp-amm-sdk"
+import { deriveDammV2PoolAddress } from '@meteora-ag/dynamic-bonding-curve-sdk'
 import {
   Connection,
   Keypair,
@@ -78,6 +79,7 @@ function createTicker(name: string, index: number): string {
 
 // CURRENTLY ALL POOL LIQUIDITY COMES FROM THE ADMIN ITSELF
 // IT SHOULD COME FROM THE PACK SALE RAISE, I.E, THE GLOBAL PACK POOL -> LIQUIDITY POOL TRANSFER INSTEAD OF ADMIN
+// OR (GLOBAL PACK POOL -> ADMIN(WITHDRAW 50 SOL, 1 SOL liquidity for each pool) + mintAndInitVaultAndTransfer(940M tokens -> global pool TV) + createPool()[1 SOL, 6% tokens from admin -> DAMM pool]) in atomic
 
 async function createSingleKolToken(
   kol: KolData,
@@ -174,8 +176,17 @@ async function createSingleKolToken(
 
     const tokenAMint = baseMintKeypair.publicKey;
     const tokenBMint = NATIVE_MINT;
-    const solAmount = new BN(1_000_000_000);
-    const poolAddress = derivePoolAddress(publicConfig.publicKey, tokenAMint, tokenAMint);
+    const solAmount = new BN(100_000_000);
+    // Derive the poolAddress PDA using DAMMv2programId and seeds: tokenAMint, tokenBMint, publicConfig.publicKey
+    const DAMMv2programId = new anchor.web3.PublicKey("cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG");
+    const [poolAddress] = anchor.web3.PublicKey.findProgramAddressSync(
+      [
+        tokenAMint.toBuffer(),
+        tokenBMint.toBuffer(),
+        publicConfig.publicKey.toBuffer()
+      ],
+      DAMMv2programId
+    );
 
     const sqrtMinPrice = getSqrtPriceFromPrice("0.0001", tokenADecimal, tokenBDecimal);
     const sqrtMaxPrice = getSqrtPriceFromPrice("0.01", tokenADecimal, tokenBDecimal);
@@ -196,7 +207,7 @@ async function createSingleKolToken(
     const positionNftMint = Keypair.generate();
     console.log(`🎨 [STEP 3] Position NFT mint keypair: ${positionNftMint.publicKey.toBase58()}`);
 
-    const { tx } = await cpAmm.createCustomPool({
+    const { tx, pool } = await cpAmm.createCustomPool({
       payer: wallet.publicKey,
       creator: wallet.publicKey,
       positionNft: positionNftMint.publicKey,
@@ -227,7 +238,9 @@ async function createSingleKolToken(
     console.log(`✅ [STEP 3] Pool creation confirmed: ${poolCreationSignature}`);
     console.log(`🎉 [SUCCESS] ${kol.name} token created!`);
 
-    return { success: true, mintAddress: baseMintKeypair.publicKey.toBase58(), poolAddress: poolAddress.toString()! };
+    console.log("ACTUAL POOL ADDRESS: ", pool.toString())
+
+    return { success: true, mintAddress: baseMintKeypair.publicKey.toBase58(), poolAddress: pool.toString()! };
   } catch (error) {
     console.error(`❌ [ERROR] Failed to create token for ${kol.name}:`, error);
     return { success: false, error: error instanceof Error ? error.message : String(error) };
@@ -296,21 +309,23 @@ export async function POST(request: Request) {
       try {
         await prisma.trader.update({
           where: { id: kol.id },
-          data: { tokenMintAddress: result.success ? result.mintAddress : null }
+          data: { 
+            tokenMintAddress: result.success ? result.mintAddress : null,
+            poolAddress: result.success ? result.poolAddress : null // Add this
+          }
         });
         console.log(result.success
-          ? `✅ [DB] Updated mint address for ${kol.name}`
-          : `⚠️ [DB] Stored null mint for ${kol.name} (creation failed)`
+          ? `✅ [DB] Updated mint and pool addresses for ${kol.name}`
+          : `⚠️ [DB] Stored null addresses for ${kol.name} (creation failed)`
         );
         result.success ? successCount++ : failureCount++;
       } catch (dbErr) {
         console.error(`❌ [DB] Update failed for ${kol.name}:`, dbErr);
-        console.warn(`⚠️ [CONTINUE] Database update failed for ${kol.name}, but continuing with process`);
         failureCount++;
         if (result.success) successCount--;
       }
     
-      // Rate limiting delay (continues regardless of success/failure)
+      // Rate limiting delay
       if (i < kols.length - 1) {
         console.log(`⏳ [RATE] Waiting 4s before next token (${i + 2}/50)`);
         await new Promise(r => setTimeout(r, 3000));

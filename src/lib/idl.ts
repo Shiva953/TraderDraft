@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/pnlpackprogram.json`.
  */
 export type Pnlpackprogram = {
-  "address": "2Bv9DtsyPmwKJSpbhNdK5tEPu4WTugyoWJmx8cBfuAid",
+  "address": "69jY612GkDHnGV81vZ1S9bqX1LqMj25QFoEwA73Xx69F",
   "metadata": {
     "name": "pnlpackprogram",
     "version": "0.1.0",
@@ -590,6 +590,33 @@ export type Pnlpackprogram = {
           }
         },
         {
+          "name": "configAccount",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  67,
+                  79,
+                  78,
+                  70,
+                  73,
+                  71,
+                  95,
+                  65,
+                  67,
+                  67,
+                  79,
+                  85,
+                  78,
+                  84
+                ]
+              }
+            ]
+          }
+        },
+        {
           "name": "admin",
           "writable": true,
           "signer": true,
@@ -768,6 +795,32 @@ export type Pnlpackprogram = {
           }
         },
         {
+          "name": "configAccount",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  67,
+                  79,
+                  78,
+                  70,
+                  73,
+                  71,
+                  95,
+                  65,
+                  67,
+                  67,
+                  79,
+                  85,
+                  78,
+                  84
+                ]
+              }
+            ]
+          }
+        },
+        {
           "name": "systemProgram",
           "address": "11111111111111111111111111111111"
         },
@@ -878,6 +931,32 @@ export type Pnlpackprogram = {
         },
         {
           "name": "mintKolD"
+        },
+        {
+          "name": "configAccount",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  67,
+                  79,
+                  78,
+                  70,
+                  73,
+                  71,
+                  95,
+                  65,
+                  67,
+                  67,
+                  79,
+                  85,
+                  78,
+                  84
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "systemProgram",
@@ -1006,66 +1085,39 @@ export type Pnlpackprogram = {
         },
         {
           "name": "packKolTa",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "account",
-                "path": "packAccount"
-              },
-              {
-                "kind": "account",
-                "path": "tokenProgram"
-              },
-              {
-                "kind": "account",
-                "path": "kolMint"
-              }
-            ],
-            "program": {
-              "kind": "const",
-              "value": [
-                140,
-                151,
-                37,
-                143,
-                78,
-                36,
-                137,
-                241,
-                187,
-                61,
-                16,
-                41,
-                20,
-                142,
-                13,
-                131,
-                11,
-                90,
-                19,
-                153,
-                218,
-                255,
-                16,
-                132,
-                4,
-                142,
-                123,
-                216,
-                219,
-                233,
-                248,
-                89
-              ]
-            }
-          }
+          "writable": true
         },
         {
           "name": "admin",
           "writable": true,
           "signer": true,
           "address": "7E85TTXg5FjT5G6q14nZUSE3KAgjM2kjBs8ddAW6eBeR"
+        },
+        {
+          "name": "configAccount",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  67,
+                  79,
+                  78,
+                  70,
+                  73,
+                  71,
+                  95,
+                  65,
+                  67,
+                  67,
+                  79,
+                  85,
+                  78,
+                  84
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "systemProgram",
@@ -1148,9 +1200,108 @@ export type Pnlpackprogram = {
           "type": "u64"
         }
       ]
+    },
+    {
+      "name": "withdrawFromPackPoolToAdmin",
+      "discriminator": [
+        55,
+        14,
+        24,
+        77,
+        107,
+        178,
+        144,
+        194
+      ],
+      "accounts": [
+        {
+          "name": "globalPackPool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  112,
+                  97,
+                  99,
+                  107,
+                  95,
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true,
+          "address": "7E85TTXg5FjT5G6q14nZUSE3KAgjM2kjBs8ddAW6eBeR"
+        },
+        {
+          "name": "configAccount",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  67,
+                  79,
+                  78,
+                  70,
+                  73,
+                  71,
+                  95,
+                  65,
+                  67,
+                  67,
+                  79,
+                  85,
+                  78,
+                  84
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
     }
   ],
   "accounts": [
+    {
+      "name": "configAccount",
+      "discriminator": [
+        189,
+        255,
+        97,
+        70,
+        186,
+        189,
+        24,
+        102
+      ]
+    },
     {
       "name": "globalPackPool",
       "discriminator": [
@@ -1181,86 +1332,118 @@ export type Pnlpackprogram = {
   "errors": [
     {
       "code": 6000,
+      "name": "unauthorizedAdmin",
+      "msg": "Unauthorized admin"
+    },
+    {
+      "code": 6001,
       "name": "invalidSeedLength",
       "msg": "Seed longer than 32 bytes"
     },
     {
-      "code": 6001,
+      "code": 6002,
       "name": "invalidTotalKols",
       "msg": "Invalid total KOLs count"
     },
     {
-      "code": 6002,
+      "code": 6003,
       "name": "vaultTransferExceedsSupply",
       "msg": "Vault transfer amount exceeds total supply"
     },
     {
-      "code": 6003,
+      "code": 6004,
       "name": "invalidSupplyAmount",
       "msg": "Invalid supply amount"
     },
     {
-      "code": 6004,
+      "code": 6005,
       "name": "invalidKolCount",
       "msg": "Expected exactly 4 KOLs for pack reveal"
     },
     {
-      "code": 6005,
+      "code": 6006,
       "name": "mintAddressMismatch",
       "msg": "Mint address doesn't match KOL info"
     },
     {
-      "code": 6006,
+      "code": 6007,
       "name": "invalidKolName",
       "msg": "Invalid KOL name length"
     },
     {
-      "code": 6007,
+      "code": 6008,
       "name": "invalidPfpUrl",
       "msg": "Invalid PFP URL length"
     },
     {
-      "code": 6008,
+      "code": 6009,
       "name": "invalidWinrate",
       "msg": "Invalid winrate (must be <= 10000 bps)"
     },
     {
-      "code": 6009,
+      "code": 6010,
       "name": "duplicateKolAddress",
       "msg": "Duplicate KOL address in pack"
     },
     {
-      "code": 6010,
+      "code": 6011,
       "name": "duplicateMintAddress",
       "msg": "Duplicate mint address in pack"
     },
     {
-      "code": 6011,
+      "code": 6012,
       "name": "invalidTransferAmount",
       "msg": "Invalid transfer amount"
     },
     {
-      "code": 6012,
+      "code": 6013,
       "name": "insufficientVaultBalance",
       "msg": "Insufficient vault balance"
     },
     {
-      "code": 6013,
+      "code": 6014,
+      "name": "invalidPackAccount",
+      "msg": "Invalid pack account provided"
+    },
+    {
+      "code": 6015,
       "name": "invalidPackPrice",
       "msg": "Invalid pack price (must be 0.1 SOL)"
     },
     {
-      "code": 6014,
+      "code": 6016,
       "name": "invalidClaimAmount",
       "msg": "Invalid claim amount"
     },
     {
-      "code": 6015,
+      "code": 6017,
       "name": "insufficientPackBalance",
       "msg": "Insufficient pack balance"
+    },
+    {
+      "code": 6018,
+      "name": "invalidTokenAccount",
+      "msg": "Invalid token account address"
+    },
+    {
+      "code": 6019,
+      "name": "insufficientFundsForAta",
+      "msg": "Global pack pool has insufficient funds for ATA creation"
     }
   ],
   "types": [
+    {
+      "name": "configAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
     {
       "name": "globalPackPool",
       "type": {
@@ -1345,7 +1528,7 @@ export type Pnlpackprogram = {
 };
   
   export const IDL = {
-    "address": "2Bv9DtsyPmwKJSpbhNdK5tEPu4WTugyoWJmx8cBfuAid",
+    "address": "69jY612GkDHnGV81vZ1S9bqX1LqMj25QFoEwA73Xx69F",
     "metadata": {
       "name": "pnlpackprogram",
       "version": "0.1.0",
@@ -1930,6 +2113,33 @@ export type Pnlpackprogram = {
             }
           },
           {
+            "name": "config_account",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "const",
+                  "value": [
+                    67,
+                    79,
+                    78,
+                    70,
+                    73,
+                    71,
+                    95,
+                    65,
+                    67,
+                    67,
+                    79,
+                    85,
+                    78,
+                    84
+                  ]
+                }
+              ]
+            }
+          },
+          {
             "name": "admin",
             "writable": true,
             "signer": true,
@@ -2108,6 +2318,32 @@ export type Pnlpackprogram = {
             }
           },
           {
+            "name": "config_account",
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "const",
+                  "value": [
+                    67,
+                    79,
+                    78,
+                    70,
+                    73,
+                    71,
+                    95,
+                    65,
+                    67,
+                    67,
+                    79,
+                    85,
+                    78,
+                    84
+                  ]
+                }
+              ]
+            }
+          },
+          {
             "name": "system_program",
             "address": "11111111111111111111111111111111"
           },
@@ -2218,6 +2454,32 @@ export type Pnlpackprogram = {
           },
           {
             "name": "mint_kol_d"
+          },
+          {
+            "name": "config_account",
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "const",
+                  "value": [
+                    67,
+                    79,
+                    78,
+                    70,
+                    73,
+                    71,
+                    95,
+                    65,
+                    67,
+                    67,
+                    79,
+                    85,
+                    78,
+                    84
+                  ]
+                }
+              ]
+            }
           },
           {
             "name": "system_program",
@@ -2346,66 +2608,39 @@ export type Pnlpackprogram = {
           },
           {
             "name": "pack_kol_ta",
-            "writable": true,
-            "pda": {
-              "seeds": [
-                {
-                  "kind": "account",
-                  "path": "pack_account"
-                },
-                {
-                  "kind": "account",
-                  "path": "token_program"
-                },
-                {
-                  "kind": "account",
-                  "path": "kol_mint"
-                }
-              ],
-              "program": {
-                "kind": "const",
-                "value": [
-                  140,
-                  151,
-                  37,
-                  143,
-                  78,
-                  36,
-                  137,
-                  241,
-                  187,
-                  61,
-                  16,
-                  41,
-                  20,
-                  142,
-                  13,
-                  131,
-                  11,
-                  90,
-                  19,
-                  153,
-                  218,
-                  255,
-                  16,
-                  132,
-                  4,
-                  142,
-                  123,
-                  216,
-                  219,
-                  233,
-                  248,
-                  89
-                ]
-              }
-            }
+            "writable": true
           },
           {
             "name": "admin",
             "writable": true,
             "signer": true,
             "address": "7E85TTXg5FjT5G6q14nZUSE3KAgjM2kjBs8ddAW6eBeR"
+          },
+          {
+            "name": "config_account",
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "const",
+                  "value": [
+                    67,
+                    79,
+                    78,
+                    70,
+                    73,
+                    71,
+                    95,
+                    65,
+                    67,
+                    67,
+                    79,
+                    85,
+                    78,
+                    84
+                  ]
+                }
+              ]
+            }
           },
           {
             "name": "system_program",
@@ -2488,9 +2723,108 @@ export type Pnlpackprogram = {
             "type": "u64"
           }
         ]
+      },
+      {
+        "name": "withdraw_from_pack_pool_to_admin",
+        "discriminator": [
+          55,
+          14,
+          24,
+          77,
+          107,
+          178,
+          144,
+          194
+        ],
+        "accounts": [
+          {
+            "name": "global_pack_pool",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "const",
+                  "value": [
+                    103,
+                    108,
+                    111,
+                    98,
+                    97,
+                    108,
+                    95,
+                    112,
+                    97,
+                    99,
+                    107,
+                    95,
+                    112,
+                    111,
+                    111,
+                    108
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "admin",
+            "writable": true,
+            "signer": true,
+            "address": "7E85TTXg5FjT5G6q14nZUSE3KAgjM2kjBs8ddAW6eBeR"
+          },
+          {
+            "name": "config_account",
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "const",
+                  "value": [
+                    67,
+                    79,
+                    78,
+                    70,
+                    73,
+                    71,
+                    95,
+                    65,
+                    67,
+                    67,
+                    79,
+                    85,
+                    78,
+                    84
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "system_program",
+            "address": "11111111111111111111111111111111"
+          }
+        ],
+        "args": [
+          {
+            "name": "amount",
+            "type": "u64"
+          }
+        ]
       }
     ],
     "accounts": [
+      {
+        "name": "ConfigAccount",
+        "discriminator": [
+          189,
+          255,
+          97,
+          70,
+          186,
+          189,
+          24,
+          102
+        ]
+      },
       {
         "name": "GlobalPackPool",
         "discriminator": [
@@ -2521,86 +2855,118 @@ export type Pnlpackprogram = {
     "errors": [
       {
         "code": 6000,
+        "name": "UnauthorizedAdmin",
+        "msg": "Unauthorized admin"
+      },
+      {
+        "code": 6001,
         "name": "InvalidSeedLength",
         "msg": "Seed longer than 32 bytes"
       },
       {
-        "code": 6001,
+        "code": 6002,
         "name": "InvalidTotalKols",
         "msg": "Invalid total KOLs count"
       },
       {
-        "code": 6002,
+        "code": 6003,
         "name": "VaultTransferExceedsSupply",
         "msg": "Vault transfer amount exceeds total supply"
       },
       {
-        "code": 6003,
+        "code": 6004,
         "name": "InvalidSupplyAmount",
         "msg": "Invalid supply amount"
       },
       {
-        "code": 6004,
+        "code": 6005,
         "name": "InvalidKolCount",
         "msg": "Expected exactly 4 KOLs for pack reveal"
       },
       {
-        "code": 6005,
+        "code": 6006,
         "name": "MintAddressMismatch",
         "msg": "Mint address doesn't match KOL info"
       },
       {
-        "code": 6006,
+        "code": 6007,
         "name": "InvalidKolName",
         "msg": "Invalid KOL name length"
       },
       {
-        "code": 6007,
+        "code": 6008,
         "name": "InvalidPfpUrl",
         "msg": "Invalid PFP URL length"
       },
       {
-        "code": 6008,
+        "code": 6009,
         "name": "InvalidWinrate",
         "msg": "Invalid winrate (must be <= 10000 bps)"
       },
       {
-        "code": 6009,
+        "code": 6010,
         "name": "DuplicateKolAddress",
         "msg": "Duplicate KOL address in pack"
       },
       {
-        "code": 6010,
+        "code": 6011,
         "name": "DuplicateMintAddress",
         "msg": "Duplicate mint address in pack"
       },
       {
-        "code": 6011,
+        "code": 6012,
         "name": "InvalidTransferAmount",
         "msg": "Invalid transfer amount"
       },
       {
-        "code": 6012,
+        "code": 6013,
         "name": "InsufficientVaultBalance",
         "msg": "Insufficient vault balance"
       },
       {
-        "code": 6013,
+        "code": 6014,
+        "name": "InvalidPackAccount",
+        "msg": "Invalid pack account provided"
+      },
+      {
+        "code": 6015,
         "name": "InvalidPackPrice",
         "msg": "Invalid pack price (must be 0.1 SOL)"
       },
       {
-        "code": 6014,
+        "code": 6016,
         "name": "InvalidClaimAmount",
         "msg": "Invalid claim amount"
       },
       {
-        "code": 6015,
+        "code": 6017,
         "name": "InsufficientPackBalance",
         "msg": "Insufficient pack balance"
+      },
+      {
+        "code": 6018,
+        "name": "InvalidTokenAccount",
+        "msg": "Invalid token account address"
+      },
+      {
+        "code": 6019,
+        "name": "InsufficientFundsForATA",
+        "msg": "Global pack pool has insufficient funds for ATA creation"
       }
     ],
     "types": [
+      {
+        "name": "ConfigAccount",
+        "type": {
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "admin",
+              "type": "pubkey"
+            }
+          ]
+        }
+      },
       {
         "name": "GlobalPackPool",
         "type": {

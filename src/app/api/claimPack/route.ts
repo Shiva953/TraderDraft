@@ -10,6 +10,7 @@ export async function POST(request: Request) {
     // 3. query the db to get their mint addressses
     // 4. use privy embedded wallet to sign and send the claimFromPack() txn with the required params
     // 5. return txn hash and completed status(user should see those token holdings)
+    
 
     return NextResponse.json(
       {

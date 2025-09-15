@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { meteoraClient } from '@/lib/meteoraPriceUtils';
 
 const prisma = new PrismaClient();
 
@@ -161,7 +162,7 @@ export async function GET(request: NextRequest) {
   return POST(mockRequest);
 }
 
-// Optimized function with better error handling and performance
+// Enhanced function with price data fetching
 async function fetchTradersData(period: 'DAILY' | 'WEEKLY' | 'MONTHLY', limit: number) {
   try {
     console.log(`🔍 [DB] Fetching ${period} traders with limit ${limit}`);
@@ -182,7 +183,7 @@ async function fetchTradersData(period: 'DAILY' | 'WEEKLY' | 'MONTHLY', limit: n
       }),
       prisma.trader.findMany({
         where: { period: period },
-        orderBy: { rank: 'asc' },
+        orderBy: { rank: 'asc' }, // this is where we sort by PNL(rank actually, and rank is already assigned by PnL(high -> low))
         take: limit,
         select: {
           rank: true,
@@ -191,7 +192,9 @@ async function fetchTradersData(period: 'DAILY' | 'WEEKLY' | 'MONTHLY', limit: n
           pnl: true,
           winRate: true,
           avatarUrl: true,
-          xUrl: true
+          xUrl: true,
+          tokenMintAddress: true,
+          poolAddress: true
         }
       })
     ]);
@@ -199,8 +202,11 @@ async function fetchTradersData(period: 'DAILY' | 'WEEKLY' | 'MONTHLY', limit: n
     const endTime = Date.now();
     console.log(`✅ [DB] ${period} query completed in ${endTime - startTime}ms`);
 
+    // Fetch price data for traders with pool addresses
+    const tradersWithPriceData = await enrichTradersWithPriceData(traders);
+
     return {
-      traders: traders,
+      traders: tradersWithPriceData,
       totalTraders: metadata?.totalTraders || 0,
       lastUpdated: metadata?.scrapedAt?.toISOString()
     };
@@ -211,5 +217,73 @@ async function fetchTradersData(period: 'DAILY' | 'WEEKLY' | 'MONTHLY', limit: n
       totalTraders: 0,
       lastUpdated: null
     };
+  }
+}
+
+// New function to enrich traders with price data
+async function enrichTradersWithPriceData(traders: any[]) {
+  console.log(`💰 [PRICE] Enriching ${traders.length} traders with price data`);
+  
+  // Filter traders that have pool addresses
+  const tradersWithPools = traders.filter(trader => trader.poolAddress);
+  
+  if (tradersWithPools.length === 0) {
+    console.log(`⚠️ [PRICE] No traders with pool addresses found`);
+    return traders.map(trader => ({
+      ...trader,
+      tokenPrice: undefined,
+      priceChange24h: undefined,
+      priceChange24hPercent: undefined
+    }));
+  }
+
+  try {
+    // Get pool addresses for price fetching
+    const poolAddresses = tradersWithPools.map(trader => trader.poolAddress);
+    console.log(`🔍 [PRICE] Fetching price data for ${poolAddresses.length} pools`);
+    
+    // Batch fetch price data
+    const priceDataMap = await meteoraClient.batchGetTokenPriceData(poolAddresses);
+    console.log(`✅ [PRICE] Retrieved price data for ${priceDataMap.size} pools`);
+
+    // Enrich traders with price data
+    return traders.map(trader => {
+      if (!trader.poolAddress) {
+        return {
+          ...trader,
+          tokenPrice: undefined,
+          priceChange24h: undefined,
+          priceChange24hPercent: undefined
+        };
+      }
+
+      const priceData = priceDataMap.get(trader.poolAddress);
+      
+      if (!priceData) {
+        console.log(`⚠️ [PRICE] No price data found for pool ${trader.poolAddress}`);
+        return {
+          ...trader,
+          tokenPrice: undefined,
+          priceChange24h: undefined,
+          priceChange24hPercent: undefined
+        };
+      }
+
+      return {
+        ...trader,
+        tokenPrice: priceData.price.toFixed(6),
+        priceChange24h: priceData.priceChange24h.toFixed(6),
+        priceChange24hPercent: priceData.priceChange24hPercent
+      };
+    });
+  } catch (error) {
+    console.error(`❌ [PRICE] Error fetching price data:`, error);
+    // Return traders without price data on error
+    return traders.map(trader => ({
+      ...trader,
+      tokenPrice: undefined,
+      priceChange24h: undefined,
+      priceChange24hPercent: undefined
+    }));
   }
 }

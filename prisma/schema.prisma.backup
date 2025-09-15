@@ -17,7 +17,6 @@ model Trader {
   avatarUrl        String?
   xUrl             String?
   tokenMintAddress String?
-  poolAddress      String?  // Add this new field
   period           Period
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -25,7 +24,6 @@ model Trader {
   @@unique([address, period])
   @@index([period, rank])
   @@index([tokenMintAddress])
-  @@index([poolAddress])  // Add index for pool address
   @@map("traders")
 }
 
