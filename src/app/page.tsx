@@ -11,7 +11,7 @@ import { useEffect, useState, useCallback } from "react";
 import {PackSaleBannerNew} from "../components/PackSaleBannerNew";
 import { useDevBackgroundJobs } from "../hooks/useDevBackgroundJobs";
 import UserPacks from "../components/UserPacks";
-
+import PackRevealSystem from "../components/PackRevealSystem"; // Import your PackRevealSystem
 
 // Updated interface to match backend data
 interface TraderData {
@@ -109,8 +109,10 @@ export default function Home() {
   const [currentPeriod, setCurrentPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const [allPeriodsData, setAllPeriodsData] = useState<ApiResponse['data'] | null>(null);
 
-  const { triggerManualUpdate, isTriggering } = useDevBackgroundJobs();
+  // ADD PACK REVEAL STATE
+  const [showPackReveal, setShowPackReveal] = useState(false);
 
+  const { triggerManualUpdate, isTriggering } = useDevBackgroundJobs();
 
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [refreshInterval] = useState(60000); // 1 minute
@@ -121,7 +123,6 @@ export default function Home() {
   const { logout } = useLogout();
 
   console.log("Current state:", { ready, authenticated, wallets: wallets.length, user });
-
 
   const fetchLeaderboardData = useCallback(async (fetchAllPeriods = false) => {
     setLeaderboardLoading(true);
@@ -184,86 +185,84 @@ export default function Home() {
     }
   }, [currentPeriod, leaderboardData.length]);
 
-
   // Update refresh handler to be smarter about what to fetch
-    const handleRefresh = useCallback(() => {
-      // If we have cached data for other periods, refresh all
-      // Otherwise, just refresh the current period
-      const shouldFetchAll = allPeriodsData && Object.keys(allPeriodsData).length > 1;
-      fetchLeaderboardData(shouldFetchAll!);
-    }, [fetchLeaderboardData, allPeriodsData]);
+  const handleRefresh = useCallback(() => {
+    // If we have cached data for other periods, refresh all
+    // Otherwise, just refresh the current period
+    const shouldFetchAll = allPeriodsData && Object.keys(allPeriodsData).length > 1;
+    fetchLeaderboardData(shouldFetchAll!);
+  }, [fetchLeaderboardData, allPeriodsData]);
 
   // switch periods using cached data when available
   // Enhanced period change handler that fetches data if not cached
-const handlePeriodChange = useCallback(async (newPeriod: 'daily' | 'weekly' | 'monthly') => {
-  const oldPeriod = currentPeriod;
-  setCurrentPeriod(newPeriod);
-  
-  // If we have cached data for this period, use it immediately
-  if (allPeriodsData && allPeriodsData[newPeriod] && allPeriodsData[newPeriod].traders.length > 0) {
-    const convertedData = convertApiDataToLeaderboardEntry(allPeriodsData[newPeriod].traders);
-    setLeaderboardData(convertedData);
+  const handlePeriodChange = useCallback(async (newPeriod: 'daily' | 'weekly' | 'monthly') => {
+    const oldPeriod = currentPeriod;
+    setCurrentPeriod(newPeriod);
     
-    if (allPeriodsData[newPeriod].lastUpdated) {
-      setLastUpdated(new Date(allPeriodsData[newPeriod].lastUpdated));
-    }
-    
-    console.log(`✅ [PAGE] Switched to ${newPeriod} using cached data`);
-  } else {
-    // No cached data, fetch it
-    console.log(`🔄 [PAGE] No cached data for ${newPeriod}, fetching...`);
-    
-    try {
-      setLeaderboardLoading(true);
-      const response = await fetch('/api/getTopTraders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          period: newPeriod, 
-          limit: 20,
-          fetchAll: false // Only fetch the specific period
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.ok && data.selected && data.selected.traders) {
-          const convertedData = convertApiDataToLeaderboardEntry(data.selected.traders);
-          setLeaderboardData(convertedData);
-          
-          if (data.selected.lastUpdated) {
-            setLastUpdated(new Date(data.selected.lastUpdated));
-          }
-          
-          // Cache this data for future use
-          if (allPeriodsData) {
-            setAllPeriodsData({
-              ...allPeriodsData,
-              [newPeriod]: {
-                traders: data.selected.traders,
-                totalTraders: data.selected.totalTraders,
-                lastUpdated: data.selected.lastUpdated,
-                period: newPeriod
-              }
-            });
-          }
-        }
-      } else {
-        throw new Error(`Failed to fetch ${newPeriod} data`);
+    // If we have cached data for this period, use it immediately
+    if (allPeriodsData && allPeriodsData[newPeriod] && allPeriodsData[newPeriod].traders.length > 0) {
+      const convertedData = convertApiDataToLeaderboardEntry(allPeriodsData[newPeriod].traders);
+      setLeaderboardData(convertedData);
+      
+      if (allPeriodsData[newPeriod].lastUpdated) {
+        setLastUpdated(new Date(allPeriodsData[newPeriod].lastUpdated));
       }
-    } catch (error) {
-      console.error(`❌ [PAGE] Failed to fetch ${newPeriod} data:`, error);
-      setLeaderboardError(`Failed to load ${newPeriod} data`);
-      // Revert to old period on error
-      setCurrentPeriod(oldPeriod);
-    } finally {
-      setLeaderboardLoading(false);
-    }
-  }
-}, [allPeriodsData, currentPeriod]);
+      
+      console.log(`✅ [PAGE] Switched to ${newPeriod} using cached data`);
+    } else {
+      // No cached data, fetch it
+      console.log(`🔄 [PAGE] No cached data for ${newPeriod}, fetching...`);
+      
+      try {
+        setLeaderboardLoading(true);
+        const response = await fetch('/api/getTopTraders', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            period: newPeriod, 
+            limit: 20,
+            fetchAll: false // Only fetch the specific period
+          }),
+        });
 
+        if (response.ok) {
+          const data = await response.json();
+          if (data.ok && data.selected && data.selected.traders) {
+            const convertedData = convertApiDataToLeaderboardEntry(data.selected.traders);
+            setLeaderboardData(convertedData);
+            
+            if (data.selected.lastUpdated) {
+              setLastUpdated(new Date(data.selected.lastUpdated));
+            }
+            
+            // Cache this data for future use
+            if (allPeriodsData) {
+              setAllPeriodsData({
+                ...allPeriodsData,
+                [newPeriod]: {
+                  traders: data.selected.traders,
+                  totalTraders: data.selected.totalTraders,
+                  lastUpdated: data.selected.lastUpdated,
+                  period: newPeriod
+                }
+              });
+            }
+          }
+        } else {
+          throw new Error(`Failed to fetch ${newPeriod} data`);
+        }
+      } catch (error) {
+        console.error(`❌ [PAGE] Failed to fetch ${newPeriod} data:`, error);
+        setLeaderboardError(`Failed to load ${newPeriod} data`);
+        // Revert to old period on error
+        setCurrentPeriod(oldPeriod);
+      } finally {
+        setLeaderboardLoading(false);
+      }
+    }
+  }, [allPeriodsData, currentPeriod]);
 
   useEffect(() => {
     if (!ready || !authenticated) {
@@ -298,7 +297,6 @@ const handlePeriodChange = useCallback(async (newPeriod: 'daily' | 'weekly' | 'm
     findWallet();
   }, [wallets, walletAddress, isWalletLoading]);
 
-
   // Update initial fetch to get all periods data
   useEffect(() => {
     if (authenticated && ready) {
@@ -306,7 +304,6 @@ const handlePeriodChange = useCallback(async (newPeriod: 'daily' | 'weekly' | 'm
       fetchLeaderboardData(true); // Fetch all periods on initial load
     }
   }, [authenticated, ready]);
-
 
   useEffect(() => {
     if (!autoRefresh || !authenticated) return;
@@ -322,6 +319,16 @@ const handlePeriodChange = useCallback(async (newPeriod: 'daily' | 'weekly' | 'm
       clearInterval(interval);
     };
   }, [autoRefresh, authenticated, refreshInterval, fetchLeaderboardData]);
+
+  // ADD PACK REVEAL HANDLER
+  const handleViewPackReveal = () => {
+    setShowPackReveal(true);
+  };
+
+  // ADD CLOSE PACK REVEAL HANDLER
+  const handleClosePackReveal = () => {
+    setShowPackReveal(false);
+  };
 
   if (!authenticated) {
     return (
@@ -366,10 +373,32 @@ const handlePeriodChange = useCallback(async (newPeriod: 'daily' | 'weekly' | 'm
     }
   };
 
+  // IF PACK REVEAL IS SHOWN, RENDER IT INSTEAD
+  if (showPackReveal) {
+    return (
+      <div className="relative">
+        <PackRevealSystem />
+        {/* ADD CLOSE BUTTON */}
+        <button
+          onClick={handleClosePackReveal}
+          className="fixed top-4 right-4 z-50 w-10 h-10 rounded-full bg-black/50 border border-white/20 text-white hover:bg-black/70 transition-all duration-200 flex items-center justify-center"
+        >
+          ✕
+        </button>
+      </div>
+    );
+  }
+
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-4">
       <div className="flex items-center justify-between">
-        <button className="rounded-lg bg-rose-300 px-4 py-2 text-sm font-semibold text-neutral-900">EXPLORE PACKS</button>
+        {/* UPDATE THE EXPLORE PACKS BUTTON */}
+        <button 
+          onClick={handleViewPackReveal}
+          className="rounded-lg bg-rose-300 px-4 py-2 text-sm font-semibold text-neutral-900 hover:bg-rose-400 transition-colors duration-200"
+        >
+          EXPLORE PACKS
+        </button>
         <div className="flex items-center gap-3">
           <button className="rounded-full border border-white/20 px-4 py-2 text-sm text-white">
             {isWalletLoading ? (
@@ -401,15 +430,13 @@ const handlePeriodChange = useCallback(async (newPeriod: 'daily' | 'weekly' | 'm
         <h1 className="text-4xl font-semibold text-neutral-100">Kolscan</h1>
       </header>
 
+      {/* UPDATE PACK SALE BANNER TO TRIGGER PACK REVEAL */}
       <PackSaleBannerNew onViewLeaderboard={() => {
         const el = document.getElementById('home-leaderboard');
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }} />
 
-      {/* <PackSaleBanner /> */}
-
       <UserPacks />
-
 
       <div id="home-leaderboard" className="rounded-2xl border border-neutral-800 p-4">
         <div className="mb-4 flex items-center justify-between">

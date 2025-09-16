@@ -1,0 +1,263 @@
+"use client"
+
+import React, { useState, useRef, useId, useEffect } from "react";
+import { motion, AnimatePresence, useAnimate } from "framer-motion";
+import { useSendTransaction, useSolanaWallets } from "@privy-io/react-auth/solana";
+import { Connection, VersionedTransaction } from "@solana/web3.js";
+import { Buffer } from "buffer";
+
+const connection = new Connection("http://api.devnet.solana.com", { commitment: "confirmed" });
+
+export const ClaimPackButton = ({ packId, onClaim, amountPerKol = 40000 }: { 
+  packId: string; 
+  onClaim: () => void;
+  amountPerKol?: number;
+}) => {
+  const [scope, animate] = useAnimate();
+  const [isLoading, setIsLoading] = useState(false);
+  const [isClaimed, setIsClaimed] = useState(false);
+  const [txnHash, setTxnHash] = useState<string | null>(null);
+  const { wallets } = useSolanaWallets();
+  const { sendTransaction } = useSendTransaction();
+
+  // Debug: Log component mount/unmount
+  useEffect(() => {
+    console.debug("[ClaimPackButton] Mounted with packId:", packId, "amountPerKol:", amountPerKol);
+    return () => {
+      console.debug("[ClaimPackButton] Unmounted");
+    };
+  }, [packId, amountPerKol]);
+
+  const animateLoading = async () => {
+    console.debug("[ClaimPackButton] animateLoading called");
+    await animate(
+      ".loader",
+      { width: "20px", scale: 1, display: "block" },
+      { duration: 0.2 }
+    );
+  };
+
+  const animateSuccess = async () => {
+    console.debug("[ClaimPackButton] animateSuccess called");
+    await animate(
+      ".loader",
+      { width: "0px", scale: 0, display: "none" },
+      { duration: 0.2 }
+    );
+    await animate(
+      ".check",
+      { width: "20px", scale: 1, display: "block" },
+      { duration: 0.2 }
+    );
+    // Keep the success state visible longer for claiming
+    await animate(
+      ".check",
+      { width: "0px", scale: 0, display: "none" },
+      { delay: 3, duration: 0.2 }
+    );
+  };
+
+  const handleClaimClick = async () => {
+    if (isLoading || isClaimed) {
+      console.debug("[ClaimPackButton] Claim button clicked but already loading or claimed");
+      return;
+    }
+
+    if (!wallets || wallets.length === 0) {
+      console.warn("[ClaimPackButton] No wallet found. Please connect your wallet first.");
+      alert("No wallet found. Please connect your wallet first.");
+      return;
+    }
+
+    const embeddedWallet = wallets.find((w) => w.walletClientType === "privy");
+    if (!embeddedWallet) {
+      console.warn("[ClaimPackButton] No embedded wallet found.");
+      alert("No embedded wallet found.");
+      return;
+    }
+
+    setIsLoading(true);
+    await animateLoading();
+
+    try {
+      console.debug("[ClaimPackButton] Starting claim transaction process", {
+        walletAddress: embeddedWallet.address,
+        packId,
+        amountPerKol,
+      });
+
+      // Call the API to create the claim transaction
+      const requestBody = {
+        userPrivyWalletAddress: embeddedWallet.address,
+        packId: packId,
+        amountPerKol: amountPerKol,
+      };
+      console.debug("[ClaimPackButton] Sending POST /api/claimPack with body:", requestBody);
+
+      const response = await fetch("/api/claimPack", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      const data = await response.json();
+      console.debug("[ClaimPackButton] /api/claimPack response:", data);
+
+      if (!response.ok) {
+        console.error("[ClaimPackButton] /api/claimPack error:", data.error || `HTTP error! status: ${response.status}`);
+        throw new Error(data.error || `HTTP error! status: ${response.status}`);
+      }
+
+      if (data.success && data.data.claimPackTransaction) {
+        console.debug("[ClaimPackButton] Deserializing transaction from base64");
+
+        // Deserialize the transaction from base64
+        const txBuffer = Buffer.from(data.data.claimPackTransaction, "base64");
+        const transaction = VersionedTransaction.deserialize(txBuffer);
+
+        console.debug("[ClaimPackButton] Transaction deserialized, signing and sending...");
+
+        // Sign and send the transaction using Privy
+        const result = await sendTransaction({
+          transaction: transaction,
+          connection: connection,
+          address: embeddedWallet.address,
+        });
+
+        console.debug("[ClaimPackButton] Transaction sent successfully:", result);
+
+        setTxnHash(result.signature);
+        setIsClaimed(true);
+        await animateSuccess();
+
+        // Update pack claim status in database (optional)
+        try {
+          const updateBody = {
+            userPrivyWalletAddress: embeddedWallet.address,
+            packId: packId,
+            transactionHash: result.signature,
+            claimedAt: new Date().toISOString(),
+            amountPerKol: amountPerKol,
+          };
+          console.debug("[ClaimPackButton] Sending POST /api/updatePackClaimStatus with body:", updateBody);
+
+          const updateResponse = await fetch("/api/updatePackClaimStatus", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(updateBody),
+          });
+
+          const updateData = await updateResponse.json();
+          if (updateData.success) {
+            console.debug("[ClaimPackButton] Pack claim status updated successfully");
+          } else {
+            console.error("[ClaimPackButton] Failed to update pack claim status:", updateData.error);
+          }
+        } catch (updateError) {
+          console.error("[ClaimPackButton] Error updating pack claim status:", updateError);
+        }
+
+        // Call the onClaim callback
+        console.debug("[ClaimPackButton] Calling onClaim callback");
+        onClaim();
+      } else {
+        console.error("[ClaimPackButton] Failed to create claim transaction:", data.error);
+        throw new Error(data.error || "Failed to create claim transaction");
+      }
+    } catch (error) {
+      console.error("[ClaimPackButton] Error claiming pack:", error);
+      alert(`Error claiming pack: ${error instanceof Error ? error.message : "Unknown error"}`);
+      
+      // Reset loading state on error
+      await animate(
+        ".loader",
+        { width: "0px", scale: 0, display: "none" },
+        { duration: 0.2 }
+      );
+    } finally {
+      setIsLoading(false);
+      console.debug("[ClaimPackButton] handleClaimClick finished, isLoading set to false");
+    }
+  };
+
+  return (
+    <div className="text-center py-12">
+      <motion.button
+        ref={scope}
+        onClick={handleClaimClick}
+        disabled={isLoading || isClaimed}
+        className="flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-green-500 to-emerald-500 px-8 py-4 text-xl font-semibold text-white shadow-lg hover:shadow-green-500/30 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed min-w-[200px]"
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+      >
+        <svg
+          className="loader text-white animate-spin"
+          style={{ scale: 0.5, display: "none", width: 0 }}
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M12 3a9 9 0 1 0 9 9" />
+        </svg>
+        
+        <svg
+          className="check text-white"
+          style={{ scale: 0.5, display: "none", width: 0 }}
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+          <path d="M9 12l2 2l4 -4" />
+        </svg>
+        
+        <span>
+          {isLoading 
+            ? 'Claiming Tokens...' 
+            : isClaimed 
+            ? 'Tokens Claimed!' 
+            : 'Claim Pack Tokens'
+          }
+        </span>
+      </motion.button>
+      
+      {/* Show transaction hash after successful claim */}
+      {txnHash && isClaimed && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-4 text-sm text-gray-600"
+        >
+          <p className="mb-1">Transaction Hash:</p>
+          <code 
+            className="bg-gray-100 px-2 py-1 rounded text-xs break-all cursor-pointer hover:bg-gray-200 transition-colors"
+            onClick={() => {
+              navigator.clipboard.writeText(txnHash);
+              console.debug("[ClaimPackButton] Transaction hash copied to clipboard:", txnHash);
+              // You could add a toast notification here
+            }}
+            title="Click to copy"
+          >
+            {txnHash}
+          </code>
+        </motion.div>
+      )}
+    </div>
+  );
+};
