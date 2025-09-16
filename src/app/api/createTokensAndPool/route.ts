@@ -59,7 +59,14 @@ interface KolData {
   xUrl: string | null;
 }
 
-// THE DATA HERE ALSO NEEDS TO BE SORTED BY PNL()
+// SHARED UTILITY FUNCTION - ENSURES CONSISTENT TICKER GENERATION
+function generateTicker(name: string, rank: number): string {
+  const cleanName = name.replace(/[^a-zA-Z0-9]/g, '');
+  const ticker = cleanName.substring(0, Math.min(10, cleanName.length)).toUpperCase() || `KOL${rank}`;
+  console.log(`🆔 [TICKER] Generated ticker "${ticker}" from name "${name}" rank ${rank}`);
+  return ticker;
+}
+
 function getMetadataPDA(mint: PublicKey): PublicKey {
   console.log(`🔑 [PDA] Deriving Metadata PDA for mint: ${mint.toBase58()}`);
   const [metadataPDA] = PublicKey.findProgramAddressSync(
@@ -70,27 +77,16 @@ function getMetadataPDA(mint: PublicKey): PublicKey {
   return metadataPDA;
 }
 
-function createTicker(name: string, index: number): string {
-  const cleanName = name.replace(/[^a-zA-Z0-9]/g, '');
-  const ticker = cleanName.substring(0, Math.min(10, cleanName.length)).toUpperCase() || `KOL${index + 1}`;
-  console.log(`🆔 [TICKER] Generated ticker "${ticker}" from name "${name}"`);
-  return ticker;
-}
-
-// CURRENTLY ALL POOL LIQUIDITY COMES FROM THE ADMIN ITSELF
-// IT SHOULD COME FROM THE PACK SALE RAISE, I.E, THE GLOBAL PACK POOL -> LIQUIDITY POOL TRANSFER INSTEAD OF ADMIN
-// OR (GLOBAL PACK POOL -> ADMIN(WITHDRAW 50 SOL, 1 SOL liquidity for each pool) + mintAndInitVaultAndTransfer(940M tokens -> global pool TV) + createPool()[1 SOL, 6% tokens from admin -> DAMM pool]) in atomic
-
 async function createSingleKolToken(
   kol: KolData,
   index: number,
   wallet: Keypair,
   program: Program<Pnlpackprogram>,
   globalPackPoolAccount: PublicKey
-): Promise<{ success: boolean; mintAddress?: string; poolAddress?: string; error?: string, }> {
+): Promise<{ success: boolean; mintAddress?: string; poolAddress?: string; ticker?: string; error?: string, }> {
   try {
     console.log(`\n🎯 [CREATE] KOL ${index + 1}/50: ${kol.name} (Rank ${kol.rank})`);
-    const ticker = createTicker(kol.name, index);
+    const ticker = generateTicker(kol.name, kol.rank); // Use shared function
 
     const decimals = 6;
     const baseMintKeypair = Keypair.generate();
@@ -147,7 +143,6 @@ async function createSingleKolToken(
     const adminTokenAccount = await getAssociatedTokenAddress(baseMintKeypair.publicKey, wallet.publicKey);
     console.log(`🏧 [STEP 2] Admin associated token account: ${adminTokenAccount.toBase58()}`);
 
-    // MINT 1B TO ADMIN + TRANSFER 940M FROM ADMIN -> GLOBAL PACK POOL TOKEN VAULT(SIMULTANEOUS, ADMIN DOESNT HOLD 940M IN THE END ALL GOES TO THE GLOBAL PACK POOL)
     const superCombinedTx = await program.methods
       .mintAndInitKolTokenVaultAndTransfer(ticker, totalSupply, vaultAmount)
       .accountsPartial({
@@ -166,8 +161,6 @@ async function createSingleKolToken(
     console.log(`✅ [STEP 2] Vault+transfer transaction confirmed: ${superCombinedTx}`);
 
     // --- Step 3: Liquidity Pool
-    // here 6% token supply goes from admin -> pool
-    // but the SOL LIQUIDITY in the meteora pool should come from global pack pool instead of admin
     console.log("🚀 [STEP 3] Creating liquidity pool");
     const configs = await cpAmm.getAllConfigs();
     console.log(`🔍 [STEP 3] Available configs: ${configs.length}`);
@@ -177,7 +170,6 @@ async function createSingleKolToken(
     const tokenAMint = baseMintKeypair.publicKey;
     const tokenBMint = NATIVE_MINT;
     const solAmount = new BN(100_000_000);
-    // Derive the poolAddress PDA using DAMMv2programId and seeds: tokenAMint, tokenBMint, publicConfig.publicKey
     const DAMMv2programId = new anchor.web3.PublicKey("cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG");
     const [poolAddress] = anchor.web3.PublicKey.findProgramAddressSync(
       [
@@ -240,7 +232,12 @@ async function createSingleKolToken(
 
     console.log("ACTUAL POOL ADDRESS: ", pool.toString())
 
-    return { success: true, mintAddress: baseMintKeypair.publicKey.toBase58(), poolAddress: pool.toString()! };
+    return { 
+      success: true, 
+      mintAddress: baseMintKeypair.publicKey.toBase58(), 
+      poolAddress: pool.toString()!,
+      ticker: ticker // Return ticker for database storage
+    };
   } catch (error) {
     console.error(`❌ [ERROR] Failed to create token for ${kol.name}:`, error);
     return { success: false, error: error instanceof Error ? error.message : String(error) };
@@ -283,7 +280,7 @@ export async function POST(request: Request) {
     );
     console.log(`🔗 [ANCHOR] GlobalPackPoolAccount: ${globalPackPoolAccount.toBase58()}`);
 
-    const results: { kolId: string; kolName: string; success: boolean; mintAddress?: string; poolAddress: string; error?: string }[] = [];
+    const results: { kolId: string; kolName: string; success: boolean; mintAddress?: string; poolAddress: string; ticker?: string; error?: string }[] = [];
     let successCount = 0, failureCount = 0;
 
     console.log("🔄 [PROCESS] Starting creation loop for 50 KOLs");
@@ -303,6 +300,7 @@ export async function POST(request: Request) {
         success: result.success,
         poolAddress: result.poolAddress || '',
         mintAddress: result.mintAddress,
+        ticker: result.ticker, // Include ticker in results
         error: result.error
       });
     
@@ -311,11 +309,12 @@ export async function POST(request: Request) {
           where: { id: kol.id },
           data: { 
             tokenMintAddress: result.success ? result.mintAddress : null,
-            poolAddress: result.success ? result.poolAddress : null // Add this
+            poolAddress: result.success ? result.poolAddress : null,
+            ticker: result.success ? result.ticker : null // Store ticker in database
           }
         });
         console.log(result.success
-          ? `✅ [DB] Updated mint and pool addresses for ${kol.name}`
+          ? `✅ [DB] Updated mint, pool, and ticker for ${kol.name}`
           : `⚠️ [DB] Stored null addresses for ${kol.name} (creation failed)`
         );
         result.success ? successCount++ : failureCount++;

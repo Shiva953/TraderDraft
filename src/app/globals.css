@@ -24,3 +24,18 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Jupiter Terminal Styles */
+.jupiter-terminal-container {
+  --jupiter-primary: #9945ff;
+  --jupiter-background: #1a1a1a;
+  --jupiter-card: #262626;
+  --jupiter-text: #ffffff;
+  --jupiter-text-secondary: #a3a3a3;
+  --jupiter-border: #404040;
+}
+
+.jupiter-terminal-container iframe {
+  border-radius: 12px;
+  border: 1px solid var(--jupiter-border);
+}

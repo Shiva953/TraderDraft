@@ -27,7 +27,7 @@ import bs58 from 'bs58';
 import NodeWallet from '@coral-xyz/anchor/dist/cjs/nodewallet';
 
 const DEVNET_RPC = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
-const PROGRAM_ID = new PublicKey('2Bv9DtsyPmwKJSpbhNdK5tEPu4WTugyoWJmx8cBfuAid');
+const PROGRAM_ID = new PublicKey('51qa3toZbwVC1zTyntYZSsyqb2uZVuxpgJeYXZPoWJcY');
 const ADMIN_KEY = new PublicKey('7E85TTXg5FjT5G6q14nZUSE3KAgjM2kjBs8ddAW6eBeR');
 const TOKENS_PER_KOL = new BN(40000 * Math.pow(10, 6)); // 40K tokens with 6 decimals
 
@@ -286,9 +286,9 @@ async function executeSimplifiedPackReveal(
     const pnlValue = parseFloat(kol.pnl.replace(/[^\d.-]/g, '')) || 0;
     const pnlInLamports = new BN(Math.floor(Math.abs(pnlValue) * LAMPORTS_PER_SOL));
     const winrateBps = Math.min(10000, Math.max(0, Math.floor((kol.winRate || 0) * 100)));
-    const shrinkedName = kol.ticker?.substring(0, 4)!;
+    // const shrinkedName = kol.ticker?.substring(0, 4)!;
     return {
-      name: shrinkedName, // Shortened to reduce size
+      name: kol.ticker!, 
       address: kol.address ? new PublicKey(kol.address) : ADMIN_KEY,
       pfpUrl: (kol.avatarUrl || '').substring(0, 128), // Shortened
       pnl: pnlValue >= 0 ? pnlInLamports : pnlInLamports.neg(),
@@ -604,6 +604,7 @@ async function fetchTopTradersWithTokens(): Promise<KolData[]> {
       select: {
         id: true,
         rank: true,
+        ticker: true,
         name: true,
         address: true,
         pnl: true,
@@ -629,6 +630,7 @@ async function fetchTopTradersWithTokens(): Promise<KolData[]> {
       avatarUrl: trader.avatarUrl,
       xUrl: trader.xUrl,
       rank: trader.rank || 0,
+      ticker: trader.ticker || '',
       tokenMintAddress: trader.tokenMintAddress ? new PublicKey(trader.tokenMintAddress) : undefined
     })).filter(kol => kol.tokenMintAddress !== undefined) as KolData[];
 
@@ -639,27 +641,37 @@ async function fetchTopTradersWithTokens(): Promise<KolData[]> {
 }
 
 function selectRandomKols(kols: KolData[], count: number): KolData[] {
-  if (kols.length < count) {
-    throw new Error(`Not enough KOLs available. Need ${count}, got ${kols.length}`);
-  }
+  if (kols.length < count) throw new Error(`Need ${count}, got ${kols.length}`);
 
   const shuffled = [...kols];
+
   for (let i = shuffled.length - 1; i > 0; i--) {
-    const randomBytes = new Uint32Array(1);
-    crypto.getRandomValues(randomBytes);
-    const j = randomBytes[0] % (i + 1);
+    // rejection sampling to avoid modulo bias
+    let rand: number;
+    const max = 0xffffffff;
+    const limit = max - (max % (i + 1));
+    do {
+      rand = crypto.getRandomValues(new Uint32Array(1))[0];
+    } while (rand >= limit);
+    const j = rand % (i + 1);
+
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
+
   return shuffled.slice(0, count);
 }
 
+
 async function prepareKolTokenData(kols: KolData[]): Promise<KolData[]> {
   return Promise.all(kols.map(async (kol, index) => {
-    const cleanName = kol.name.replace(/[^a-zA-Z0-9]/g, '');
-    const ticker = cleanName.substring(0, Math.min(10, cleanName.length)).toUpperCase() || `KOL${index + 1}`;
     if (!kol.tokenMintAddress) {
       throw new Error(`Token mint address missing for KOL: ${kol.name}`);
     }
+
+    if (!kol.ticker) {
+      throw new Error(`Ticker missing for KOL: ${kol.name}. Please ensure createTokensAndPool was run successfully.`);
+    }
+
     const rankFactor = Math.max(0.1, (51 - kol.rank) / 40);
     const pnlValue = parseFloat(kol.pnl.replace(/[^\d.-]/g, '')) || 0;
     const pnlFactor = Math.max(0.1, Math.min(3, 1 + (pnlValue / 100000)));
@@ -669,7 +681,6 @@ async function prepareKolTokenData(kols: KolData[]): Promise<KolData[]> {
 
     return {
       ...kol,
-      ticker,
       tokenPrice: Math.round(tokenPrice * 1000000) / 1000000
     };
   }));

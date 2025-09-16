@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/pnlpackprogram.json`.
  */
 export type Pnlpackprogram = {
-  "address": "69jY612GkDHnGV81vZ1S9bqX1LqMj25QFoEwA73Xx69F",
+  "address": "51qa3toZbwVC1zTyntYZSsyqb2uZVuxpgJeYXZPoWJcY",
   "metadata": {
     "name": "pnlpackprogram",
     "version": "0.1.0",
@@ -1526,9 +1526,10 @@ export type Pnlpackprogram = {
     }
   ]
 };
+
   
   export const IDL = {
-    "address": "69jY612GkDHnGV81vZ1S9bqX1LqMj25QFoEwA73Xx69F",
+    "address": "51qa3toZbwVC1zTyntYZSsyqb2uZVuxpgJeYXZPoWJcY",
     "metadata": {
       "name": "pnlpackprogram",
       "version": "0.1.0",
