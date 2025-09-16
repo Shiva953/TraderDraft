@@ -1,82 +1,82 @@
-import React, { useState, useRef, useId, useEffect } from "react";
-import { motion, AnimatePresence, useAnimate } from "framer-motion";
+"use client"
+import { motion } from "framer-motion"
 
 // Types
 interface KOLData {
-  slot: string;
-  name: string;
-  ticker: string;
-  address: string;
-  tokenMintAddress: string;
-  pnl: string;
-  winRate: number;
-  avatarUrl: string;
-  xUrl: string;
-  rank: number;
-  tokenPrice: number;
-  tokensReceived: string;
-  estimatedValueSOL: number;
-  estimatedValueUSD: number;
-  transferSignature: string;
+  slot: string
+  name: string
+  ticker: string
+  address: string
+  tokenMintAddress: string
+  pnl: string
+  winRate: number
+  avatarUrl: string
+  xUrl: string
+  rank: number
+  tokenPrice: number
+  tokensReceived: string
+  estimatedValueSOL: number
+  estimatedValueUSD: number
+  transferSignature: string
 }
 
 interface PackRevealResponse {
-  success: boolean;
+  success: boolean
   data: {
-    packId: string;
-    revealedAt: string;
-    kols: KOLData[];
+    packId: string
+    revealedAt: string
+    kols: KOLData[]
     stats: {
-      totalKols: number;
-      totalTokensReceived: number;
-      totalEstimatedValueSOL: number;
-      totalEstimatedValueUSD: number;
-      avgWinRate: number;
-      totalPnl: number;
-    };
-  };
+      totalKols: number
+      totalTokensReceived: number
+      totalEstimatedValueSOL: number
+      totalEstimatedValueUSD: number
+      avgWinRate: number
+      totalPnl: number
+    }
+  }
 }
 
 // Pack Banner Component
 export const PackRevealBanner = ({ onRevealClick }: { onRevealClick: () => void }) => {
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-purple-900 via-blue-900 to-indigo-900 p-8 text-white">
-      <div className="absolute inset-0 bg-black/20" />
-      <div className="relative z-10 flex items-center justify-between">
-        <div className="space-y-4">
-          <h1 className="text-4xl font-bold">Pack Reveal Now Live</h1>
-          <p className="text-xl text-gray-200">Discover which KOL tokens await you</p>
-          <motion.button
-            onClick={onRevealClick}
-            className="flex items-center gap-2 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 px-6 py-3 font-semibold text-white shadow-lg hover:shadow-rose-500/30 transition-all duration-200"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            Reveal Your Packs
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-            </svg>
-          </motion.button>
-        </div>
-        <div className="flex space-x-4">
-          <div className="relative">
-            <div className="h-32 w-24 rounded-lg bg-gradient-to-br from-purple-600 to-pink-600 transform rotate-12" />
-            <div className="absolute inset-0 flex items-center justify-center text-white font-bold">
-              MYSTERY
-              <br />
-              PACK
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="w-full max-w-6xl mx-auto">
+        <div className="relative overflow-hidden rounded-2xl bg-gray-900/80 backdrop-blur-xl border border-gray-700/50 p-8 md:p-12 text-white">
+          <div className="absolute inset-0 bg-gradient-to-r from-black via-gray to-white" />
+          <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-8">
+            <div className="space-y-6 text-center lg:text-left flex-1">
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight tracking-tighter">
+                Pack Reveal
+                <br />
+                Now Live
+              </h1>
+              <p className="text-[0.5xl] md:text-xl text-gray-200 max-w-md font-light">
+                Open a pack to instantly reveal KOL cards. 4 KOLs per pack, claim their tokens!
+              </p>
+              <button
+                onClick={onRevealClick}
+                className="cursor-pointer flex items-center justify-center gap-3 rounded-full bg-red-400 hover:opacity-90 px-8 py-4 text-xl font-light tracking-tight text-white shadow-lg mx-auto lg:mx-0"
+                // whileHover={{ scale: 1.05 }}
+                // whileTap={{ scale: 0.95 }}
+              >
+                Reveal Your Packs
+                {/* <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                </svg> */}
+              </button>
             </div>
-          </div>
-          <div className="relative">
-            <div className="h-32 w-24 rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 transform -rotate-6" />
-            <div className="absolute inset-0 flex items-center justify-center text-white font-bold">
-              MYSTERY
-              <br />
-              PACK
+            <div className="flex items-center justify-center gap-6 flex-shrink-0">
+              <div className="relative transform rotate-12 hover:rotate-6 transition-transform duration-300">
+                <img src="/pack.png" alt="Mystery Pack" className="h-40 w-auto rounded-xl shadow-2xl" />
+              </div>
+              <div className="relative transform -rotate-6 hover:rotate-0 transition-transform duration-300">
+                <img src="/pack.png" alt="Mystery Pack" className="h-40 w-auto rounded-xl shadow-2xl" />
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-  );
-};
+  )
+}

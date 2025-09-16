@@ -12,6 +12,7 @@ import {PackSaleBannerNew} from "../components/PackSaleBannerNew";
 import { useDevBackgroundJobs } from "../hooks/useDevBackgroundJobs";
 import UserPacks from "../components/UserPacks";
 import PackRevealSystem from "../components/PackRevealSystem"; // Import your PackRevealSystem
+import { PackRevealBanner } from "@/components/PackRevealBanner";
 
 // Updated interface to match backend data
 interface TraderData {
@@ -395,7 +396,7 @@ export default function Home() {
         {/* UPDATE THE EXPLORE PACKS BUTTON */}
         <button 
           onClick={handleViewPackReveal}
-          className="rounded-lg bg-rose-300 px-4 py-2 text-sm font-semibold text-neutral-900 hover:bg-rose-400 transition-colors duration-200"
+          className="rounded-lg cursor-pointer bg-rose-300 px-4 py-2 text-sm font-semibold text-neutral-900 hover:bg-rose-400 transition-colors duration-200"
         >
           EXPLORE PACKS
         </button>
@@ -435,6 +436,7 @@ export default function Home() {
         const el = document.getElementById('home-leaderboard');
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }} />
+
 
       <UserPacks />
 
