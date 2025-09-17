@@ -7,6 +7,7 @@ interface CompetitionBannerProps {
   prizeSol?: number
   onHowToPlay?: () => void
   onViewLeaderboard?: () => void
+  onSkipToReveal?: () => void
 }
 
 function getNextWeekEnd(): number {
@@ -28,7 +29,7 @@ function formatDuration(msRemaining: number) {
   return { days, hours, minutes, seconds }
 }
 
-export function PackSaleBannerNew({ prizeSol = 26, onHowToPlay, onViewLeaderboard }: CompetitionBannerProps) {
+export function PackSaleBannerNew({ prizeSol = 26, onHowToPlay, onViewLeaderboard, onSkipToReveal }: CompetitionBannerProps) {
   const [nowMs, setNowMs] = useState<number>(() => Date.now())
   const targetMs = useMemo(() => getNextWeekEnd(), [])
 
@@ -71,13 +72,24 @@ export function PackSaleBannerNew({ prizeSol = 26, onHowToPlay, onViewLeaderboar
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-2 tracking-wide">KOL PACKS</h1>
           <p className="text-xl md:text-2xl text-blue-200 font-light mb-8 tracking-wider">AVAILABLE NOW</p>
 
-          {/* Buy now button */}
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="bg-white text-gray-800 cursor-pointer px-8 py-3 rounded-full font-medium text-lg hover:bg-gray-100 transition-colors mb-8"
-          >
-            Buy Now
-          </button>
+          {/* Buy now and Skip to Packs Reveal buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="bg-white text-gray-800 cursor-pointer px-8 py-3 rounded-full font-medium text-lg hover:bg-gray-100 transition-colors"
+            >
+              Buy Now
+            </button>
+            
+            {onSkipToReveal && (
+              <button
+                onClick={onSkipToReveal}
+                className="bg-transparent border-2 border-white text-white cursor-pointer px-8 py-3 rounded-full font-medium text-lg hover:bg-white hover:text-gray-800 transition-colors"
+              >
+                Skip to Packs Reveal
+              </button>
+            )}
+          </div>
 
           {/* Countdown timer */}
           <div className="flex justify-center items-center space-x-2 text-white text-2xl md:text-3xl font-mono">

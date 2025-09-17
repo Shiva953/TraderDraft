@@ -125,7 +125,7 @@ const KOLCard = ({ kol, index, current, handleCardClick }: KOLCardProps) => {
                 </a>
               )}
               <a
-                href={`https://solscan.io/token/${kol.tokenMintAddress}`}
+                href={`https://orb.helius.dev/address/${kol.tokenMintAddress}?cluster=devnet`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded-lg text-xs font-medium transition-colors duration-200"

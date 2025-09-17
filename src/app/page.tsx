@@ -13,6 +13,7 @@ import { useDevBackgroundJobs } from "../hooks/useDevBackgroundJobs";
 import UserPacks from "../components/UserPacks";
 import PackRevealSystem from "../components/PackRevealSystem"; // Import your PackRevealSystem
 import { PackRevealBanner } from "@/components/PackRevealBanner";
+import UserProfilePicture from "../components/UserProfilePicture";
 
 // Updated interface to match backend data
 interface TraderData {
@@ -101,6 +102,7 @@ export default function Home() {
   // RUN A BG JOB/API REQUEST to the /api/updateDBPeriodically endpoint which runs the scraping job again and updates the DB with new data
 
   const [walletAddress, setWalletAddress] = useState('');
+  const [fullWalletAddress, setFullWalletAddress] = useState('');
   const [isWalletLoading, setIsWalletLoading] = useState(true);
 
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>(fallbackLeaderboardData);
@@ -286,6 +288,7 @@ export default function Home() {
         console.log("Wallet address(before)", walletAddress)
         const shortAddress = embeddedWallet.address.substring(0, 6)
         setWalletAddress(shortAddress);
+        setFullWalletAddress(embeddedWallet.address); // Add this line
         console.log("Wallet address(after)", walletAddress)
         console.log("WALLET LOADING STATE(BEFORE): ",isWalletLoading)
         setIsWalletLoading(false);
@@ -401,29 +404,31 @@ export default function Home() {
           EXPLORE PACKS
         </button>
         <div className="flex items-center gap-3">
-          <button className="rounded-full border border-white/20 px-4 py-2 text-sm text-white">
-            {isWalletLoading ? (
+          {isWalletLoading ? (
+            <button className="rounded-full border border-white/20 px-4 py-2 text-sm text-white">
               <span className="flex items-center gap-2">
                 <div className="animate-spin rounded-full h-3 w-3 border-b border-white"></div>
                 Loading...
               </span>
-            ) : walletAddress || 'No Wallet'}
-          </button>
+            </button>
+          ) : (
+            <UserProfilePicture 
+              walletAddress={walletAddress} 
+              userPrivyWalletAddress={fullWalletAddress} 
+            />
+          )}
           <button onClick={logout} className="rounded-full border border-white/20 px-4 py-2 text-sm text-white hover:border-white/40 hover:bg-white/5 transition-all duration-200 cursor-pointer">
             Log Out
           </button>
           {process.env.NODE_ENV === 'development' && (
-          <button 
-            onClick={triggerManualUpdate} 
-            disabled={isTriggering}
-            className="rounded-full border border-orange-500/20 px-4 py-2 text-sm text-orange-300 hover:border-orange-500/40 hover:bg-orange-500/5 transition-all duration-200 cursor-pointer disabled:opacity-50"
-          >
-            {isTriggering ? 'Updating...' : 'Trigger Update'}
-          </button>
-        )}
-          <div className="h-9 w-9 overflow-hidden rounded-full ring-1 ring-white/20">
-            <div className="h-full w-full bg-neutral-700" />
-          </div>
+            <button 
+              onClick={triggerManualUpdate} 
+              disabled={isTriggering}
+              className="rounded-full border border-orange-500/20 px-4 py-2 text-sm text-orange-300 hover:border-orange-500/40 hover:bg-orange-500/5 transition-all duration-200 cursor-pointer disabled:opacity-50"
+            >
+              {isTriggering ? 'Updating...' : 'Trigger Update'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -432,11 +437,13 @@ export default function Home() {
       </header>
 
       {/* UPDATE PACK SALE BANNER TO TRIGGER PACK REVEAL */}
-      <PackSaleBannerNew onViewLeaderboard={() => {
-        const el = document.getElementById('home-leaderboard');
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }} />
-
+      <PackSaleBannerNew 
+        onViewLeaderboard={() => {
+          const el = document.getElementById("home-leaderboard");
+          if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }}
+        onSkipToReveal={handleViewPackReveal}
+      />
 
       <UserPacks />
 

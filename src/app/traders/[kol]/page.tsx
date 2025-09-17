@@ -1,8 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { init, resume } from "@jup-ag/terminal";
-import TradingViewChart from "@/components/TradingViewChart";
+import { ArrowLeft, ArrowDown, Users, ExternalLink } from "lucide-react";
 
 interface TraderPageProps {
   params: { kol: string };
@@ -33,11 +32,10 @@ interface KOLData {
 }
 
 export default function TraderPage({ params }: TraderPageProps) {
-  const [isTerminalLoaded, setIsTerminalLoaded] = useState(false);
-  const [kolData, setKolData] = useState<KOLData | null>(null);
+  const [kolData, setKOLData] = useState<KOLData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const terminalRef = useRef<HTMLDivElement>(null);
+  const [isJupiterReady, setIsJupiterReady] = useState(false);
 
   // Fetch KOL data
   useEffect(() => {
@@ -59,7 +57,7 @@ export default function TraderPage({ params }: TraderPageProps) {
         }
 
         const data = await response.json();
-        setKolData(data.data);
+        setKOLData(data.data);
       } catch (err) {
         console.error('Error fetching KOL data:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch KOL data');
@@ -79,51 +77,97 @@ export default function TraderPage({ params }: TraderPageProps) {
 
   const currentData = getCurrentData();
 
+  // Dynamic Jupiter Terminal loading
   useEffect(() => {
-    const initializeTerminal = async () => {
-      if (!terminalRef.current || isTerminalLoaded || !currentData?.tokenMintAddress) return;
+    const loadJupiterTerminal = async () => {
+      if (!currentData?.tokenMintAddress) return;
 
       try {
-        await init({
-          displayMode: "integrated",
-          integratedTargetId: "jupiter-terminal",
-          formProps: {
-            initialAmount: "1000000",
-            initialInputMint: "So11111111111111111111111111111111111111112", // SOL mint
-            initialOutputMint: currentData.tokenMintAddress,
-            fixedAmount: false,
-            swapMode: "ExactIn",
-          },
-          enableWalletPassthrough: true,
-          onSuccess: ({ txid }) => {
-            console.log("Swap successful:", txid);
-          },
-          onSwapError: ({ error }) => {
-            console.error("Swap failed:", error);
-          },
-          defaultExplorer: "Solscan",
-          containerStyles: {
-            maxHeight: "90vh",
-          },
-          containerClassName: "jupiter-terminal-container",
-        });
+        console.log("Loading Jupiter Terminal dynamically...");
+        
+        // Load the Jupiter Terminal script dynamically
+        const script = document.createElement('script');
+        script.src = 'https://terminal.jup.ag/main-v2.js';
+        script.onload = async () => {
+          console.log("Jupiter script loaded, initializing...");
+          
+          // Wait for Jupiter to be available on window
+          if (window.Jupiter) {
+            await window.Jupiter.init({
+              displayMode: "modal",
+              integratedTargetId: "jupiter-terminal",
+              endpoint: "https://api.devnet.solana.com",
+              formProps: {
+                initialInputMint: "So11111111111111111111111111111111111111112", // SOL
+                initialOutputMint: currentData.tokenMintAddress,
+                initialAmount: "1000000", // 1 SOL in lamports
+              },
+              enableWalletPassthrough: true,
+              onSuccess: ({ txid }) => {
+                console.log("Swap successful:", txid);
+              },
+              onSwapError: ({ error }) => {
+                console.error("Swap error:", error);
+              },
+            });
+            
+            setIsJupiterReady(true);
+            console.log("Jupiter Terminal initialized successfully");
+          }
+        };
+        
+        script.onerror = () => {
+          console.error("Failed to load Jupiter Terminal script");
+        };
+        
+        document.head.appendChild(script);
 
-        setIsTerminalLoaded(true);
+        // Cleanup function
+        return () => {
+          if (script.parentNode) {
+            script.parentNode.removeChild(script);
+          }
+        };
       } catch (error) {
-        console.error("Failed to initialize Jupiter Terminal:", error);
+        console.error("Error setting up Jupiter Terminal:", error);
       }
     };
 
-    initializeTerminal();
-  }, [currentData?.tokenMintAddress, isTerminalLoaded]);
+    loadJupiterTerminal();
+  }, [currentData?.tokenMintAddress]);
 
-  const openTerminal = () => {
-    resume();
+  const handleBuyClick = () => {
+    console.log("Buy button clicked");
+    if (isJupiterReady && window.Jupiter) {
+      console.log("Opening Jupiter Terminal for buy...");
+      window.Jupiter.open();
+    } else {
+      console.warn("Jupiter Terminal not ready yet");
+    }
+  };
+
+  const handleSellClick = () => {
+    console.log("Sell button clicked");
+    if (isJupiterReady && window.Jupiter && currentData?.tokenMintAddress) {
+      console.log("Opening Jupiter Terminal for sell...");
+      // For sell, we need to reconfigure to swap FROM token TO SOL
+      window.Jupiter.init({
+        displayMode: "modal",
+        formProps: {
+          initialInputMint: currentData.tokenMintAddress, // Token
+          initialOutputMint: "So11111111111111111111111111111111111111112", // SOL
+        },
+      }).then(() => {
+        window.Jupiter.open();
+      });
+    } else {
+      console.warn("Jupiter Terminal not ready yet");
+    }
   };
 
   if (loading) {
     return (
-      <main className="max-w-6xl mx-auto py-10 px-4">
+      <main className="min-h-screen bg-black">
         <div className="flex items-center justify-center h-96">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
@@ -136,8 +180,8 @@ export default function TraderPage({ params }: TraderPageProps) {
 
   if (error || !currentData) {
     return (
-      <main className="max-w-6xl mx-auto py-10 px-4">
-        <div className="text-center">
+      <main className="min-h-screen bg-black">
+        <div className="text-center pt-20">
           <h1 className="text-3xl font-bold mb-4 text-red-400">Error</h1>
           <p className="text-neutral-400">{error || 'No data found for this trader'}</p>
         </div>
@@ -146,172 +190,162 @@ export default function TraderPage({ params }: TraderPageProps) {
   }
 
   return (
-    <main className="max-w-6xl mx-auto py-10 px-4">
-      {/* Top Section - Trader Overview */}
-      <div className="mb-8">
-        <div className="flex items-start justify-between mb-6">
-          <div className="flex items-center space-x-4">
-            {currentData.avatarUrl && (
-              <img 
-                src={currentData.avatarUrl} 
-                alt={currentData.name}
-                className="w-16 h-16 rounded-lg object-cover"
-              />
-            )}
-            <div>
-              <h1 className="text-4xl font-bold text-white mb-2">{currentData.name}</h1>
-              <div className="flex items-center space-x-4">
-                <span className="text-green-400 text-lg">
-                  +{currentData.pnl} SOL this week
+    <main className="min-h-screen bg-black text-white">
+      <div className="flex">
+        {/* Left Panel */}
+        <div className="w-1/2 p-8 flex flex-col justify-between">
+          {/* Header with back arrow */}
+          <div className="mb-12">
+            <button 
+              onClick={() => window.history.back()}
+              className="text-white mb-8 hover:text-gray-300 transition-colors"
+            >
+              <ArrowLeft size={24} />
+            </button>
+            
+            {/* Trader Name and Details */}
+            <div className="mb-8">
+              <h1 className="text-6xl font-bold mb-4">{currentData.name}</h1>
+              <a 
+                href={`https://solscan.io/account/${currentData.tokenMintAddress}?cluster=devnet`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center space-x-2 text-sm text-gray-400 hover:text-gray-300 transition-colors mb-2"
+              >
+                <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
+                <span>{currentData.tokenMintAddress?.slice(0, 8)}...{currentData.tokenMintAddress?.slice(-6)}</span>
+                <ExternalLink size={14} />
+              </a>
+            </div>
+
+            {/* Price and Change */}
+            <div className="mb-8">
+              <div className="flex items-center space-x-4 mb-2">
+                <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                  <span className="text-xs">≡</span>
+                </div>
+                <span className="text-5xl font-bold">
+                  {'0.000062'}
                 </span>
-                {currentData.xUrl && (
-                  <a 
-                    href={currentData.xUrl} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-blue-400 hover:text-blue-300"
-                  >
-                    @{currentData.name}
-                  </a>
-                )}
+                <span className={`text-lg flex items-center ${(currentData.priceChange24hPercent || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  <ArrowDown className={`inline mr-1 ${(currentData.priceChange24hPercent || 0) >= 0 ? 'rotate-180' : ''}`} size={20} />
+                  {Math.abs(currentData.priceChange24hPercent || 0).toFixed(2)}%
+                </span>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex space-x-4">
+              <button 
+                onClick={handleBuyClick}
+                disabled={!isJupiterReady}
+                className="cursor-pointer bg-green-500 text-white px-8 py-3 rounded-full font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-green-600 transition-colors"
+              >
+                {isJupiterReady ? 'Buy' : 'Loading Swap...'}
+              </button>
+              <button 
+                onClick={handleSellClick}
+                disabled={!isJupiterReady}
+                className="cursor-pointer bg-red-500 text-white px-8 py-3 rounded-full font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-red-600 transition-colors"
+              >
+                {isJupiterReady ? 'Sell' : 'Loading Swap...'}
+              </button>
+            </div>
+
+            {/* Status indicator */}
+            <div className="mt-4">
+              <div className="flex items-center space-x-2 text-sm">
+                <div className={`w-2 h-2 rounded-full ${isJupiterReady ? 'bg-green-400' : 'bg-yellow-400 animate-pulse'}`}></div>
+                <span className="text-gray-400">
+                  Swap: {isJupiterReady ? 'Ready' : 'Loading...'}
+                </span>
+              </div>
+            </div>
+
+            {/* Debug info - remove in production */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="mt-4 text-xs text-gray-500 space-y-1">
+                <p>Jupiter Ready: {isJupiterReady ? 'Yes' : 'No'}</p>
+                <p>Token: {currentData.tokenMintAddress}</p>
+                <p>Jupiter Object: {typeof window !== 'undefined' && window.Jupiter ? 'Available' : 'Not Available'}</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right Panel - Profile and Stats */}
+        <div className="w-1/2 p-8 space-y-6">
+          {/* Profile Image Card */}
+          <div className="bg-gradient-to-br from-slate-700 to-slate-800 rounded-2xl p-8 flex items-center justify-center relative h-80">
+            <div className="w-64 h-64 rounded-3xl overflow-hidden shadow-2xl">
+              <img 
+                src={currentData.avatarUrl || "/default-avatar.jpg"} 
+                alt={currentData.name}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256' viewBox='0 0 256 256'%3E%3Crect width='256' height='256' fill='%23374151'/%3E%3Ctext x='128' y='128' text-anchor='middle' dy='0.3em' fill='%239CA3AF' font-size='64'%3E%F0%9F%91%A4%3C/text%3E%3C/svg%3E";
+                }}
+              />
+            </div>
+            
+            {/* PnL in top right of profile card */}
+            <div className="absolute top-6 right-6 text-right">
+              <div className="mb-1">
+                <span className="text-white/70 text-xs">PnL</span>
+              </div>
+              <div className={`text-xl font-bold ${currentData.pnl.startsWith('+') ? 'text-green-400' : 'text-red-400'}`}>
+                {currentData.pnl.toUpperCase()}
               </div>
             </div>
           </div>
-          
-          <div className="text-right">
-            <div className="text-4xl font-bold text-white mb-2">
-              {currentData.tokenPrice ? `$${currentData.tokenPrice}` : 'N/A'}
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Winrate Card */}
+            <div className="bg-gradient-to-br from-slate-700 to-slate-800 rounded-2xl p-6">
+              <div className="mb-2">
+                <span className="text-white/70 text-sm">Win Rate</span>
+              </div>
+              <div className="text-white text-2xl font-bold">
+                {currentData.winRate?.toFixed(1)}%
+              </div>
+            </div>
+
+            {/* Supply Card */}
+            <div className="bg-gradient-to-br from-slate-700 to-slate-800 rounded-2xl p-6">
+              <div className="mb-2">
+                <span className="text-white/70 text-sm">Active / Circ. Supply</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Users className="text-white/60" size={16} />
+                <span className="text-white text-lg font-bold">599.8k</span>
+                <span className="text-white/60">/1B</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Your Shares Card */}
+          <div className="bg-gradient-to-br from-slate-700 to-slate-800 rounded-2xl p-6">
+            <div className="mb-2">
+              <span className="text-white/70 text-sm">Your Shares</span>
             </div>
             <div className="flex items-center space-x-2">
-              {currentData.priceChange24hPercent && currentData.priceChange24hPercent > 0 ? (
-                <span className="text-green-400">↗ {currentData.priceChange24hPercent.toFixed(2)}%</span>
-              ) : currentData.priceChange24hPercent ? (
-                <span className="text-red-400">↘ {currentData.priceChange24hPercent.toFixed(2)}%</span>
-              ) : (
-                <span className="text-neutral-400">No price data</span>
-              )}
+              <Users className="text-white/60" size={20} />
+              <span className="text-white text-2xl font-bold">40,000</span>
             </div>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex space-x-4">
-          <button className="px-6 py-3 bg-neutral-700 hover:bg-neutral-600 rounded-lg text-white font-medium transition-colors">
-            Buy
-          </button>
-          <button className="px-6 py-3 border border-white text-white hover:bg-white hover:text-black rounded-lg font-medium transition-colors">
-            Sell
-          </button>
-        </div>
-      </div>
-
-      {/* Chart and Trading Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Chart Section */}
-        <div className="lg:col-span-2">
-          <div className="rounded-lg bg-neutral-900/80 p-6 shadow-lg">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">
-                {currentData.name}/SOL
-              </h2>
-            </div>
-            {/* TradingView Chart */}
-            <TradingViewChart 
-              tokenSymbol={currentData.name}
-              tokenMint={currentData.tokenMintAddress}
-            />
-          </div>
-        </div>
-
-        {/* Jupiter Terminal Section */}
-        <div className="lg:col-span-1">
-          <div className="rounded-lg bg-neutral-900/80 p-6 shadow-lg">
-            <h2 className="text-xl font-semibold mb-4">Swap</h2>
-            
-            {/* Jupiter Terminal Container */}
-            <div 
-              id="jupiter-terminal" 
-              ref={terminalRef}
-              className="jupiter-terminal-container"
-            />
-            
-            {!isTerminalLoaded && (
-              <div className="h-96 bg-neutral-800/50 rounded-lg flex items-center justify-center">
-                <p className="text-neutral-500">Loading trading terminal...</p>
-              </div>
-            )}
           </div>
         </div>
       </div>
 
-      {/* Additional Stats */}
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="rounded-lg bg-neutral-900/80 p-6 shadow-lg">
-          <h3 className="text-lg font-semibold mb-4">Performance</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between">
-              <span className="text-neutral-400">Rank:</span>
-              <span className="text-white font-mono">#{currentData.rank}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-neutral-400">Win Rate:</span>
-              <span className="text-yellow-400">{currentData.winRate?.toFixed(1) || 'N/A'}%</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-neutral-400">Period:</span>
-              <span className="text-white capitalize">{currentData.period.toLowerCase()}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-lg bg-neutral-900/80 p-6 shadow-lg">
-          <h3 className="text-lg font-semibold mb-4">Token Info</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between">
-              <span className="text-neutral-400">Price:</span>
-              <span className="text-white font-mono">
-                {currentData.tokenPrice ? `$${currentData.tokenPrice}` : 'N/A'}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-neutral-400">24h Change:</span>
-              <span className={currentData.priceChange24hPercent && currentData.priceChange24hPercent > 0 ? 'text-green-400' : 'text-red-400'}>
-                {currentData.priceChange24hPercent ? `${currentData.priceChange24hPercent.toFixed(2)}%` : 'N/A'}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-neutral-400">Pool Address:</span>
-              <span className="text-white font-mono text-xs">
-                {currentData.poolAddress ? `${currentData.poolAddress.slice(0, 8)}...${currentData.poolAddress.slice(-8)}` : 'N/A'}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-lg bg-neutral-900/80 p-6 shadow-lg">
-          <h3 className="text-lg font-semibold mb-4">All Periods</h3>
-          <div className="space-y-3">
-            {kolData?.daily && (
-              <div className="flex justify-between">
-                <span className="text-neutral-400">Daily PNL:</span>
-                <span className="text-white">{kolData.daily.pnl} SOL</span>
-              </div>
-            )}
-            {kolData?.weekly && (
-              <div className="flex justify-between">
-                <span className="text-neutral-400">Weekly PNL:</span>
-                <span className="text-white">{kolData.weekly.pnl} SOL</span>
-              </div>
-            )}
-            {kolData?.monthly && (
-              <div className="flex justify-between">
-                <span className="text-neutral-400">Monthly PNL:</span>
-                <span className="text-white">{kolData.monthly.pnl} SOL</span>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      {/* Hidden container for Jupiter Terminal */}
+      <div id="jupiter-terminal" style={{ display: 'none' }} />
     </main>
   );
+}
+
+// Extend the Window interface to include Jupiter
+declare global {
+  interface Window {
+    Jupiter: any;
+  }
 }

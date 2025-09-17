@@ -6,6 +6,7 @@ import { useSendTransaction, useSolanaWallets } from "@privy-io/react-auth/solan
 import { Connection, VersionedTransaction } from "@solana/web3.js"
 import { Buffer } from "buffer"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
 
 const connection = new Connection("http://api.devnet.solana.com", { commitment: "confirmed" })
 
@@ -21,7 +22,6 @@ export const ClaimPackButton = ({
   const [scope, animate] = useAnimate()
   const [isLoading, setIsLoading] = useState(false)
   const [isClaimed, setIsClaimed] = useState(false)
-  const [txnHash, setTxnHash] = useState<string | null>(null)
   const { wallets } = useSolanaWallets()
   const { sendTransaction } = useSendTransaction()
 
@@ -54,14 +54,14 @@ export const ClaimPackButton = ({
 
     if (!wallets || wallets.length === 0) {
       console.warn("[ClaimPackButton] No wallet found. Please connect your wallet first.")
-      alert("No wallet found. Please connect your wallet first.")
+      toast.error("No wallet found. Please connect your wallet first.")
       return
     }
 
     const embeddedWallet = wallets.find((w) => w.walletClientType === "privy")
     if (!embeddedWallet) {
       console.warn("[ClaimPackButton] No embedded wallet found.")
-      alert("No embedded wallet found.")
+      toast.error("No embedded wallet found.")
       return
     }
 
@@ -117,9 +117,26 @@ export const ClaimPackButton = ({
 
         console.debug("[ClaimPackButton] Transaction sent successfully:", result)
 
-        setTxnHash(result.signature)
         setIsClaimed(true)
         await animateSuccess()
+
+        // Show success toast with explorer link
+        toast.success(
+          <div className="flex flex-col gap-2">
+            <span className="font-semibold">Tokens claimed successfully! 🎉</span>
+            <a 
+              href={`https://orb.helius.dev/tx/${result.signature}?cluster=devnet`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-400 hover:text-blue-300 underline text-sm break-all"
+            >
+              View on Explorer →
+            </a>
+          </div>,
+          {
+            duration: 8000, // Show for 8 seconds
+          }
+        )
 
         // Call the onClaim callback
         console.debug("[ClaimPackButton] Calling onClaim callback")
@@ -130,7 +147,7 @@ export const ClaimPackButton = ({
       }
     } catch (error) {
       console.error("[ClaimPackButton] Error claiming pack:", error)
-      alert(`Error claiming pack: ${error instanceof Error ? error.message : "Unknown error"}`)
+      toast.error(`Error claiming pack: ${error instanceof Error ? error.message : "Unknown error"}`)
 
       // Reset loading state on error
       await animate(".loader", { width: "0px", scale: 0, display: "none" }, { duration: 0.2 })
@@ -160,28 +177,6 @@ export const ClaimPackButton = ({
             </span>
           </div>
         </button>
-
-        {/* Show transaction hash after successful claim */}
-        {txnHash && isClaimed && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-4 text-sm text-gray-400"
-          >
-            <p className="mb-2 font-medium">Transaction Hash:</p>
-            <code
-              className="bg-gray-800 px-3 py-2 rounded-lg text-xs break-all cursor-pointer hover:bg-gray-700 transition-colors block"
-              onClick={() => {
-                navigator.clipboard.writeText(txnHash)
-                console.debug("[ClaimPackButton] Transaction hash copied to clipboard:", txnHash)
-                // You could add a toast notification here
-              }}
-              title="Click to copy"
-            >
-              {txnHash}
-            </code>
-          </motion.div>
-        )}
       </div>
     </div>
   )

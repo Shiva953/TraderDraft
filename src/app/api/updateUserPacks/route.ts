@@ -26,11 +26,13 @@ export async function POST(request: Request) {
 
     if (existingUser) {
       // Update existing user
+      
+      const totalValueOfPackHoldings = (existingUser.packHoldings! * 0.1) + (packsBought*0.1);
       const updatedUser = await prisma.user.update({
         where: { id: existingUser.id },
         data: {
           packHoldings: (existingUser.packHoldings || 0) + packsBought,
-          totalValueOfPackHoldings: (existingUser.totalValueOfPackHoldings || 0) + totalValue,
+          totalValueOfPackHoldings: totalValueOfPackHoldings,
           unclaimedPacks: (existingUser.unclaimedPacks || 0) + packsBought,
         }
       });
