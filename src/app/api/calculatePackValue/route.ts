@@ -80,7 +80,7 @@ export async function POST(request: Request) {
     const TOKENS_PER_KOL = 40000; // 40K tokens per KOL in each pack
     const KOLS_PER_PACK = 4; // 4 KOLs per pack
 
-    let totalMarketValue = 0;
+    let totalMarketValue = 0; // Total market value for all packs
     const packBreakdown: PackValueCalculation['packBreakdown'] = [];
 
     // For each pack, we need to simulate what KOLs it might contain
@@ -104,15 +104,15 @@ export async function POST(request: Request) {
 
     // Calculate average pack value
     const averageValuePerPack = validKols > 0 ? totalValuePerPack / validKols : 0;
-    const totalMarketValue = averageValuePerPack * totalPacks;
+    const calculatedTotalMarketValue = averageValuePerPack * totalPacks;
 
-    console.log(`✅ [calculatePackValue] Calculated market value: ${totalMarketValue} SOL for ${totalPacks} packs`);
+    console.log(`✅ [calculatePackValue] Calculated market value: ${calculatedTotalMarketValue} SOL for ${totalPacks} packs`);
 
     return NextResponse.json({
       success: true,
       data: {
         totalPacks,
-        totalMarketValue,
+        calculatedTotalMarketValue,
         averagePackValue: averageValuePerPack,
         packBreakdown: [] // Simplified for now - could be expanded to show individual pack details
       }

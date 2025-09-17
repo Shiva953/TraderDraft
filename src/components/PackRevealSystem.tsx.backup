@@ -1,12 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { PackRevealBanner } from "./PackRevealBanner"
 import { PackDisplay, PackOpeningLoader } from "./IndividualPackScreen"
 import { KOLCarousel } from "./KOLCarousel"
 import { ClaimPackButton } from "./ClaimPackTokensButton"
-import { useSolanaWallets } from "@privy-io/react-auth/solana"
 
 interface KOLData {
   slot: string
@@ -43,57 +42,10 @@ interface PackRevealResponse {
   }
 }
 
-interface UserPackData {
-  packHoldings: number
-  totalValueOfPackHoldings: number
-  claimedPacks: number
-  unclaimedPacks: number
-}
-
 const PackRevealSystem = () => {
   const [currentStep, setCurrentStep] = useState<"banner" | "pack" | "loading" | "revealed">("banner")
   const [packData, setPackData] = useState<PackRevealResponse["data"] | null>(null)
-  const [isLoading, setIsLoading] = useState(false) // Currently unused but kept for future use
-  const [packCount, setPackCount] = useState(0)
-  const [isLoadingPackCount, setIsLoadingPackCount] = useState(true) // Currently unused but kept for future use
-  const { wallets } = useSolanaWallets()
-
-  // Fetch user pack holdings when component mounts
-  useEffect(() => {
-    const fetchPackHoldings = async () => {
-      if (!wallets || wallets.length === 0) {
-        setIsLoadingPackCount(false)
-        return
-      }
-
-      const embeddedWallet = wallets.find((w) => w.walletClientType === "privy")
-      if (!embeddedWallet) {
-        setIsLoadingPackCount(false)
-        return
-      }
-
-      try {
-        const response = await fetch("/api/getUserPacks", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userPrivyWalletAddress: embeddedWallet.address }),
-        })
-
-        if (response.ok) {
-          const result = await response.json()
-          if (result.success) {
-            setPackCount(result.data.packHoldings || 0)
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching pack holdings:", error)
-      } finally {
-        setIsLoadingPackCount(false)
-      }
-    }
-
-    fetchPackHoldings()
-  }, [wallets])
+  const [isLoading, setIsLoading] = useState(false)
 
   const handleRevealClick = () => {
     setCurrentStep("pack")
@@ -222,7 +174,7 @@ const PackRevealSystem = () => {
             transition={{ duration: 0.5 }}
             className="h-full"
           >
-            <PackRevealBanner onRevealClick={handleRevealClick} packCount={packCount} />
+            <PackRevealBanner onRevealClick={handleRevealClick} />
           </motion.div>
         )}
 

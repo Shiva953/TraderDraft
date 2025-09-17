@@ -1,4 +1,5 @@
 "use client"
+import { motion } from "framer-motion"
 
 // Types
 interface KOLData {
@@ -19,8 +20,25 @@ interface KOLData {
   transferSignature: string
 }
 
+interface PackRevealResponse {
+  success: boolean
+  data: {
+    packId: string
+    revealedAt: string
+    kols: KOLData[]
+    stats: {
+      totalKols: number
+      totalTokensReceived: number
+      totalEstimatedValueSOL: number
+      totalEstimatedValueUSD: number
+      avgWinRate: number
+      totalPnl: number
+    }
+  }
+}
+
 // Pack Banner Component
-export const PackRevealBanner = ({ onRevealClick, packCount = 0 }: { onRevealClick: () => void; packCount?: number }) => {
+export const PackRevealBanner = ({ onRevealClick }: { onRevealClick: () => void }) => {
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-6xl mx-auto">
@@ -42,7 +60,7 @@ export const PackRevealBanner = ({ onRevealClick, packCount = 0 }: { onRevealCli
                 // whileHover={{ scale: 1.05 }}
                 // whileTap={{ scale: 0.95 }}
               >
-                {packCount > 0 ? `Reveal All ${packCount} Pack${packCount === 1 ? '' : 's'}` : 'Reveal Your Packs'}
+                Reveal Your Packs
                 {/* <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                 </svg> */}
