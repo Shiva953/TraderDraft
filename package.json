@@ -3,10 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+        "vercel-build": "npx prisma generate && next build",
+        "dev": "next dev",
+        "build": "prisma generate && prisma db push && next build",
+        "dev-nolog": "next dev -p 8080",
+        "build-nolog": "next build"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.1",

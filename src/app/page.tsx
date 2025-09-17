@@ -4,14 +4,14 @@ import Image from "next/image";
 import { Leaderboard, type LeaderboardEntry } from "../components/Leaderboard";
 import { Trending, type TrendingItem } from "../components/Trending";
 import Swap from "../components/swap";
-import { CreateToken } from "../components/CreateToken";
 import { useRouter } from "next/router";
 import {PrivyProvider, useLogin, usePrivy, useSolanaWallets, useLoginWithOAuth, useLogout} from '@privy-io/react-auth';
 import { useEffect, useState, useCallback } from "react";
 import {PackSaleBannerNew} from "../components/PackSaleBannerNew";
 import { useDevBackgroundJobs } from "../hooks/useDevBackgroundJobs";
 import UserPacks from "../components/UserPacks";
-import PackRevealSystem from "../components/PackRevealSystem"; // Import your PackRevealSystem
+import PackRevealSystem from "../components/PackRevealSystem"; // Individual pack reveal
+import MultiPackRevealSystem from "../components/MultiPackRevealSystem"; // Import the new multi-pack system
 import { PackRevealBanner } from "@/components/PackRevealBanner";
 import UserProfilePicture from "../components/UserProfilePicture";
 
@@ -83,7 +83,6 @@ function convertApiDataToLeaderboardEntry(data: TraderData[]): LeaderboardEntry[
   });
 }
 
-
 export default function Home() {
 
   const fallbackLeaderboardData: LeaderboardEntry[] = [
@@ -112,8 +111,8 @@ export default function Home() {
   const [currentPeriod, setCurrentPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const [allPeriodsData, setAllPeriodsData] = useState<ApiResponse['data'] | null>(null);
 
-  // ADD PACK REVEAL STATE
-  const [showPackReveal, setShowPackReveal] = useState(false);
+  // UPDATED PACK REVEAL STATE - now supports both individual and multi-pack
+  const [showPackReveal, setShowPackReveal] = useState<'none' | 'individual' | 'multi'>('none');
 
   const { triggerManualUpdate, isTriggering } = useDevBackgroundJobs();
 
@@ -324,14 +323,46 @@ export default function Home() {
     };
   }, [autoRefresh, authenticated, refreshInterval, fetchLeaderboardData]);
 
-  // ADD PACK REVEAL HANDLER
-  const handleViewPackReveal = () => {
-    setShowPackReveal(true);
+  // UPDATED PACK REVEAL HANDLERS
+  const handleViewMultiPackReveal = () => {
+    setShowPackReveal('multi');
   };
 
-  // ADD CLOSE PACK REVEAL HANDLER
+  const handleViewIndividualPackReveal = () => {
+    setShowPackReveal('individual');
+  };
+
+  // Add a function to refresh pack count
+  const refreshPackCount = useCallback(async () => {
+    if (!authenticated || !wallets || wallets.length === 0) return
+
+    const embeddedWallet = wallets.find((w) => w.walletClientType === "privy")
+    if (!embeddedWallet) return
+
+    try {
+      const response = await fetch("/api/getUserPacks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userPrivyWalletAddress: embeddedWallet.address }),
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        if (result.success) {
+          // This will trigger a re-render of UserPacks component
+          console.log("Pack count refreshed:", result.data.packHoldings)
+        }
+      }
+    } catch (error) {
+      console.error("Error refreshing pack count:", error)
+    }
+  }, [authenticated, wallets])
+
+  // Update the handleClosePackReveal function to refresh pack count
   const handleClosePackReveal = () => {
-    setShowPackReveal(false);
+    setShowPackReveal('none');
+    // Refresh pack count when closing the reveal system
+    refreshPackCount();
   };
 
   if (!authenticated) {
@@ -377,12 +408,17 @@ export default function Home() {
     }
   };
 
-  // IF PACK REVEAL IS SHOWN, RENDER IT INSTEAD
-  if (showPackReveal) {
+  // UPDATED PACK REVEAL RENDERING LOGIC
+  if (showPackReveal !== 'none') {
     return (
       <div className="relative">
-        <PackRevealSystem />
-        {/* ADD CLOSE BUTTON */}
+        {showPackReveal === 'multi' ? (
+          <MultiPackRevealSystem />
+        ) : (
+          <PackRevealSystem />
+        )}
+        
+        {/* CLOSE BUTTON */}
         <button
           onClick={handleClosePackReveal}
           className="fixed top-4 right-4 z-50 w-10 h-10 rounded-full bg-black/50 border border-white/20 text-white hover:bg-black/70 transition-all duration-200 flex items-center justify-center"
@@ -396,13 +432,24 @@ export default function Home() {
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-4">
       <div className="flex items-center justify-between">
-        {/* UPDATE THE EXPLORE PACKS BUTTON */}
-        <button 
-          onClick={handleViewPackReveal}
-          className="rounded-lg cursor-pointer bg-rose-300 px-4 py-2 text-sm font-semibold text-neutral-900 hover:bg-rose-400 transition-colors duration-200"
-        >
-          EXPLORE PACKS
-        </button>
+        {/* UPDATED PACK REVEAL BUTTONS */}
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={handleViewMultiPackReveal}
+            className="rounded-lg cursor-pointer bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 px-4 py-2 text-sm font-semibold text-white hover:scale-105 transition-all duration-200"
+          >
+            REVEAL ALL PACKS
+          </button>
+          
+          {/* INDIVIDUAL PACK REVEAL FOR TESTING */}
+          <button 
+            onClick={handleViewIndividualPackReveal}
+            className="rounded-lg cursor-pointer bg-gray-600 hover:bg-gray-700 px-4 py-2 text-sm font-semibold text-white transition-colors duration-200"
+          >
+            Test Individual Pack
+          </button>
+        </div>
+
         <div className="flex items-center gap-3">
           {isWalletLoading ? (
             <button className="rounded-full border border-white/20 px-4 py-2 text-sm text-white">
@@ -436,13 +483,13 @@ export default function Home() {
         <h1 className="text-4xl font-semibold text-neutral-100">Kolscan</h1>
       </header>
 
-      {/* UPDATE PACK SALE BANNER TO TRIGGER PACK REVEAL */}
+      {/* UPDATED PACK SALE BANNER TO TRIGGER MULTI-PACK REVEAL */}
       <PackSaleBannerNew 
         onViewLeaderboard={() => {
           const el = document.getElementById("home-leaderboard");
           if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
         }}
-        onSkipToReveal={handleViewPackReveal}
+        onSkipToReveal={handleViewMultiPackReveal}
       />
 
       <UserPacks />

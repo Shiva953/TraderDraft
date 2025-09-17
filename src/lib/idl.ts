@@ -984,6 +984,182 @@ export type Pnlpackprogram = {
       ]
     },
     {
+      "name": "transferFromKolVaultToUser",
+      "discriminator": [
+        69,
+        97,
+        58,
+        66,
+        113,
+        176,
+        34,
+        69
+      ],
+      "accounts": [
+        {
+          "name": "globalPackPool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  112,
+                  97,
+                  99,
+                  107,
+                  95,
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "tokenVault",
+          "docs": [
+            "The token vault (source of tokens)",
+            "Owned by the global pack pool"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "kolTicker"
+              },
+              {
+                "kind": "account",
+                "path": "globalPackPool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "docs": [
+            "The mint of the KOL token"
+          ],
+          "writable": true
+        },
+        {
+          "name": "userTokenAccount",
+          "docs": [
+            "The user's token account (destination)"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "account",
+                "path": "tokenProgram"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "systemProgram",
+          "docs": [
+            "The user who will receive the tokens"
+          ],
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "tokenProgram"
+        },
+        {
+          "name": "associatedTokenProgram",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        }
+      ],
+      "args": [
+        {
+          "name": "kolTicker",
+          "type": "string"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "transferToIndividualPack",
       "discriminator": [
         213,
@@ -1526,7 +1702,6 @@ export type Pnlpackprogram = {
     }
   ]
 };
-
   
   export const IDL = {
     "address": "51qa3toZbwVC1zTyntYZSsyqb2uZVuxpgJeYXZPoWJcY",
@@ -2504,6 +2679,182 @@ export type Pnlpackprogram = {
                 }
               }
             }
+          }
+        ]
+      },
+      {
+        "name": "transfer_from_kol_vault_to_user",
+        "discriminator": [
+          69,
+          97,
+          58,
+          66,
+          113,
+          176,
+          34,
+          69
+        ],
+        "accounts": [
+          {
+            "name": "global_pack_pool",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "const",
+                  "value": [
+                    103,
+                    108,
+                    111,
+                    98,
+                    97,
+                    108,
+                    95,
+                    112,
+                    97,
+                    99,
+                    107,
+                    95,
+                    112,
+                    111,
+                    111,
+                    108
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "user",
+            "writable": true,
+            "signer": true
+          },
+          {
+            "name": "token_vault",
+            "docs": [
+              "The token vault (source of tokens)",
+              "Owned by the global pack pool"
+            ],
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "const",
+                  "value": [
+                    116,
+                    111,
+                    107,
+                    101,
+                    110,
+                    95,
+                    118,
+                    97,
+                    117,
+                    108,
+                    116
+                  ]
+                },
+                {
+                  "kind": "arg",
+                  "path": "kol_ticker"
+                },
+                {
+                  "kind": "account",
+                  "path": "global_pack_pool"
+                }
+              ]
+            }
+          },
+          {
+            "name": "mint",
+            "docs": [
+              "The mint of the KOL token"
+            ],
+            "writable": true
+          },
+          {
+            "name": "user_token_account",
+            "docs": [
+              "The user's token account (destination)"
+            ],
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "account",
+                  "path": "user"
+                },
+                {
+                  "kind": "account",
+                  "path": "token_program"
+                },
+                {
+                  "kind": "account",
+                  "path": "mint"
+                }
+              ],
+              "program": {
+                "kind": "const",
+                "value": [
+                  140,
+                  151,
+                  37,
+                  143,
+                  78,
+                  36,
+                  137,
+                  241,
+                  187,
+                  61,
+                  16,
+                  41,
+                  20,
+                  142,
+                  13,
+                  131,
+                  11,
+                  90,
+                  19,
+                  153,
+                  218,
+                  255,
+                  16,
+                  132,
+                  4,
+                  142,
+                  123,
+                  216,
+                  219,
+                  233,
+                  248,
+                  89
+                ]
+              }
+            }
+          },
+          {
+            "name": "system_program",
+            "docs": [
+              "The user who will receive the tokens"
+            ],
+            "address": "11111111111111111111111111111111"
+          },
+          {
+            "name": "token_program"
+          },
+          {
+            "name": "associated_token_program",
+            "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+          }
+        ],
+        "args": [
+          {
+            "name": "kol_ticker",
+            "type": "string"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
           }
         ]
       },

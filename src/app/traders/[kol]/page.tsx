@@ -103,10 +103,10 @@ export default function TraderPage({ params }: TraderPageProps) {
                 initialAmount: "1000000", // 1 SOL in lamports
               },
               enableWalletPassthrough: true,
-              onSuccess: ({ txid }) => {
+              onSuccess: ({ txid }: { txid: any }) => {
                 console.log("Swap successful:", txid);
               },
-              onSwapError: ({ error }) => {
+              onSwapError: ({ error }: { error: any }) => {
                 console.error("Swap error:", error);
               },
             });
