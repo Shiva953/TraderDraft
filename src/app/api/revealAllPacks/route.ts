@@ -10,11 +10,7 @@ import {
   TransactionInstruction,
 } from '@solana/web3.js';
 import { Program, AnchorProvider, Wallet, BN } from '@coral-xyz/anchor';
-import {
-  getAssociatedTokenAddress,
-  TOKEN_PROGRAM_ID,
-  ASSOCIATED_TOKEN_PROGRAM_ID,
-} from '@solana/spl-token';
+import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { Pnlpackprogram, IDL } from '../../../lib/idl';
 import NodeWallet from '@coral-xyz/anchor/dist/cjs/nodewallet';
 
@@ -23,10 +19,8 @@ const PROGRAM_ID = new PublicKey('51qa3toZbwVC1zTyntYZSsyqb2uZVuxpgJeYXZPoWJcY')
 const ADMIN_KEY = new PublicKey('7E85TTXg5FjT5G6q14nZUSE3KAgjM2kjBs8ddAW6eBeR');
 const TOKENS_PER_KOL = new BN(40000 * Math.pow(10, 6)); // 40K tokens with 6 decimals
 
-
 const MAX_TRANSACTION_SIZE = 1222; // Leave some buffer under 1232
 const MAX_PACK_REVEALS_PER_TX = 4; // Estimated based on transaction size
-const MAX_TRANSFERS_PER_TX = 8; // Conservative estimate for transfers
 
 const prisma = new PrismaClient();
 
@@ -86,10 +80,7 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log(`🎁 Revealing ${numberOfPacks} packs with optimized batching`);
-
-    // OPTIMIZATION 1: Skip vault verification as requested
-    console.log('⚡ Skipping vault verification - assuming tokens are properly created');
+    console.log(`🎁 Revealing ${numberOfPacks} packs (pack creation only)`);
 
     console.log('📊 Fetching top traders with tokens…');
     const allKolsData = await fetchTopTradersWithTokens();
@@ -114,17 +105,15 @@ export async function POST(request: Request) {
     console.log('🧮 Preparing consolidated token data...');
     const konsolidatedKolsWithTokenData = await prepareConsolidatedKolTokenData(consolidatedKols);
 
-    console.log('⚡ Executing OPTIMIZED batch transactions…');
-    const txResult = await executeOptimizedBatchTransactions(
-      packsData, 
-      konsolidatedKolsWithTokenData
-    );
-    console.log('⚡ Optimized batch execution result:', txResult);
+    // MODIFIED: Only create pack accounts, no token transfers
+    console.log('📦 Executing pack creation (no token transfers)...');
+    const txResult = await executePackCreationOnly(packsData);
+    console.log('📦 Pack creation result:', txResult);
 
     if (!txResult.success) {
-      console.error('❌ Pack reveal transaction failed:', txResult.error);
+      console.error('❌ Pack creation failed:', txResult.error);
       return NextResponse.json(
-        { success: false, error: `Transaction failed: ${txResult.error}` },
+        { success: false, error: `Pack creation failed: ${txResult.error}` },
         { status: 500 }
       );
     }
@@ -137,11 +126,11 @@ export async function POST(request: Request) {
     );
     console.log('✅ Consolidated pack metadata prepared');
 
-    console.log(`🎉 ${numberOfPacks} packs revealed successfully with optimizations!`);
+    console.log(`🎉 ${numberOfPacks} packs revealed successfully (pack creation only)!`);
     return NextResponse.json(
       { 
         success: true, 
-        message: `${numberOfPacks} packs revealed successfully with optimized batching! 🎊`, 
+        message: `${numberOfPacks} packs revealed successfully! Token claiming available through direct vault transfers.`, 
         data: packMetadata 
       },
       { status: 200 }
@@ -162,12 +151,11 @@ export async function POST(request: Request) {
   }
 }
 
-// OPTIMIZATION 2: Batched transaction execution
-async function executeOptimizedBatchTransactions(
-  packs: PackData[],
-  consolidatedKols: ConsolidatedKolData[]
-): Promise<{ success: boolean; signatures?: string[]; error?: string; packCreationSignatures?: string[] }> {
-  console.log('⚡ [executeOptimizedBatchTransactions] Starting optimized batch execution...');
+// MODIFIED: Only create pack accounts, no token transfers
+async function executePackCreationOnly(
+  packs: PackData[]
+): Promise<{ success: boolean; signatures?: string[]; error?: string }> {
+  console.log('📦 [executePackCreationOnly] Starting pack creation only...');
   
   try {
     const connection = new Connection(DEVNET_RPC, 'confirmed');
@@ -193,9 +181,8 @@ async function executeOptimizedBatchTransactions(
     const program = new Program<Pnlpackprogram>(IDL, provider);
 
     const allSignatures: string[] = [];
-    const packCreationSignatures: string[] = [];
 
-    // O3: Batch pack creation instructions
+    // Create pack accounts in batches
     console.log('📦 Creating pack accounts in batches...');
     const packBatches = chunkArray(packs, MAX_PACK_REVEALS_PER_TX);
     
@@ -203,14 +190,14 @@ async function executeOptimizedBatchTransactions(
       const batch = packBatches[batchIndex];
       console.log(`📦 Processing pack batch ${batchIndex + 1}/${packBatches.length} with ${batch.length} packs`);
       
-      const batchSignatures = await executeBatchedPackReveals(
+      const batchSignatures = await executeBatchedPackCreation(
         program, 
         batch, 
         connection, 
         adminKeypair
       );
       
-      packCreationSignatures.push(...batchSignatures);
+      allSignatures.push(...batchSignatures);
       console.log(`✅ Pack batch ${batchIndex + 1} completed with ${batchSignatures.length} transactions`);
       
       // Small delay between batches to avoid overwhelming the RPC
@@ -219,44 +206,19 @@ async function executeOptimizedBatchTransactions(
       }
     }
 
-    // O4: Batch transfer instructions
-    console.log('💰 Executing consolidated token transfers in batches...');
-    const transferBatches = chunkArray(consolidatedKols, MAX_TRANSFERS_PER_TX);
-    
-    for (let batchIndex = 0; batchIndex < transferBatches.length; batchIndex++) {
-      const batch = transferBatches[batchIndex];
-      console.log(`💸 Processing transfer batch ${batchIndex + 1}/${transferBatches.length} with ${batch.length} KOLs`);
-      
-      const batchSignatures = await executeBatchedTransfers(
-        program,
-        batch,
-        connection,
-        adminKeypair
-      );
-      
-      allSignatures.push(...batchSignatures);
-      console.log(`✅ Transfer batch ${batchIndex + 1} completed with ${batchSignatures.length} transactions`);
-      
-      // Small delay between batches
-      if (batchIndex < transferBatches.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 200));
-      }
-    }
-
     return {
       success: true,
-      signatures: allSignatures,
-      packCreationSignatures
+      signatures: allSignatures
     };
 
   } catch (error) {
-    console.error('❌ Optimized batch execution error:', error);
-    return { success: false, error: error instanceof Error ? error.message : 'Transaction failed' };
+    console.error('❌ Pack creation error:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Pack creation failed' };
   }
 }
 
-// O5: Batch multiple pack reveals into single transactions
-async function executeBatchedPackReveals(
+// MODIFIED: Only pack creation, no transfers
+async function executeBatchedPackCreation(
   program: Program<Pnlpackprogram>,
   packs: PackData[],
   connection: Connection,
@@ -267,17 +229,17 @@ async function executeBatchedPackReveals(
   // For very small batches, try to combine instructions
   if (packs.length <= 2) {
     try {
-      const signature = await executeCombinedPackReveals(program, packs, connection, adminKeypair);
+      const signature = await executeCombinedPackCreation(program, packs, connection, adminKeypair);
       signatures.push(signature);
       return signatures;
     } catch (error) {
-      console.warn('⚠️ Combined pack reveal failed, falling back to individual transactions:', error);
+      console.warn('⚠️ Combined pack creation failed, falling back to individual transactions:', error);
     }
   }
   
   // Fallback: individual transactions with parallel execution
   const promises = packs.map(pack => 
-    executePackRevealForSinglePack(program, pack.packId, pack.kols, connection, adminKeypair)
+    executePackCreationForSinglePack(program, pack.packId, pack.kols, connection, adminKeypair)
   );
   
   const results = await Promise.allSettled(promises);
@@ -287,16 +249,16 @@ async function executeBatchedPackReveals(
     if (result.status === 'fulfilled') {
       signatures.push(result.value);
     } else {
-      console.error(`❌ Pack reveal failed for ${packs[i].packId}:`, result.reason);
-      throw new Error(`Pack reveal failed for ${packs[i].packId}: ${result.reason}`);
+      console.error(`❌ Pack creation failed for ${packs[i].packId}:`, result.reason);
+      throw new Error(`Pack creation failed for ${packs[i].packId}: ${result.reason}`);
     }
   }
   
   return signatures;
 }
 
-// OPTIMIZATION 6: Try to combine pack reveals in single transaction
-async function executeCombinedPackReveals(
+// MODIFIED: Only pack creation
+async function executeCombinedPackCreation(
   program: Program<Pnlpackprogram>,
   packs: PackData[],
   connection: Connection,
@@ -357,7 +319,7 @@ async function executeCombinedPackReveals(
   transaction.sign(adminKeypair);
 
   const serializedTx = transaction.serialize();
-  console.log(`📏 Combined pack reveal transaction size: ${serializedTx.length} bytes`);
+  console.log(`📏 Combined pack creation transaction size: ${serializedTx.length} bytes`);
 
   if (serializedTx.length > MAX_TRANSACTION_SIZE) {
     throw new Error(`Combined transaction too large: ${serializedTx.length} > ${MAX_TRANSACTION_SIZE} bytes`);
@@ -377,40 +339,81 @@ async function executeCombinedPackReveals(
   return signature;
 }
 
-// OPTIMIZATION 7: Batch transfers with parallel execution
-async function executeBatchedTransfers(
+// MODIFIED: Only pack creation
+async function executePackCreationForSinglePack(
   program: Program<Pnlpackprogram>,
-  kols: ConsolidatedKolData[],
+  packId: string,
+  kols: KolData[],
   connection: Connection,
   adminKeypair: Keypair
-): Promise<string[]> {
-  // Execute transfers in parallel for better performance
-  const promises = kols.map(kol => {
-    const firstPackId = kol.packIds[0];
-    return executeConsolidatedTransferWithATACreation(
-      program,
-      firstPackId,
-      kol,
-      connection,
-      adminKeypair
-    );
+): Promise<string> {
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+
+  const [globalPackPool] = PublicKey.findProgramAddressSync(
+    [Buffer.from('global_pack_pool')],
+    PROGRAM_ID
+  );
+
+  const [packAccount] = PublicKey.findProgramAddressSync(
+    [Buffer.from('pack'), Buffer.from(packId)],
+    PROGRAM_ID
+  );
+
+  const kolInfoInputs = kols.map(kol => {
+    const pnlValue = parseFloat(kol.pnl.replace(/[^\d.-]/g, '')) || 0;
+    const pnlInLamports = new BN(Math.floor(Math.abs(pnlValue) * LAMPORTS_PER_SOL));
+    const winrateBps = Math.min(10000, Math.max(0, Math.floor((kol.winRate || 0) * 100)));
+    
+    return {
+      name: kol.ticker!,
+      address: kol.address ? new PublicKey(kol.address) : ADMIN_KEY,
+      pfpUrl: (kol.avatarUrl || '').substring(0, 128),
+      pnl: pnlValue >= 0 ? pnlInLamports : pnlInLamports.neg(),
+      winrateBps,
+      kolTokenMintAddress: kol.tokenMintAddress!
+    };
   });
-  
-  const results = await Promise.allSettled(promises);
-  const signatures: string[] = [];
-  
-  for (let i = 0; i < results.length; i++) {
-    const result = results[i];
-    if (result.status === 'fulfilled') {
-      signatures.push(result.value);
-      console.log(`✅ Transfer completed for ${kols[i].name}: ${result.value}`);
-    } else {
-      console.error(`❌ Transfer failed for ${kols[i].name}:`, result.reason);
-      throw new Error(`Transfer failed for ${kols[i].name}: ${result.reason}`);
-    }
+
+  const packRevealIx = await program.methods
+    .packReveal(packId, kolInfoInputs)
+    .accountsPartial({
+      globalPackPool,
+      admin: ADMIN_KEY,
+      packAccount,
+      mintKolA: kols[0].tokenMintAddress!,
+      mintKolB: kols[1].tokenMintAddress!,
+      mintKolC: kols[2].tokenMintAddress!,
+      mintKolD: kols[3].tokenMintAddress!,
+      systemProgram: SystemProgram.programId,
+      tokenProgram: TOKEN_PROGRAM_ID,
+    })
+    .instruction();
+
+  const transaction = new Transaction();
+  transaction.add(packRevealIx);
+  transaction.recentBlockhash = blockhash;
+  transaction.feePayer = adminKeypair.publicKey;
+  transaction.sign(adminKeypair);
+
+  const serializedTx = transaction.serialize();
+  console.log(`📏 Pack creation transaction size for ${packId}: ${serializedTx.length} bytes`);
+
+  if (serializedTx.length > MAX_TRANSACTION_SIZE) {
+    throw new Error(`Pack creation transaction too large: ${serializedTx.length} > ${MAX_TRANSACTION_SIZE} bytes`);
   }
-  
-  return signatures;
+
+  const signature = await connection.sendRawTransaction(serializedTx, {
+    skipPreflight: false,
+    preflightCommitment: 'confirmed'
+  });
+
+  await connection.confirmTransaction({
+    signature,
+    blockhash,
+    lastValidBlockHeight
+  }, 'confirmed');
+
+  return signature;
 }
 
 // Utility function to chunk arrays
@@ -486,155 +489,6 @@ function consolidateKolsAcrossPacks(packs: PackData[]): ConsolidatedKolData[] {
   return consolidatedArray;
 }
 
-async function executePackRevealForSinglePack(
-  program: Program<Pnlpackprogram>,
-  packId: string,
-  kols: KolData[],
-  connection: Connection,
-  adminKeypair: Keypair
-): Promise<string> {
-  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
-
-  const [globalPackPool] = PublicKey.findProgramAddressSync(
-    [Buffer.from('global_pack_pool')],
-    PROGRAM_ID
-  );
-
-  const [packAccount] = PublicKey.findProgramAddressSync(
-    [Buffer.from('pack'), Buffer.from(packId)],
-    PROGRAM_ID
-  );
-
-  const kolInfoInputs = kols.map(kol => {
-    const pnlValue = parseFloat(kol.pnl.replace(/[^\d.-]/g, '')) || 0;
-    const pnlInLamports = new BN(Math.floor(Math.abs(pnlValue) * LAMPORTS_PER_SOL));
-    const winrateBps = Math.min(10000, Math.max(0, Math.floor((kol.winRate || 0) * 100)));
-    
-    return {
-      name: kol.ticker!,
-      address: kol.address ? new PublicKey(kol.address) : ADMIN_KEY,
-      pfpUrl: (kol.avatarUrl || '').substring(0, 128),
-      pnl: pnlValue >= 0 ? pnlInLamports : pnlInLamports.neg(),
-      winrateBps,
-      kolTokenMintAddress: kol.tokenMintAddress!
-    };
-  });
-
-  const packRevealIx = await program.methods
-    .packReveal(packId, kolInfoInputs)
-    .accountsPartial({
-      globalPackPool,
-      admin: ADMIN_KEY,
-      packAccount,
-      mintKolA: kols[0].tokenMintAddress!,
-      mintKolB: kols[1].tokenMintAddress!,
-      mintKolC: kols[2].tokenMintAddress!,
-      mintKolD: kols[3].tokenMintAddress!,
-      systemProgram: SystemProgram.programId,
-      tokenProgram: TOKEN_PROGRAM_ID,
-    })
-    .instruction();
-
-  const transaction = new Transaction();
-  transaction.add(packRevealIx);
-  transaction.recentBlockhash = blockhash;
-  transaction.feePayer = adminKeypair.publicKey;
-  transaction.sign(adminKeypair);
-
-  const serializedTx = transaction.serialize();
-  console.log(`📏 Pack reveal transaction size for ${packId}: ${serializedTx.length} bytes`);
-
-  if (serializedTx.length > MAX_TRANSACTION_SIZE) {
-    throw new Error(`Pack reveal transaction too large: ${serializedTx.length} > ${MAX_TRANSACTION_SIZE} bytes`);
-  }
-
-  const signature = await connection.sendRawTransaction(serializedTx, {
-    skipPreflight: false,
-    preflightCommitment: 'confirmed'
-  });
-
-  await connection.confirmTransaction({
-    signature,
-    blockhash,
-    lastValidBlockHeight
-  }, 'confirmed');
-
-  return signature;
-}
-
-async function executeConsolidatedTransferWithATACreation(
-  program: Program<Pnlpackprogram>,
-  packId: string,
-  kol: ConsolidatedKolData,
-  connection: Connection,
-  adminKeypair: Keypair
-): Promise<string> {
-  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
-
-  const [globalPackPool] = PublicKey.findProgramAddressSync(
-    [Buffer.from('global_pack_pool')],
-    PROGRAM_ID
-  );
-
-  const [packAccount] = PublicKey.findProgramAddressSync(
-    [Buffer.from('pack'), Buffer.from(packId)],
-    PROGRAM_ID
-  );
-
-  const [tokenVault] = PublicKey.findProgramAddressSync(
-    [Buffer.from('token_vault'), Buffer.from(kol.ticker!), globalPackPool.toBuffer()],
-    PROGRAM_ID
-  );
-
-  const packKolTa = await getAssociatedTokenAddress(
-    kol.tokenMintAddress!,
-    packAccount,
-    true,
-    TOKEN_PROGRAM_ID
-  );
-
-  const transferIx = await program.methods
-    .transferToIndividualPack(kol.ticker!, kol.totalTokens)
-    .accountsPartial({
-      globalPackPool,
-      packAccount,
-      kolMint: kol.tokenMintAddress!,
-      kolTokenVault: tokenVault,
-      packKolTa,
-      admin: ADMIN_KEY,
-      systemProgram: SystemProgram.programId,
-      tokenProgram: TOKEN_PROGRAM_ID,
-      associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-    })
-    .instruction();
-
-  const transaction = new Transaction();
-  transaction.add(transferIx);
-  transaction.recentBlockhash = blockhash;
-  transaction.feePayer = adminKeypair.publicKey;
-  transaction.sign(adminKeypair);
-
-  const serializedTx = transaction.serialize();
-  console.log(`📏 Consolidated transfer transaction size for ${kol.name}: ${serializedTx.length} bytes`);
-  
-  if (serializedTx.length > MAX_TRANSACTION_SIZE) {
-    throw new Error(`Consolidated transfer transaction too large: ${serializedTx.length} > ${MAX_TRANSACTION_SIZE} bytes for KOL: ${kol.name}`);
-  }
-
-  const signature = await connection.sendRawTransaction(serializedTx, {
-    skipPreflight: false,
-    preflightCommitment: 'confirmed'
-  });
-
-  await connection.confirmTransaction({
-    signature,
-    blockhash,
-    lastValidBlockHeight
-  }, 'confirmed');
-
-  return signature;
-}
-
 function createConsolidatedPackMetadata(
   packs: PackData[], 
   consolidatedKols: ConsolidatedKolData[], 
@@ -652,20 +506,18 @@ function createConsolidatedPackMetadata(
   );
 
   return {
-    revealType: 'MULTIPLE_PACKS_OPTIMIZED',
+    revealType: 'MULTIPLE_PACKS_OPTIMIZED_NO_TRANSFERS',
     revealedAt: new Date().toISOString(),
     totalPacksRevealed,
     totalUniqueKols,
     transactionSignatures: txResult.signatures || [],
-    packCreationSignatures: txResult.packCreationSignatures || [],
-    executionMode: 'Optimized Batch Transactions (Devnet)',
+    executionMode: 'Pack Creation Only - Direct Vault Claims (Devnet)',
     network: 'devnet',
     optimizations: [
-      'Skipped vault verification',
-      'Batched pack reveals',
-      'Parallel transaction execution',
-      'Combined instructions where possible',
-      'Reduced confirmation delays'
+      'Removed pack token transfers',
+      'Direct vault-to-user claiming available',
+      'Batched pack creation',
+      'No user signatures required for claiming'
     ],
     packs: packs.map((pack, index) => ({
       packId: pack.packId,
@@ -675,8 +527,7 @@ function createConsolidatedPackMetadata(
         ticker: kol.ticker,
         rank: kol.rank,
         tokenMintAddress: kol.tokenMintAddress?.toString()
-      })),
-      creationSignature: txResult.packCreationSignatures?.[Math.floor(index / MAX_PACK_REVEALS_PER_TX)] || null
+      }))
     })),
     consolidatedKols: consolidatedKols.map((kol, index) => ({
       name: kol.name,
@@ -698,8 +549,7 @@ function createConsolidatedPackMetadata(
       totalTokenAmountFormatted: formatTokenAmountToK(kol.totalTokens),
       estimatedValueSOL: (kol.tokenPrice || 0) * kol.totalTokens.toNumber(),
       estimatedValueUSD: ((kol.tokenPrice || 0) * kol.totalTokens.toNumber()) * 100,
-      appearsInPacks: kol.packIds,
-      transferSignature: txResult.signatures?.[Math.floor(index / MAX_TRANSFERS_PER_TX)] || null
+      appearsInPacks: kol.packIds
     })),
     stats: {
       totalPacksRevealed,

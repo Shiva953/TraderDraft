@@ -7,7 +7,7 @@ import NodeWallet from '@coral-xyz/anchor/dist/cjs/nodewallet';
 import { BN } from 'bn.js';
 import { PrismaClient } from '@prisma/client';
 
-const connection = new Connection("http://api.devnet.solana.com", {commitment: "confirmed"})
+const connection = new Connection("https://api.devnet.solana.com", {commitment: "confirmed"})
 const prisma = new PrismaClient();
 
 export async function POST(request: Request) {

@@ -1,14 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { ExternalLink, Package, Coins, ChevronRight } from 'lucide-react'
+import { useState } from 'react'
+import { ExternalLink, Package, Coins, ChevronRight, Copy } from 'lucide-react'
 import TokenHoldingsModal from './TokenHoldingsModal'
-
-interface UserProfileDropDownMenuProps {
-  isOpen: boolean
-  onClose: () => void
-  userPrivyWalletAddress: string
-}
 
 interface UserPacksData {
   packHoldings: number
@@ -17,70 +11,57 @@ interface UserPacksData {
   unclaimedPacks: number
 }
 
-export default function UserProfileDropDownMenu({ isOpen, onClose, userPrivyWalletAddress }: UserProfileDropDownMenuProps) {
-  const [userPacks, setUserPacks] = useState<UserPacksData | null>(null)
-  const [tokenHoldingsCount, setTokenHoldingsCount] = useState(0)
+interface TokenHolding {
+  ticker: string
+  name: string
+  balance: string
+  mintAddress: string
+  poolAddress?: string
+  tokenPrice?: string
+  priceChange24h?: string
+  priceChange24hPercent?: number
+}
+
+interface UserProfileDropDownMenuProps {
+  isOpen: boolean
+  onClose: () => void
+  userPrivyWalletAddress: string
+  userPacks: UserPacksData | null
+  tokenHoldings: TokenHolding[]
+  tokenHoldingsCount: number
+  loading: boolean
+  error: string | null
+}
+
+export default function UserProfileDropDownMenu({ 
+  isOpen, 
+  onClose, 
+  userPrivyWalletAddress,
+  userPacks,
+  tokenHoldings,
+  tokenHoldingsCount,
+  loading,
+  error
+}: UserProfileDropDownMenuProps) {
   const [showTokenModal, setShowTokenModal] = useState(false)
-  const [loading, setLoading] = useState(false)
-
-  const fetchUserData = async () => {
-    if (!userPrivyWalletAddress) return
-
-    setLoading(true)
-    try {
-      // Fetch user packs data (now includes market value calculation)
-      const packsResponse = await fetch('/api/getUserPacks', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userPrivyWalletAddress,
-        }),
-      })
-
-      if (packsResponse.ok) {
-        const packsData = await packsResponse.json()
-        if (packsData.success) {
-          setUserPacks(packsData.data)
-        }
-      }
-
-      // Fetch token holdings count
-      const holdingsResponse = await fetch('/api/getUserKOLTokenHoldings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userPrivyWalletAddress,
-        }),
-      })
-
-      if (holdingsResponse.ok) {
-        const holdingsData = await holdingsResponse.json()
-        if (holdingsData.success) {
-          setTokenHoldingsCount(holdingsData.data.totalHoldings)
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching user data:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    if (isOpen) {
-      fetchUserData()
-    }
-  }, [isOpen, userPrivyWalletAddress])
+  const [copied, setCopied] = useState(false)
 
   const formatAddress = (address: string) => {
     return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`
   }
 
-  const solscanUrl = `https://solscan.io/account/${userPrivyWalletAddress}`
+  const solscanUrl = `https://orb.helius.dev/account/${userPrivyWalletAddress}?cluster=devnet`
+
+  const handleCopy = async () => {
+    if (!userPrivyWalletAddress) return
+    try {
+      await navigator.clipboard.writeText(userPrivyWalletAddress)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1200)
+    } catch (err) {
+      // fallback or error handling
+    }
+  }
 
   if (!isOpen) return null
 
@@ -95,7 +76,21 @@ export default function UserProfileDropDownMenu({ isOpen, onClose, userPrivyWall
             </div>
             <div className="flex-1">
               <p className="font-semibold text-white">Wallet</p>
-              <p className="text-sm text-neutral-400 font-mono">{formatAddress(userPrivyWalletAddress)}</p>
+              <div className="flex items-center gap-1">
+                <span className="text-sm text-neutral-400 font-mono">{formatAddress(userPrivyWalletAddress)}</span>
+                <button
+                  onClick={handleCopy}
+                  className="p-1 cursor-pointer rounded hover:bg-neutral-800 transition-colors duration-150"
+                  title={copied ? "Copied!" : "Copy address"}
+                  aria-label="Copy wallet address"
+                  type="button"
+                >
+                  <Copy className={`h-4 w-4 text-neutral-400 ${copied ? 'text-green-400' : ''}`} />
+                </button>
+                {copied && (
+                  <span className="ml-1 text-xs text-green-400">Copied!</span>
+                )}
+              </div>
             </div>
             <a
               href={solscanUrl}
@@ -110,6 +105,12 @@ export default function UserProfileDropDownMenu({ isOpen, onClose, userPrivyWall
 
         {/* Content */}
         <div className="p-4 space-y-4">
+          {error && (
+            <div className="rounded-lg bg-red-900/20 border border-red-800 p-3 text-sm text-red-400">
+              Error: {error}
+            </div>
+          )}
+
           {/* Pack Holdings */}
           <div className="rounded-lg bg-neutral-800/50 p-4">
             <div className="flex items-center gap-3 mb-3">
@@ -192,7 +193,7 @@ export default function UserProfileDropDownMenu({ isOpen, onClose, userPrivyWall
       <TokenHoldingsModal
         isOpen={showTokenModal}
         onClose={() => setShowTokenModal(false)}
-        userPrivyWalletAddress={userPrivyWalletAddress}
+        tokenHoldings={tokenHoldings}
       />
     </>
   )

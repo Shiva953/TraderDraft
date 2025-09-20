@@ -81,10 +81,26 @@ export const MultiPackRevealBanner = ({ onRevealClick, packCount = 0 }: { onReve
                 Open all your packs at once! Get consolidated KOL tokens from multiple packs in one transaction.
               </p>
               <button
-                onClick={onRevealClick}
-                className="cursor-pointer flex items-center justify-center gap-3 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 px-8 py-4 text-xl font-light tracking-tight text-white shadow-lg mx-auto lg:mx-0 transition-all duration-200 hover:scale-105"
+                onClick={packCount > 0 ? onRevealClick : undefined}
+                disabled={packCount <= 0}
+                className={`flex items-center justify-center gap-3 rounded-full px-8 py-4 text-xl font-light tracking-tight text-white shadow-lg mx-auto lg:mx-0 transition-all duration-200
+                  ${packCount > 0
+                    ? "cursor-pointer bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 hover:scale-105"
+                    : "cursor-not-allowed bg-gradient-to-r from-gray-700 to-gray-800 opacity-60"
+                  }`
+                }
               >
-                {packCount > 0 ? `Reveal All ${packCount} Pack${packCount === 1 ? '' : 's'}` : 'Reveal Your Packs'}
+                {packCount > 0 ? (
+                  `Reveal All ${packCount} Pack${packCount === 1 ? '' : 's'}`
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                    </svg>
+                    Loading your packs...
+                  </span>
+                )}
               </button>
               {packCount > 0 && (
                 <p className="text-sm text-gray-400">

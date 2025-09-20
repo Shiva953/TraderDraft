@@ -8,7 +8,7 @@ import { StatsSummary } from "./StatsSummary"
 import { ConsolidatedKOLGrid } from "./MultiPackKOLGrid"
 import { ClaimAllTokensButton } from "./ClaimAllKOLPacksTokens"
 
-// Main Multi-Pack Reveal System
+// Main Multi-Pack Reveal System - Updated for Backend Token Claims
 export const MultiPackRevealSystem = () => {
     const [currentStep, setCurrentStep] = useState<"banner" | "pack" | "loading" | "revealed">("banner")
     const [packData, setPackData] = useState<MultiPackRevealResponse["data"] | null>(null)
@@ -81,7 +81,7 @@ export const MultiPackRevealSystem = () => {
       }
     }
 
-    // New function to reset user pack holdings
+    // Function to reset user pack holdings after reveal
     const resetUserPackHoldings = async () => {
       if (!wallets || wallets.length === 0) return
 
@@ -110,9 +110,52 @@ export const MultiPackRevealSystem = () => {
       }
     }
   
-    const handlePackClaim = () => {
-      console.log("All packs claimed successfully!")
-      // Refresh user data or redirect
+    // Updated pack claim handler - now uses backend-handled token transfers
+    const handlePackClaim = async () => {
+      console.log("Token claim initiated - backend will handle transfers directly!")
+      
+      if (!packData || !wallets || wallets.length === 0) {
+        console.error("Missing pack data or wallet for claiming")
+        return
+      }
+
+      const embeddedWallet = wallets.find((w) => w.walletClientType === "privy")
+      if (!embeddedWallet) {
+        console.error("No embedded wallet found")
+        return
+      }
+
+      // try {
+      //   // Call the new backend API that handles direct vault-to-user transfers
+      //   const response = await fetch("/api/claimAllKOLTokens", {
+      //     method: "POST", 
+      //     headers: { "Content-Type": "application/json" },
+      //     body: JSON.stringify({
+      //       userPrivyWalletAddress: embeddedWallet.address,
+      //       consolidatedKols: packData.consolidatedKols
+      //     }),
+      //   })
+
+      //   if (response.ok) {
+      //     const result = await response.json()
+      //     if (result.success) {
+      //       console.log("✅ All tokens claimed successfully via backend:", result.data)
+      //       // Update the pack data with transfer signatures if available
+      //       if (result.data.consolidatedKols) {
+      //         setPackData(prev => prev ? {
+      //           ...prev,
+      //           consolidatedKols: result.data.consolidatedKols
+      //         } : null)
+      //       }
+      //     } else {
+      //       console.error("❌ Token claim failed:", result.error)
+      //     }
+      //   } else {
+      //     console.error("❌ Token claim request failed:", response.status)
+      //   }
+      // } catch (error) {
+      //   console.error("❌ Error during token claim:", error)
+      // }
     }
   
     return (
@@ -168,7 +211,10 @@ export const MultiPackRevealSystem = () => {
               <div className="w-full max-w-7xl mx-auto p-6">
                 <StatsSummary stats={packData?.stats!} />
                 <ConsolidatedKOLGrid kols={packData?.consolidatedKols || []} />
+                {/* Updated ClaimAllTokensButton now handles backend transfers */}
                 <ClaimAllTokensButton packData={packData} onClaim={handlePackClaim} />
+                
+                {/* Info banner about new claiming system */}
               </div>
             </motion.div>
           )}

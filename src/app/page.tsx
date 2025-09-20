@@ -9,6 +9,7 @@ import {PrivyProvider, useLogin, usePrivy, useSolanaWallets, useLoginWithOAuth, 
 import { useEffect, useState, useCallback } from "react";
 import {PackSaleBannerNew} from "../components/PackSaleBannerNew";
 import { useDevBackgroundJobs } from "../hooks/useDevBackgroundJobs";
+import { useUserData } from "./hooks/useUserData";
 import UserPacks from "../components/UserPacks";
 import PackRevealSystem from "../components/PackRevealSystem"; // Individual pack reveal
 import MultiPackRevealSystem from "../components/MultiPackRevealSystem"; // Import the new multi-pack system
@@ -123,6 +124,16 @@ export default function Home() {
   const { login } = useLogin();
   const { wallets } = useSolanaWallets();
   const { logout } = useLogout();
+
+  // Use the new useUserData hook
+  const {
+    packs: userPacks,
+    tokenHoldings,
+    tokenHoldingsCount,
+    loading: userDataLoading,
+    error: userDataError,
+    refreshUserData
+  } = useUserData(authenticated);
 
   console.log("Current state:", { ready, authenticated, wallets: wallets.length, user });
 
@@ -332,37 +343,11 @@ export default function Home() {
     setShowPackReveal('individual');
   };
 
-  // Add a function to refresh pack count
-  const refreshPackCount = useCallback(async () => {
-    if (!authenticated || !wallets || wallets.length === 0) return
-
-    const embeddedWallet = wallets.find((w) => w.walletClientType === "privy")
-    if (!embeddedWallet) return
-
-    try {
-      const response = await fetch("/api/getUserPacks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userPrivyWalletAddress: embeddedWallet.address }),
-      })
-
-      if (response.ok) {
-        const result = await response.json()
-        if (result.success) {
-          // This will trigger a re-render of UserPacks component
-          console.log("Pack count refreshed:", result.data.packHoldings)
-        }
-      }
-    } catch (error) {
-      console.error("Error refreshing pack count:", error)
-    }
-  }, [authenticated, wallets])
-
-  // Update the handleClosePackReveal function to refresh pack count
+  // Update the handleClosePackReveal function to refresh user data
   const handleClosePackReveal = () => {
     setShowPackReveal('none');
-    // Refresh pack count when closing the reveal system
-    refreshPackCount();
+    // Refresh user data when closing the reveal system
+    refreshUserData();
   };
 
   if (!authenticated) {
@@ -461,7 +446,12 @@ export default function Home() {
           ) : (
             <UserProfilePicture 
               walletAddress={walletAddress} 
-              userPrivyWalletAddress={fullWalletAddress} 
+              userPrivyWalletAddress={fullWalletAddress}
+              userPacks={userPacks}
+              tokenHoldings={tokenHoldings}
+              tokenHoldingsCount={tokenHoldingsCount}
+              userDataLoading={userDataLoading}
+              userDataError={userDataError}
             />
           )}
           <button onClick={logout} className="rounded-full border border-white/20 px-4 py-2 text-sm text-white hover:border-white/40 hover:bg-white/5 transition-all duration-200 cursor-pointer">
@@ -490,6 +480,7 @@ export default function Home() {
           if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
         }}
         onSkipToReveal={handleViewMultiPackReveal}
+        onTestSinglePackReveal={handleViewIndividualPackReveal}
       />
 
       <UserPacks />

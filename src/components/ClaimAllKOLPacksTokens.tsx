@@ -1,15 +1,19 @@
-import { useState } from "react"
-import { motion, useAnimate, AnimatePresence } from "framer-motion"
-import { useSendTransaction, useSolanaWallets } from "@privy-io/react-auth/solana"
-import { Connection, VersionedTransaction } from "@solana/web3.js"
-import { Buffer } from "buffer"
+"use client"
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useRef, useState } from "react"
+import { motion, useAnimate } from "framer-motion"
+import { useSolanaWallets } from "@privy-io/react-auth/solana"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
-import { X, ExternalLink, CheckCircle, AlertCircle } from "lucide-react"
+import { ExternalLink, CheckCircle, AlertCircle, Loader2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
-const connection = new Connection("http://api.devnet.solana.com", { commitment: "confirmed" })
-
-// Import the original interface from your MultiPackKOLGrid file
+// Import the consolidated KOL data interface
 interface ConsolidatedKOLData {
   id: string
   name: string
@@ -30,7 +34,7 @@ interface ConsolidatedKOLData {
   estimatedValueSOL: number
   estimatedValueUSD: number
   appearsInPacks: string[]
-  transferSignature: string | null
+  transferSignature?: string | null
 }
 
 interface MultiPackRevealResponseData {
@@ -39,7 +43,7 @@ interface MultiPackRevealResponseData {
   totalPacksRevealed: number
   totalUniqueKols: number
   transactionSignatures: string[]
-  packCreationSignatures: string[]
+  packCreationSignatures?: string[]
   executionMode: string
   network: string
   optimizations: string[]
@@ -60,29 +64,34 @@ interface MultiPackRevealResponseData {
   }
 }
 
-interface TransactionResult {
-  signature: string
-  packsInTransaction: string[]
+interface TransferResult {
+  kolId: string
+  kolTicker: string
+  kolName: string
+  tokenAmount: number
   success: boolean
-  error?: string
+  signature: string | null
+  error: string | null
 }
 
-export const ClaimAllTokensButton = ({ 
-  packData, 
-  onClaim 
-}: { 
+export const ClaimAllTokensButton = ({
+  packData,
+  onClaim,
+}: {
   packData: MultiPackRevealResponseData | null
-  onClaim: () => void 
+  onClaim: () => void
 }) => {
   const [scope, animate] = useAnimate()
   const [isLoading, setIsLoading] = useState(false)
   const [isClaimed, setIsClaimed] = useState(false)
   const [showModal, setShowModal] = useState(false)
-  const [transactionResults, setTransactionResults] = useState<TransactionResult[]>([])
+  const [transferResults, setTransferResults] = useState<TransferResult[]>([])
   const [claimingProgress, setClaimingProgress] = useState({ current: 0, total: 0 })
-  
+
+  const isExecutingRef = useRef(false)
+
+  // Get wallet from Privy
   const { wallets } = useSolanaWallets()
-  const { sendTransaction } = useSendTransaction()
 
   const animateLoading = async () => {
     await animate(".loader", { width: "20px", scale: 1, display: "block" }, { duration: 0.2 })
@@ -96,50 +105,61 @@ export const ClaimAllTokensButton = ({
   }
 
   const handleClaimAll = async () => {
+
+
+    // IMMEDIATELY SET THE FLAG
+    if (isExecutingRef.current) {
+      console.log("🚫 [ClaimAllTokensButton] Already executing, ignoring duplicate call")
+      return
+    }
+
     if (isLoading || isClaimed || !packData) {
       console.debug("[ClaimAllTokensButton] Button clicked but conditions not met")
       return
     }
 
-    if (!wallets || wallets.length === 0) {
-      toast.error("No wallet found. Please connect your wallet first.")
-      return
-    }
-
-    const embeddedWallet = wallets.find((w) => w.walletClientType === "privy")
-    if (!embeddedWallet) {
-      toast.error("No embedded wallet found.")
-      return
-    }
-
-    const packIds = packData?.consolidatedKols ? 
-      Array.from(new Set(packData.consolidatedKols.flatMap(kol => kol.appearsInPacks))) : []
-    
-    if (packIds.length === 0) {
-      toast.error("No packs found to claim tokens from.")
-      return
-    }
-
+    isExecutingRef.current = true
     setIsLoading(true)
-    setTransactionResults([])
-    setClaimingProgress({ current: 0, total: 0 })
+    setTransferResults([])
+    setClaimingProgress({ current: 0, total: packData.consolidatedKols.length })
     await animateLoading()
 
     try {
-      console.debug("[ClaimAllTokensButton] Starting claim all process", {
-        walletAddress: embeddedWallet.address,
-        packIds,
-        totalPacks: packIds.length
-      })
-
-      // Call API to create claim transactions
-      const requestBody = {
-        userPrivyWalletAddress: embeddedWallet.address,
-        packIds: packIds,
-        amountPerKol: 40000, // Default amount per KOL
+      if (!wallets || wallets.length === 0) {
+        toast.error("No wallet found. Please connect your wallet first.")
+        return
+      }
+  
+  
+      const embeddedWallet = wallets.find((w) => w.walletClientType === "privy")
+      if (!embeddedWallet) {
+        toast.error("No embedded wallet found.")
+        return
+      }
+  
+      if (!packData.consolidatedKols || packData.consolidatedKols.length === 0) {
+        toast.error("No KOLs found to claim tokens from.")
+        return
       }
 
-      console.debug("[ClaimAllTokensButton] Sending POST /api/claimAllKOLTokens", requestBody)
+      console.debug("[ClaimAllTokensButton] Starting backend-handled claim process", {
+        walletAddress: embeddedWallet.address,
+        totalKols: packData.consolidatedKols.length,
+      })
+
+      // Call backend API to handle all transfers directly from vault to user
+      const requestBody = {
+        userPrivyWalletAddress: embeddedWallet.address,
+        consolidatedKols: packData.consolidatedKols,
+      }
+
+      console.debug("[ClaimAllTokensButton] Sending POST /api/claimAllKOLTokens", {
+        totalKols: requestBody.consolidatedKols.length,
+        walletAddress: embeddedWallet.address,
+      })
+
+      // Show progress as backend processes
+      setClaimingProgress({ current: 1, total: packData.consolidatedKols.length })
 
       const response = await fetch("/api/claimAllKOLTokens", {
         method: "POST",
@@ -156,97 +176,50 @@ export const ClaimAllTokensButton = ({
         throw new Error(data.error || `HTTP error! status: ${response.status}`)
       }
 
-      if (!data.success || !data.data.transactions) {
-        throw new Error(data.error || "Failed to create claim transactions")
+      if (!data.success) {
+        throw new Error(data.error || "Failed to claim tokens")
       }
 
-      const { transactions, packsPerTransaction } = data.data
-      setClaimingProgress({ current: 0, total: transactions.length })
+      // Update progress to completion
+      setClaimingProgress({ current: packData.consolidatedKols.length, total: packData.consolidatedKols.length })
 
-      console.debug("[ClaimAllTokensButton] Processing", transactions.length, "transactions")
+      // Extract transfer results
+      const results: TransferResult[] = data.data.transferResults || []
+      setTransferResults(results)
 
-      const results: TransactionResult[] = []
-      let packIndex = 0
+      const successfulTransfers = results.filter((r) => r.success)
+      const failedTransfers = results.filter((r) => !r.success)
 
-      // Process each transaction sequentially to avoid RPC rate limits
-      for (let i = 0; i < transactions.length; i++) {
-        try {
-          setClaimingProgress({ current: i, total: transactions.length })
-
-          const txBuffer = Buffer.from(transactions[i], "base64")
-          const transaction = VersionedTransaction.deserialize(txBuffer)
-
-          console.debug(`[ClaimAllTokensButton] Sending transaction ${i + 1}/${transactions.length}`)
-
-          const result = await sendTransaction({
-            transaction: transaction,
-            connection: connection,
-            address: embeddedWallet.address,
-          })
-
-          const packsInThisTx = packIds.slice(packIndex, packIndex + packsPerTransaction[i])
-          packIndex += packsPerTransaction[i]
-
-          results.push({
-            signature: result.signature,
-            packsInTransaction: packsInThisTx,
-            success: true
-          })
-
-          console.debug(`[ClaimAllTokensButton] Transaction ${i + 1} successful:`, result.signature)
-
-          // Small delay between transactions
-          if (i < transactions.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 1000))
-          }
-
-        } catch (error) {
-          console.error(`[ClaimAllTokensButton] Transaction ${i + 1} failed:`, error)
-          
-          const packsInThisTx = packIds.slice(packIndex, packIndex + (packsPerTransaction[i] || 1))
-          packIndex += packsPerTransaction[i] || 1
-
-          results.push({
-            signature: '',
-            packsInTransaction: packsInThisTx,
-            success: false,
-            error: error instanceof Error ? error.message : "Transaction failed"
-          })
-        }
-      }
-
-      setTransactionResults(results)
-      setClaimingProgress({ current: transactions.length, total: transactions.length })
-
-      const successfulTransactions = results.filter(r => r.success)
-      const failedTransactions = results.filter(r => !r.success)
-
-      if (successfulTransactions.length > 0) {
+      if (successfulTransfers.length > 0) {
         setIsClaimed(true)
         await animateSuccess()
-        
-        // Show success notification
-        const message = failedTransactions.length > 0 
-          ? `${successfulTransactions.length}/${results.length} transactions successful`
-          : "All tokens claimed successfully!"
-        
-        toast.success(message + " 🎉", { duration: 8000 })
-        
-        // Show modal with transaction details
-        setShowModal(true)
-        
-        // Call onClaim callback
-        onClaim()
-      } else {
-        throw new Error("All transactions failed")
-      }
 
+        // Show success notification
+        const message =
+          failedTransfers.length > 0
+            ? `${successfulTransfers.length}/${results.length} token transfers successful`
+            : "All tokens claimed successfully!"
+
+        toast.success(message + " 🎉", { duration: 8000 })
+
+        // Show modal with transfer details
+        setShowModal(true)
+
+        // Call onClaim callback
+        if (onClaim) {
+        console.log("✅ [ClaimAllTokensButton] Calling success callback")
+        onClaim()
+      }
+      } else {
+        throw new Error("All token transfers failed")
+      }
     } catch (error) {
       console.error("[ClaimAllTokensButton] Error claiming all tokens:", error)
       toast.error(`Error claiming tokens: ${error instanceof Error ? error.message : "Unknown error"}`)
-      
+
       await animate(".loader", { width: "0px", scale: 0, display: "none" }, { duration: 0.2 })
     } finally {
+      isExecutingRef.current = false
       setIsLoading(false)
     }
   }
@@ -257,165 +230,140 @@ export const ClaimAllTokensButton = ({
   return (
     <>
       <div className="flex justify-center pb-8">
-        <button
+        <Button
           ref={scope}
           onClick={handleClaimAll}
-          disabled={isLoading || isClaimed || !packData || totalPacks === 0}
-          className={cn(
-            "flex min-w-[200px] cursor-pointer items-center justify-center gap-2 rounded-full bg-[#1E7FFF] px-8 py-4 text-lg font-medium text-white shadow-lg transition-all duration-200 hover:bg-[#1565C0] hover:scale-105",
-            "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-          )}
+          disabled={isLoading || isClaimed || !packData || totalPacks === 0 || isExecutingRef.current}
+          size="lg"
+          className="min-w-[200px] cursor-pointer rounded-full gap-2 text-md font-medium"
         >
-          <div className="flex items-center gap-2">
-            <Loader />
-            <CheckIcon />
-            <span>
-              {isLoading 
-                ? `Claiming Tokens... (${claimingProgress.current}/${claimingProgress.total})`
-                : isClaimed 
-                  ? "All Tokens Claimed!" 
-                  : `Claim All KOL Tokens (${totalKOLs} KOLs from ${totalPacks} Packs)`
-              }
-            </span>
-          </div>
-        </button>
+          <Loader />
+          <CheckIcon />
+          <span>
+            {isLoading
+              ? `Claiming Tokens... (Processing ${claimingProgress.total} KOLs)`
+              : isClaimed
+                ? "All Tokens Claimed!"
+                : `Claim All KOL Tokens`}
+          </span>
+        </Button>
       </div>
 
-      {/* Transaction Results Modal */}
-      <AnimatePresence>
-        {showModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
-            onClick={() => setShowModal(false)}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="w-full max-w-2xl bg-gray-900 rounded-2xl border border-gray-700 p-6 max-h-[80vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                  <CheckCircle className="h-6 w-6 text-green-500" />
-                  Token Claim Results
-                </h2>
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
-                >
-                  <X className="h-5 w-5 text-gray-400" />
-                </button>
-              </div>
+      <div className="mb-8 max-w-4xl mx-auto">
+        <Alert className="border-green-500/30 bg-green-500/10">
+          <CheckCircle className="h-4 w-4 text-green-500" />
+          <AlertDescription className="text-green-700 dark:text-green-300">
+            <span className="font-medium">Backend-Handled Token Claims</span>
+            <br />
+            No wallet signatures required! Tokens are transferred directly from vault to your wallet by our backend.
+          </AlertDescription>
+        </Alert>
+      </div>
 
-              <div className="space-y-4">
-                <div className="bg-gray-800 rounded-lg p-4">
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-gray-400">Total Packs:</span>
-                      <span className="text-white ml-2 font-medium">{totalPacks}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-400">Total KOLs:</span>
-                      <span className="text-white ml-2 font-medium">{totalKOLs}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-400">Transactions:</span>
-                      <span className="text-white ml-2 font-medium">{transactionResults.length}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-400">Success Rate:</span>
-                      <span className="text-green-400 ml-2 font-medium">
-                        {transactionResults.length > 0 
-                          ? `${Math.round((transactionResults.filter(r => r.success).length / transactionResults.length) * 100)}%`
-                          : '0%'
-                        }
-                      </span>
-                    </div>
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle className="h-6 w-6 text-green-500" />
+              Token Claim Results
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Total Packs:</span>
+                    <span className="font-medium">{totalPacks}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Total KOLs:</span>
+                    <span className="font-medium">{totalKOLs}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Transfers:</span>
+                    <span className="font-medium">{transferResults.length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Success Rate:</span>
+                    <span className="font-medium text-green-600">
+                      {transferResults.length > 0
+                        ? `${Math.round((transferResults.filter((r) => r.success).length / transferResults.length) * 100)}%`
+                        : "0%"}
+                    </span>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
 
-                <div className="space-y-3">
-                  <h3 className="text-lg font-semibold text-white">Transaction Details</h3>
-                  {transactionResults.map((result, index) => (
-                    <div
-                      key={index}
-                      className={cn(
-                        "bg-gray-800 rounded-lg p-4 border-l-4",
-                        result.success ? "border-green-500" : "border-red-500"
-                      )}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            {result.success ? (
-                              <CheckCircle className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <AlertCircle className="h-4 w-4 text-red-500" />
-                            )}
-                            <span className="text-white font-medium">
-                              Transaction {index + 1}
-                            </span>
-                            <span className={cn(
-                              "px-2 py-1 rounded-full text-xs font-medium",
-                              result.success 
-                                ? "bg-green-500/20 text-green-400" 
-                                : "bg-red-500/20 text-red-400"
-                            )}>
-                              {result.success ? "Success" : "Failed"}
-                            </span>
-                          </div>
-                          
-                          <div className="text-sm text-gray-300 mb-2">
-                            <span className="font-medium">Packs claimed: </span>
-                            {result.packsInTransaction.join(", ")}
-                          </div>
+            <div className="space-y-3">
+              <h3 className="text-lg font-semibold">Direct Vault Transfer Details</h3>
+              {transferResults.map((result, index) => (
+                /* Replace custom transfer result cards with shadcn Card and Badge components */
+                <Card
+                  key={result.kolId}
+                  className={cn("border-l-4", result.success ? "border-l-green-500" : "border-l-red-500")}
+                >
+                  <CardContent className="pt-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          {result.success ? (
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <AlertCircle className="h-4 w-4 text-red-500" />
+                          )}
+                          <span className="font-medium">
+                            {result.kolTicker} ({result.kolName})
+                          </span>
+                          <Badge variant={result.success ? "default" : "destructive"}>
+                            {result.success ? "Success" : "Failed"}
+                          </Badge>
+                        </div>
 
-                          {result.success && result.signature && (
-                            <div className="flex items-center gap-2 text-sm">
-                              <span className="text-gray-400">Signature:</span>
-                              <code className="text-blue-400 font-mono text-xs break-all">
-                                {result.signature.substring(0, 20)}...{result.signature.slice(-20)}
-                              </code>
+                        <div className="text-sm text-muted-foreground mb-2">
+                          <span className="font-medium">Tokens transferred: </span>
+                          {(result.tokenAmount / Math.pow(10, 6)).toLocaleString()} tokens
+                        </div>
+
+                        {result.success && result.signature && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="text-muted-foreground">Transaction:</span>
+                            <code className="text-blue-600 dark:text-blue-400 font-mono text-xs break-all bg-muted px-1 py-0.5 rounded">
+                              {result.signature.substring(0, 20)}...{result.signature.slice(-20)}
+                            </code>
+                            <Button variant="ghost" size="sm" asChild className="h-6 w-6 p-0">
                               <a
                                 href={`https://orb.helius.dev/tx/${result.signature}?cluster=devnet`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-blue-400 hover:text-blue-300 transition-colors"
                               >
                                 <ExternalLink className="h-4 w-4" />
                               </a>
-                            </div>
-                          )}
+                            </Button>
+                          </div>
+                        )}
 
-                          {!result.success && result.error && (
-                            <div className="text-sm text-red-400">
-                              <span className="font-medium">Error: </span>
-                              {result.error}
-                            </div>
-                          )}
-                        </div>
+                        {!result.success && result.error && (
+                          <div className="text-sm text-red-600 dark:text-red-400">
+                            <span className="font-medium">Error: </span>
+                            {result.error}
+                          </div>
+                        )}
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
 
-              <div className="mt-6 flex justify-end">
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
-                >
-                  Close
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          <div className="flex justify-end pt-4">
+            <Button onClick={() => setShowModal(false)}>Close</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
@@ -423,10 +371,7 @@ export const ClaimAllTokensButton = ({
 // Loader component
 const Loader = () => {
   return (
-    <motion.svg
-      animate={{
-        rotate: [0, 360],
-      }}
+    <motion.div
       initial={{
         scale: 0,
         width: 0,
@@ -436,32 +381,17 @@ const Loader = () => {
         scale: 0.5,
         display: "none",
       }}
-      transition={{
-        duration: 0.3,
-        repeat: Number.POSITIVE_INFINITY,
-        ease: "linear",
-      }}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="loader text-white"
+      className="loader"
     >
-      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-      <path d="M12 3a9 9 0 1 0 9 9" />
-    </motion.svg>
+      <Loader2 className="h-4 w-4 animate-spin" />
+    </motion.div>
   )
 }
 
 // Check icon component
 const CheckIcon = () => {
   return (
-    <motion.svg
+    <motion.div
       initial={{
         scale: 0,
         width: 0,
@@ -471,20 +401,9 @@ const CheckIcon = () => {
         scale: 0.5,
         display: "none",
       }}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="check text-white"
+      className="check"
     >
-      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-      <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
-      <path d="M9 12l2 2l4 -4" />
-    </motion.svg>
+      <CheckCircle className="h-4 w-4" />
+    </motion.div>
   )
 }

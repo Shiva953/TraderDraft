@@ -42,7 +42,7 @@ export const PackRevealBanner = ({ onRevealClick, packCount = 0 }: { onRevealCli
                 // whileHover={{ scale: 1.05 }}
                 // whileTap={{ scale: 0.95 }}
               >
-                {packCount > 0 ? `Reveal All ${packCount} Pack${packCount === 1 ? '' : 's'}` : 'Reveal Your Packs'}
+                Reveal Pack
                 {/* <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                 </svg> */}

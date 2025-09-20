@@ -1,62 +1,87 @@
 import { NextResponse } from 'next/server';
-import { VersionedTransaction, Keypair, Connection, PublicKey, TransactionMessage, SystemProgram, TransactionInstruction } from '@solana/web3.js';
+import { 
+  Connection,
+  PublicKey,
+  Transaction,
+  SystemProgram,
+  Keypair,
+  TransactionInstruction,
+} from '@solana/web3.js';
 import { AnchorProvider, Program, BN } from '@coral-xyz/anchor';
-import { Pnlpackprogram, IDL } from '@/lib/idl';
+import { 
+  TOKEN_PROGRAM_ID, 
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  getAssociatedTokenAddress
+} from '@solana/spl-token';
+import { Pnlpackprogram, IDL } from '../../../lib/idl';
 import NodeWallet from '@coral-xyz/anchor/dist/cjs/nodewallet';
 import { PrismaClient } from '@prisma/client';
-import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync, createAssociatedTokenAccountIdempotentInstruction } from '@solana/spl-token';
 
-const connection = new Connection("http://api.devnet.solana.com", { commitment: "confirmed" });
+const connection = new Connection("https://api.devnet.solana.com", { commitment: "confirmed" });
 const prisma = new PrismaClient();
 
-const MAX_INSTRUCTIONS_PER_TX = 1; // Reduced to 1 pack per transaction to avoid size limits
+const MAX_TRANSFERS_PER_TX = 5; // Conservative limit for vault-to-user transfers
 const PROGRAM_ID = new PublicKey('51qa3toZbwVC1zTyntYZSsyqb2uZVuxpgJeYXZPoWJcY');
 
 interface ClaimAllTokensRequest {
   userPrivyWalletAddress: string;
-  packIds: string[];
-  amountPerKol: number;
+  consolidatedKols: ConsolidatedKolData[];
 }
 
-interface PackClaimData {
-  packId: string;
-  kolNames: {
-    kolAName: string;
-    kolBName: string;
-    kolCName: string;
-    kolDName: string;
-  };
-  kolMints: {
-    mintKolA: PublicKey;
-    mintKolB: PublicKey;
-    mintKolC: PublicKey;
-    mintKolD: PublicKey;
-  };
+interface ConsolidatedKolData {
+  id: string;
+  name: string;
+  ticker: string;
+  address: string | null;
+  tokenMintAddress: string;
+  pnl: string;
+  winRate: number;
+  avatarUrl: string | null;
+  xUrl: string | null;
+  rank: number;
+  tokenPrice: number;
+  packOccurrences: number;
+  tokensReceived: string;
+  tokensReceivedFormatted: string;
+  totalTokenAmount: number;
+  totalTokenAmountFormatted: string;
+  estimatedValueSOL: number;
+  estimatedValueUSD: number;
+  appearsInPacks: string[];
+  transferSignature?: string | null;
 }
+
+interface TransferResult {
+  signature: string;
+  kol: ConsolidatedKolData;
+  success: boolean;
+  error?: string;
+}
+
 
 export async function POST(request: Request) {
-  const debugPrefix = '[claimAllKOLTokens]';
+  const debugPrefix = '[claimAllKOLTokens-DirectVault]';
   
   try {
-    console.debug(`${debugPrefix} POST endpoint called at ${new Date().toISOString()}`);
+    console.log(`${debugPrefix} POST endpoint called at ${new Date().toISOString()}`);
 
     // Parse request body
     let body: ClaimAllTokensRequest;
     try {
       body = await request.json();
-      console.debug(`${debugPrefix} Parsed request body:`, JSON.stringify(body));
+      console.log(`${debugPrefix} Parsed request body with ${body.consolidatedKols?.length || 0} KOLs`);
     } catch (parseErr) {
       console.error(`${debugPrefix} Failed to parse request body:`, parseErr);
       throw new Error('Invalid JSON in request body');
     }
 
-    const { userPrivyWalletAddress, packIds, amountPerKol } = body;
-    if (!userPrivyWalletAddress || !packIds || !Array.isArray(packIds) || packIds.length === 0 || !amountPerKol) {
-      console.error(`${debugPrefix} Missing required parameters`, { userPrivyWalletAddress, packIds, amountPerKol });
-      throw new Error('Missing required parameters: userPrivyWalletAddress, packIds (array), and amountPerKol');
+    const { userPrivyWalletAddress, consolidatedKols } = body;
+    if (!userPrivyWalletAddress || !consolidatedKols || !Array.isArray(consolidatedKols) || consolidatedKols.length === 0) {
+      console.error(`${debugPrefix} Missing required parameters`, { userPrivyWalletAddress, kolsCount: consolidatedKols?.length });
+      throw new Error('Missing required parameters: userPrivyWalletAddress and consolidatedKols (array)');
     }
 
-    console.debug(`${debugPrefix} Processing ${packIds.length} packs for user: ${userPrivyWalletAddress}`);
+    console.log(`${debugPrefix} Processing ${consolidatedKols.length} consolidated KOLs for user: ${userPrivyWalletAddress}`);
 
     // Admin keypair setup
     const adminPrivateKey = process.env.ADMIN_KEYPAIR;
@@ -80,220 +105,75 @@ export async function POST(request: Request) {
     });
     const program = new Program<Pnlpackprogram>(IDL, provider);
 
-    console.debug(`${debugPrefix} Fetching pack data for all packs...`);
+    console.log(`${debugPrefix} Executing direct vault-to-user transfers in batches...`);
     
-    // Fetch all pack data and validate
-    const packClaimData: PackClaimData[] = [];
+    // Execute transfers in batches
+    const transferResults: TransferResult[] = [];
+    const kolBatches = chunkArray(consolidatedKols, MAX_TRANSFERS_PER_TX);
     
-    for (const packId of packIds) {
-      const [packPDA] = PublicKey.findProgramAddressSync([Buffer.from("pack"), Buffer.from(packId)], program.programId);
+    for (let batchIndex = 0; batchIndex < kolBatches.length; batchIndex++) {
+      const batch = kolBatches[batchIndex];
+      console.log(`${debugPrefix} Processing batch ${batchIndex + 1}/${kolBatches.length} with ${batch.length} KOLs`);
       
-      try {
-        const packData = await program.account.pack.fetch(packPDA);
-        console.debug(`${debugPrefix} Fetched pack data for ${packId}:`, {
-          kolAName: packData.kolAName,
-          kolBName: packData.kolBName,
-          kolCName: packData.kolCName,
-          kolDName: packData.kolDName,
-        });
-
-        // Get mint addresses for this pack
-        const traders = await prisma.trader.findMany({
-          where: {
-            ticker: {
-              in: [packData.kolAName, packData.kolBName, packData.kolCName, packData.kolDName]
-            }
-          },
-          select: {
-            ticker: true,
-            tokenMintAddress: true,
-          }
-        });
-
-        if (traders.length !== 4) {
-          throw new Error(`Pack ${packId}: Expected 4 traders with tickers, found ${traders.length}`);
-        }
-
-        const tradersWithMints = traders.filter(t => t.tokenMintAddress);
-        if (tradersWithMints.length !== 4) {
-          throw new Error(`Pack ${packId}: Some traders missing mint addresses. Found ${tradersWithMints.length} with mint addresses`);
-        }
-
-        const traderMap = new Map(traders.map(trader => [trader.ticker, trader.tokenMintAddress]));
-        
-        packClaimData.push({
-          packId,
-          kolNames: {
-            kolAName: packData.kolAName,
-            kolBName: packData.kolBName,
-            kolCName: packData.kolCName,
-            kolDName: packData.kolDName,
-          },
-          kolMints: {
-            mintKolA: new PublicKey(traderMap.get(packData.kolAName)!),
-            mintKolB: new PublicKey(traderMap.get(packData.kolBName)!),
-            mintKolC: new PublicKey(traderMap.get(packData.kolCName)!),
-            mintKolD: new PublicKey(traderMap.get(packData.kolDName)!),
-          }
-        });
-
-      } catch (e) {
-        console.error(`${debugPrefix} Error processing pack ${packId}:`, e);
-        throw new Error(`Failed to process pack ${packId}: ${e instanceof Error ? e.message : 'Unknown error'}`);
+      const batchResults = await executeBatchedVaultToUserTransfers(
+        program,
+        batch,
+        userPrivyWalletAddress,
+        connection,
+        adminKeypair
+      );
+      
+      transferResults.push(...batchResults);
+      console.log(`${debugPrefix} Batch ${batchIndex + 1} completed with ${batchResults.filter(r => r.success).length}/${batchResults.length} successful transfers`);
+      
+      // Small delay between batches to avoid RPC rate limits
+      if (batchIndex < kolBatches.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
 
-    console.debug(`${debugPrefix} Successfully validated ${packClaimData.length} packs`);
+    const successfulTransfers = transferResults.filter(r => r.success);
+    const failedTransfers = transferResults.filter(r => !r.success);
 
-    // Create batched transactions - 1 pack per transaction to avoid size limits
-    const userPubkey = new PublicKey(userPrivyWalletAddress);
-    const transactions: VersionedTransaction[] = [];
-    const packBatches = chunkArray(packClaimData, MAX_INSTRUCTIONS_PER_TX);
+    console.log(`${debugPrefix} Transfer results: ${successfulTransfers.length} successful, ${failedTransfers.length} failed`);
 
-    console.debug(`${debugPrefix} Creating ${packBatches.length} batched transactions...`);
-
-    // Get blockhash once for all transactions
-    const { blockhash } = await connection.getLatestBlockhash('confirmed');
-
-    for (let batchIndex = 0; batchIndex < packBatches.length; batchIndex++) {
-      const batch = packBatches[batchIndex];
-      console.debug(`${debugPrefix} Processing batch ${batchIndex + 1}/${packBatches.length} with ${batch.length} packs`);
-
-      const instructions: TransactionInstruction[] = [];
-
-      for (const pack of batch) {
-        const [packPDA] = PublicKey.findProgramAddressSync([Buffer.from("pack"), Buffer.from(pack.packId)], program.programId);
-        
-        // Calculate token accounts
-        const packKolATA = getAssociatedTokenAddressSync(pack.kolMints.mintKolA, packPDA, true);
-        const userKolATA = getAssociatedTokenAddressSync(pack.kolMints.mintKolA, userPubkey, false);
-        const packKolBTA = getAssociatedTokenAddressSync(pack.kolMints.mintKolB, packPDA, true);
-        const userKolBTA = getAssociatedTokenAddressSync(pack.kolMints.mintKolB, userPubkey, false);
-        const packKolCTA = getAssociatedTokenAddressSync(pack.kolMints.mintKolC, packPDA, true);
-        const userKolCTA = getAssociatedTokenAddressSync(pack.kolMints.mintKolC, userPubkey, false);
-        const packKolDTA = getAssociatedTokenAddressSync(pack.kolMints.mintKolD, packPDA, true);
-        const userKolDTA = getAssociatedTokenAddressSync(pack.kolMints.mintKolD, userPubkey, false);
-
-        // Pre-create user token accounts to avoid init_if_needed in the same transaction
-        // This reduces transaction size significantly
-        const createATAInstructions = [
-          createAssociatedTokenAccountIdempotentInstruction(
-            userPubkey, // payer
-            userKolATA, // ata
-            userPubkey, // owner
-            pack.kolMints.mintKolA, // mint
-            TOKEN_PROGRAM_ID,
-            ASSOCIATED_TOKEN_PROGRAM_ID
-          ),
-          createAssociatedTokenAccountIdempotentInstruction(
-            userPubkey,
-            userKolBTA,
-            userPubkey,
-            pack.kolMints.mintKolB,
-            TOKEN_PROGRAM_ID,
-            ASSOCIATED_TOKEN_PROGRAM_ID
-          ),
-          createAssociatedTokenAccountIdempotentInstruction(
-            userPubkey,
-            userKolCTA,
-            userPubkey,
-            pack.kolMints.mintKolC,
-            TOKEN_PROGRAM_ID,
-            ASSOCIATED_TOKEN_PROGRAM_ID
-          ),
-          createAssociatedTokenAccountIdempotentInstruction(
-            userPubkey,
-            userKolDTA,
-            userPubkey,
-            pack.kolMints.mintKolD,
-            TOKEN_PROGRAM_ID,
-            ASSOCIATED_TOKEN_PROGRAM_ID
-          ),
-        ];
-
-        // Add ATA creation instructions
-        instructions.push(...createATAInstructions);
-
-        // Create claim instruction for this pack
-        const claimIxn = await program.methods.claimFromPack(pack.packId, new BN(amountPerKol * (10**6)))
-          .accountsPartial({
-            pack: packPDA,
-            user: userPubkey,
-            mintKolA: pack.kolMints.mintKolA,
-            packKolATa: packKolATA,
-            userKolATa: userKolATA,
-            mintKolB: pack.kolMints.mintKolB,
-            packKolBTa: packKolBTA,
-            userKolBTa: userKolBTA,
-            mintKolC: pack.kolMints.mintKolC,
-            packKolCTa: packKolCTA,
-            userKolCTa: userKolCTA,
-            mintKolD: pack.kolMints.mintKolD,
-            packKolDTa: packKolDTA,
-            userKolDTa: userKolDTA,
-            systemProgram: SystemProgram.programId,
-            tokenProgram: TOKEN_PROGRAM_ID,
-            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-          })
-          .instruction();
-
-        instructions.push(claimIxn);
-      }
-
-      // Create transaction message
-      const message = new TransactionMessage({
-        payerKey: userPubkey,
-        instructions,
-        recentBlockhash: blockhash,
-      });
-
-      try {
-        const compiledMessage = message.compileToV0Message();
-        const transaction = new VersionedTransaction(compiledMessage);
-        
-        // Validate transaction size before adding to array
-        const serializedSize = transaction.serialize().length;
-        console.debug(`${debugPrefix} Transaction ${batchIndex + 1} size: ${serializedSize} bytes`);
-        
-        if (serializedSize > 1232) { // Solana transaction size limit
-          console.warn(`${debugPrefix} Transaction ${batchIndex + 1} exceeds size limit (${serializedSize} bytes)`);
-          throw new Error(`Transaction ${batchIndex + 1} too large: ${serializedSize} bytes`);
-        }
-        
-        transactions.push(transaction);
-      } catch (error) {
-        console.error(`${debugPrefix} Error creating transaction ${batchIndex + 1}:`, error);
-        throw new Error(`Failed to create transaction ${batchIndex + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
+    if (successfulTransfers.length === 0) {
+      throw new Error('All token transfers failed');
     }
 
-    // Serialize all transactions
-    const serializedTransactions: string[] = [];
-    
-    for (let i = 0; i < transactions.length; i++) {
-      try {
-        const serialized = Buffer.from(transactions[i].serialize()).toString('base64');
-        serializedTransactions.push(serialized);
-      } catch (error) {
-        console.error(`${debugPrefix} Error serializing transaction ${i + 1}:`, error);
-        throw new Error(`Failed to serialize transaction ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
-    }
+    // Update the consolidatedKols with transfer signatures
+    const updatedKols = consolidatedKols.map(kol => {
+      const result = transferResults.find(r => r.kol.id === kol.id);
+      return {
+        ...kol,
+        transferSignature: result?.success ? result.signature : null
+      };
+    });
 
-    console.debug(`${debugPrefix} Created ${serializedTransactions.length} transactions for ${packIds.length} packs`);
+    const responseMessage = failedTransfers.length > 0 
+      ? `${successfulTransfers.length}/${transferResults.length} token transfers completed successfully`
+      : `All ${successfulTransfers.length} token transfers completed successfully!`;
 
     return NextResponse.json({
       success: true,
-      message: `Claim transactions created for ${packIds.length} packs`,
+      message: responseMessage,
       data: {
-        transactions: serializedTransactions,
-        packIds,
         userPrivyWalletAddress,
-        amountPerKol,
-        totalPacks: packIds.length,
-        totalTransactions: serializedTransactions.length,
-        packsPerTransaction: packBatches.map(batch => batch.length),
-        estimatedTotalTokens: packIds.length * 4 * amountPerKol, // 4 KOLs per pack
+        totalKols: consolidatedKols.length,
+        successfulTransfers: successfulTransfers.length,
+        failedTransfers: failedTransfers.length,
+        transferResults: transferResults.map(r => ({
+          kolId: r.kol.id,
+          kolTicker: r.kol.ticker,
+          kolName: r.kol.name,
+          tokenAmount: r.kol.totalTokenAmount,
+          success: r.success,
+          signature: r.success ? r.signature : null,
+          error: r.error || null
+        })),
+        consolidatedKols: updatedKols,
+        executionMode: 'Direct Vault-to-User Transfers (Backend Signed)',
+        network: 'devnet'
       },
     }, { status: 200 });
 
@@ -309,6 +189,135 @@ export async function POST(request: Request) {
   } finally {
     await prisma.$disconnect();
   }
+}
+
+// Execute batched vault-to-user transfers using the new instruction
+async function executeBatchedVaultToUserTransfers(
+  program: Program<Pnlpackprogram>,
+  kols: ConsolidatedKolData[],
+  userAddress: string,
+  connection: Connection,
+  adminKeypair: Keypair
+): Promise<TransferResult[]> {
+  const results: TransferResult[] = [];
+  
+  // Execute transfers in parallel for better performance
+  const promises = kols.map(kol => 
+    executeVaultToUserTransfer(
+      program,
+      kol,
+      userAddress,
+      connection,
+      adminKeypair
+    )
+  );
+  
+  const transferResults = await Promise.allSettled(promises);
+  
+  for (let i = 0; i < transferResults.length; i++) {
+    const result = transferResults[i];
+    const kol = kols[i];
+    
+    if (result.status === 'fulfilled') {
+      results.push({
+        signature: result.value,
+        kol,
+        success: true
+      });
+      console.log(`✅ Vault transfer completed for ${kol.ticker}: ${result.value}`);
+    } else {
+      results.push({
+        signature: '',
+        kol,
+        success: false,
+        error: result.reason instanceof Error ? result.reason.message : 'Transfer failed'
+      });
+      console.error(`❌ Vault transfer failed for ${kol.ticker}:`, result.reason);
+    }
+  }
+  
+  return results;
+}
+
+// Execute single vault-to-user transfer using TransferFromKolVaultToUser instruction
+async function executeVaultToUserTransfer(
+  program: Program<Pnlpackprogram>,
+  kol: ConsolidatedKolData,
+  userAddress: string,
+  connection: Connection,
+  adminKeypair: Keypair
+): Promise<string> {
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+
+  const userPubkey = new PublicKey(userAddress);
+  const mintPubkey = new PublicKey(kol.tokenMintAddress);
+  
+  const [globalPackPool] = PublicKey.findProgramAddressSync(
+    [Buffer.from('global_pack_pool')],
+    PROGRAM_ID
+  );
+
+  const [configAccount] = PublicKey.findProgramAddressSync(
+    [Buffer.from('CONFIG_ACCOUNT')],
+    PROGRAM_ID
+  );
+
+  const [tokenVault] = PublicKey.findProgramAddressSync(
+    [Buffer.from('token_vault'), Buffer.from(kol.ticker), globalPackPool.toBuffer()],
+    PROGRAM_ID
+  );
+
+  const userTokenAccount = await getAssociatedTokenAddress(
+    mintPubkey,
+    userPubkey,
+    false,
+    TOKEN_PROGRAM_ID
+  );
+
+  // Convert token amount to proper decimals (assuming 6 decimals)
+  const transferAmount = new BN(kol.totalTokenAmount);
+
+  const transferIx = await program.methods
+    .transferFromKolVaultToUser(kol.ticker, transferAmount)
+    .accountsPartial({
+      globalPackPool,
+      user: userPubkey,
+      admin: adminKeypair.publicKey,
+      configAccount,
+      tokenVault,
+      mint: mintPubkey,
+      userTokenAccount,
+      systemProgram: SystemProgram.programId,
+      tokenProgram: TOKEN_PROGRAM_ID,
+      associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+    })
+    .instruction();
+
+  const transaction = new Transaction();
+  transaction.add(transferIx);
+  transaction.recentBlockhash = blockhash;
+  transaction.feePayer = adminKeypair.publicKey;
+  transaction.sign(adminKeypair);
+
+  const serializedTx = transaction.serialize();
+  console.log(`📏 Vault transfer transaction size for ${kol.ticker}: ${serializedTx.length} bytes`);
+  
+  if (serializedTx.length > 1232) {
+    throw new Error(`Vault transfer transaction too large: ${serializedTx.length} bytes for KOL: ${kol.ticker}`);
+  }
+
+  const signature = await connection.sendRawTransaction(serializedTx, {
+    skipPreflight: false,
+    preflightCommitment: 'confirmed'
+  });
+
+  await connection.confirmTransaction({
+    signature,
+    blockhash,
+    lastValidBlockHeight
+  }, 'confirmed');
+
+  return signature;
 }
 
 // Utility function to chunk arrays

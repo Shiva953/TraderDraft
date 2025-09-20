@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client"
 
 import { useState, useEffect } from "react"
@@ -8,7 +10,7 @@ import { Buffer } from "buffer"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
-const connection = new Connection("http://api.devnet.solana.com", { commitment: "confirmed" })
+const connection = new Connection("https://api.devnet.solana.com", { commitment: "confirmed" })
 
 export const ClaimPackButton = ({
   packId,

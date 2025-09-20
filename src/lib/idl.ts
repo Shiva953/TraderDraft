@@ -1027,8 +1027,38 @@ export type Pnlpackprogram = {
         },
         {
           "name": "user",
+          "writable": true
+        },
+        {
+          "name": "admin",
           "writable": true,
           "signer": true
+        },
+        {
+          "name": "configAccount",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  67,
+                  79,
+                  78,
+                  70,
+                  73,
+                  71,
+                  95,
+                  65,
+                  67,
+                  67,
+                  79,
+                  85,
+                  78,
+                  84
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "tokenVault",
@@ -1135,9 +1165,6 @@ export type Pnlpackprogram = {
         },
         {
           "name": "systemProgram",
-          "docs": [
-            "The user who will receive the tokens"
-          ],
           "address": "11111111111111111111111111111111"
         },
         {
@@ -2726,8 +2753,38 @@ export type Pnlpackprogram = {
           },
           {
             "name": "user",
+            "writable": true
+          },
+          {
+            "name": "admin",
             "writable": true,
             "signer": true
+          },
+          {
+            "name": "config_account",
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "const",
+                  "value": [
+                    67,
+                    79,
+                    78,
+                    70,
+                    73,
+                    71,
+                    95,
+                    65,
+                    67,
+                    67,
+                    79,
+                    85,
+                    78,
+                    84
+                  ]
+                }
+              ]
+            }
           },
           {
             "name": "token_vault",
@@ -2834,9 +2891,6 @@ export type Pnlpackprogram = {
           },
           {
             "name": "system_program",
-            "docs": [
-              "The user who will receive the tokens"
-            ],
             "address": "11111111111111111111111111111111"
           },
           {

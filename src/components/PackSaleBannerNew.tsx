@@ -8,6 +8,7 @@ interface CompetitionBannerProps {
   onHowToPlay?: () => void
   onViewLeaderboard?: () => void
   onSkipToReveal?: () => void
+  onTestSinglePackReveal?: () => void
 }
 
 function getNextWeekEnd(): number {
@@ -29,7 +30,7 @@ function formatDuration(msRemaining: number) {
   return { days, hours, minutes, seconds }
 }
 
-export function PackSaleBannerNew({ prizeSol = 26, onHowToPlay, onViewLeaderboard, onSkipToReveal }: CompetitionBannerProps) {
+export function PackSaleBannerNew({ prizeSol = 26, onHowToPlay, onViewLeaderboard, onSkipToReveal, onTestSinglePackReveal }: CompetitionBannerProps) {
   const [nowMs, setNowMs] = useState<number>(() => Date.now())
   const targetMs = useMemo(() => getNextWeekEnd(), [])
 
@@ -86,7 +87,16 @@ export function PackSaleBannerNew({ prizeSol = 26, onHowToPlay, onViewLeaderboar
                 onClick={onSkipToReveal}
                 className="bg-transparent border-2 border-white text-white cursor-pointer px-8 py-3 rounded-full font-medium text-lg hover:bg-white hover:text-gray-800 transition-colors"
               >
-                Skip to Packs Reveal
+                Reveal All Packs
+              </button>
+            )}
+
+            {onTestSinglePackReveal && (
+              <button
+                onClick={onTestSinglePackReveal}
+                className="bg-transparent border-2 border-blue-300 text-blue-300 cursor-pointer px-8 py-3 rounded-full font-medium text-lg hover:bg-blue-300 hover:text-gray-800 transition-colors"
+              >
+                Test Single Pack Reveal
               </button>
             )}
           </div>

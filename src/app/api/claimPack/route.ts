@@ -7,7 +7,7 @@ import { BN } from 'bn.js';
 import { PrismaClient } from '@prisma/client';
 import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token';
 
-const connection = new Connection("http://api.devnet.solana.com", {commitment: "confirmed"})
+const connection = new Connection("https://api.devnet.solana.com", {commitment: "confirmed"})
 const prisma = new PrismaClient();
 
 // 40K tokens of each KOL from pack vault -> user

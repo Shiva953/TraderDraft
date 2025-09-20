@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 
 import { useState } from "react"
@@ -10,7 +11,7 @@ interface BuyPackModalProps {
   onClose: () => void
 }
 
-const connection = new Connection("http://api.devnet.solana.com", { commitment: "confirmed" })
+const connection = new Connection("https://api.devnet.solana.com", { commitment: "confirmed" })
 
 export default function BuyPackModal({ isOpen, onClose }: BuyPackModalProps) {
   const [packCount, setPackCount] = useState(0) // Start with 100 as shown in image
@@ -21,7 +22,7 @@ export default function BuyPackModal({ isOpen, onClose }: BuyPackModalProps) {
   const { sendTransaction } = useSendTransaction()
 
   const totalPrice = packCount * 0.1
-  const maxPacks = 2500 
+  const maxPacks = 250
 
   const handleBuyPacks = async () => {
     if (!wallets || wallets.length === 0) {
@@ -140,8 +141,8 @@ export default function BuyPackModal({ isOpen, onClose }: BuyPackModalProps) {
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleClose} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center min-h-screen">
+      <div className="fixed inset-0 backdrop-blur-sm" onClick={handleClose} />
 
       <div className="relative w-full max-w-lg rounded-2xl bg-gray-200 p-6 shadow-2xl font-mono">
         {!showSuccess ? (
@@ -162,7 +163,7 @@ export default function BuyPackModal({ isOpen, onClose }: BuyPackModalProps) {
                   type="range"
                   min="0"
                   max={maxPacks}
-                  step="10"
+                  step="1"
                   value={packCount}
                   onChange={(e) => setPackCount(Number(e.target.value))}
                   className="w-full h-3 bg-gray-400 rounded-lg appearance-none cursor-pointer"
@@ -183,7 +184,7 @@ export default function BuyPackModal({ isOpen, onClose }: BuyPackModalProps) {
                 <span className="text-sm text-gray-600 uppercase tracking-wide font-light">You Pay</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-3xl font-light text-black">{totalPrice} SOL</span>
+                <span className="text-3xl font-light text-black">{totalPrice.toFixed(2)} SOL</span>
                 <div className="w-12 h-12 rounded-lg flex items-center justify-center relative">
                   <img 
                     src="/solana.png" 

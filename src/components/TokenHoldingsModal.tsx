@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { X, ExternalLink, Copy, Check } from 'lucide-react'
+import { X, Link as LinkIcon } from 'lucide-react'
 
 interface TokenHolding {
   ticker: string
@@ -17,153 +16,146 @@ interface TokenHolding {
 interface TokenHoldingsModalProps {
   isOpen: boolean
   onClose: () => void
-  userPrivyWalletAddress: string
+  tokenHoldings: TokenHolding[]
 }
 
-export default function TokenHoldingsModal({ isOpen, onClose, userPrivyWalletAddress }: TokenHoldingsModalProps) {
-  const [holdings, setHoldings] = useState<TokenHolding[]>([])
-  const [loading, setLoading] = useState(false)
-  const [copiedAddress, setCopiedAddress] = useState<string | null>(null)
-
-  const fetchTokenHoldings = async () => {
-    if (!userPrivyWalletAddress) return
-
-    setLoading(true)
-    try {
-      const response = await fetch('/api/getUserKOLTokenHoldings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userPrivyWalletAddress,
-        }),
-      })
-
-      const data = await response.json()
-      if (data.success) {
-        setHoldings(data.data.holdings)
-      }
-    } catch (error) {
-      console.error('Error fetching token holdings:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    if (isOpen) {
-      fetchTokenHoldings()
-    }
-  }, [isOpen, userPrivyWalletAddress])
-
-  const copyToClipboard = async (text: string, type: string) => {
-    try {
-      await navigator.clipboard.writeText(text)
-      setCopiedAddress(type)
-      setTimeout(() => setCopiedAddress(null), 2000)
-    } catch (error) {
-      console.error('Failed to copy:', error)
-    }
-  }
-
-  const formatBalance = (balance: string) => {
-    const num = parseFloat(balance) / Math.pow(10, 6) // Divide by 10^6 for 6 decimals
-    if (num === 0) return '0'
-    if (num < 0.000001) return '< 0.000001'
-    return num.toLocaleString('en-US', { 
-      minimumFractionDigits: 0, 
-      maximumFractionDigits: 6 
-    })
-  }
-
+export default function TokenHoldingsModal({ isOpen, onClose, tokenHoldings }: TokenHoldingsModalProps) {
   if (!isOpen) return null
 
+  const formatBalance = (balance: string) => {
+    try {
+      const num = BigInt(balance);
+
+      const divisor = BigInt(10 ** 6);
+      const wholePart = num / divisor;
+      const fractionalPart = num % divisor;
+  
+      if (wholePart === BigInt(0) && fractionalPart > BigInt(0)) {
+        return `0.${fractionalPart
+          .toString()
+          .padStart(6, '0')
+          .replace(/0+$/, '')}`;
+      }
+  
+      return wholePart.toString();
+    } catch {
+      return balance;
+    }
+  };
+  
+
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      onClose()
+    }
+  }
+
+  const getSolscanLink = (mintAddress: string) =>
+    `https://orb.helius.dev/address/${mintAddress}?cluster=devnet`
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      
-      <div className="relative w-full max-w-2xl mx-4 max-h-[90vh] rounded-2xl bg-neutral-900 border border-neutral-800 shadow-2xl flex flex-col">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      onClick={handleBackdropClick}
+    >
+      <div className="relative w-full max-w-2xl max-h-[80vh] bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-neutral-800 flex-shrink-0">
-          <h2 className="text-xl font-semibold text-white">Your KOL Token Holdings</h2>
+        <div className="flex items-center justify-between p-6 border-b border-neutral-800">
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-semibold text-white">KOL Token Holdings</h2>
+            {tokenHoldings.length > 0 && (
+              <a
+                href={getSolscanLink(tokenHoldings[0].mintAddress)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ml-2 inline-flex items-center px-2 py-1 rounded hover:bg-neutral-800 transition-colors"
+                title="View first token mint on Solscan"
+              >
+                <LinkIcon className="h-4 w-4 text-blue-400" />
+                <span className="sr-only">View on Solscan</span>
+              </a>
+            )}
+          </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-full hover:bg-neutral-800 transition-colors duration-200"
+            className="p-2 rounded-lg hover:bg-neutral-800 transition-colors duration-200"
           >
             <X className="h-5 w-5 text-neutral-400" />
           </button>
         </div>
 
-        {/* Content - Scrollable */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {loading ? (
+        {/* Content */}
+        <div className="overflow-y-auto max-h-[calc(80vh-120px)]">
+          {tokenHoldings.length === 0 ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-              <span className="ml-3 text-neutral-400">Loading holdings...</span>
-            </div>
-          ) : holdings.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 bg-neutral-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold text-white mb-2">No Token Holdings</h3>
-              <p className="text-neutral-400">You don't have any KOL tokens yet.</p>
+              <p className="text-neutral-400">No token holdings found</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {holdings.map((holding, index) => (
-                <div key={index} className="rounded-lg bg-neutral-800/50 p-4 border border-neutral-700">
-                  <div className="flex items-center justify-between mb-3">
+            <div className="p-6 space-y-4">
+              {tokenHoldings.map((holding, index) => (
+                <div
+                  key={`${holding.mintAddress}-${index}`}
+                  className="flex items-center justify-between p-4 rounded-lg bg-neutral-800/50 hover:bg-neutral-800 transition-colors duration-200"
+                >
+                  <div className="flex-1">
                     <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-pink-500 via-purple-500 to-blue-500 flex items-center justify-center text-white font-bold text-sm">
-                        {holding.ticker.substring(0, 2)}
+                      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white font-semibold text-sm">
+                        {holding.ticker.substring(0, 2).toUpperCase()}
                       </div>
                       <div>
-                        <h4 className="font-semibold text-white">{holding.ticker}</h4>
+                        <div className="flex items-center gap-1">
+                          <h3 className="font-semibold text-white">{holding.ticker}</h3>
+                          <a
+                            href={getSolscanLink(holding.mintAddress)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center px-1 rounded hover:bg-neutral-700 transition-colors"
+                            title="View token mint on Solscan"
+                          >
+                            <LinkIcon className="h-4 w-4 text-blue-400" />
+                            <span className="sr-only">View on Solscan</span>
+                          </a>
+                        </div>
                         <p className="text-sm text-neutral-400">{holding.name}</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-white">{formatBalance(holding.balance)}</p>
-                      {holding.tokenPrice && (
-                        <p className="text-sm text-neutral-400">
-                          ${parseFloat(holding.tokenPrice).toFixed(6)}
-                        </p>
-                      )}
-                    </div>
                   </div>
-                  
-                  <div className="flex items-center gap-2 text-xs text-neutral-500">
-                    <span>Mint:</span>
-                    <code className="bg-neutral-900 px-2 py-1 rounded text-neutral-300">
-                      {holding.mintAddress.substring(0, 8)}...{holding.mintAddress.substring(holding.mintAddress.length - 8)}
-                    </code>
-                    <button
-                      onClick={() => copyToClipboard(holding.mintAddress, `mint-${index}`)}
-                      className="p-1 hover:bg-neutral-700 rounded transition-colors duration-200"
-                    >
-                      {copiedAddress === `mint-${index}` ? (
-                        <Check className="h-3 w-3 text-green-400" />
-                      ) : (
-                        <Copy className="h-3 w-3" />
-                      )}
-                    </button>
-                    <a
-                      href={`https://solscan.io/token/${holding.mintAddress}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-1 hover:bg-neutral-700 rounded transition-colors duration-200"
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
+
+                  <div className="text-right">
+                    <p className="font-semibold text-white">
+                      {formatBalance(holding.balance)} {holding.ticker}
+                    </p>
+                    {holding.tokenPrice && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-neutral-400">
+                          ${parseFloat(holding.tokenPrice).toFixed(6)}
+                        </span>
+                        {holding.priceChange24hPercent !== undefined && (
+                          <span
+                            className={`font-medium ${
+                              holding.priceChange24hPercent >= 0
+                                ? 'text-green-500'
+                                : 'text-red-500'
+                            }`}
+                          >
+                            {holding.priceChange24hPercent >= 0 ? '+' : ''}
+                            {holding.priceChange24hPercent.toFixed(2)}%
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
           )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-6 border-t border-neutral-800 bg-neutral-900/50">
+          <p className="text-xs text-neutral-500 text-center">
+            Showing {tokenHoldings.length} token{tokenHoldings.length !== 1 ? 's' : ''} with non-zero balance
+          </p>
         </div>
       </div>
     </div>
