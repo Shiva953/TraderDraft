@@ -46,7 +46,7 @@ export default function BuyPackModal({ isOpen, onClose }: BuyPackModalProps) {
       console.log("🔍 [BuyPack] Expected: packCount * 0.1 =", packCount * 0.1)
 
 
-      const response = await fetch("/api/buyPack", {
+      const response = await fetch("/api/pack/buyPack", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -88,7 +88,7 @@ export default function BuyPackModal({ isOpen, onClose }: BuyPackModalProps) {
         // Update user packs in database
         console.log("🔄 [BuyPack] Updating user packs in database...")
         try {
-          const updateResponse = await fetch("/api/updateUserPacks", {
+          const updateResponse = await fetch("/api/pack/updateUserPacks", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

@@ -8,12 +8,11 @@ import { useRouter } from "next/router";
 import {PrivyProvider, useLogin, usePrivy, useSolanaWallets, useLoginWithOAuth, useLogout} from '@privy-io/react-auth';
 import { useEffect, useState, useCallback } from "react";
 import {PackSaleBannerNew} from "../components/PackSaleBannerNew";
-import { useDevBackgroundJobs } from "../hooks/useDevBackgroundJobs";
+import { useDevBackgroundJobs } from "./hooks/useDevBackgroundJobs";
 import { useUserData } from "./hooks/useUserData";
 import UserPacks from "../components/UserPacks";
 import PackRevealSystem from "../components/PackRevealSystem"; // Individual pack reveal
 import MultiPackRevealSystem from "../components/MultiPackRevealSystem"; // Import the new multi-pack system
-import { PackRevealBanner } from "@/components/PackRevealBanner";
 import UserProfilePicture from "../components/UserProfilePicture";
 
 // Updated interface to match backend data

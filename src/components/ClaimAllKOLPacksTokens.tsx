@@ -153,7 +153,7 @@ export const ClaimAllTokensButton = ({
         consolidatedKols: packData.consolidatedKols,
       }
 
-      console.debug("[ClaimAllTokensButton] Sending POST /api/claimAllKOLTokens", {
+      console.debug("[ClaimAllTokensButton] Sending POST /api/pack/claimAllKOLTokens", {
         totalKols: requestBody.consolidatedKols.length,
         walletAddress: embeddedWallet.address,
       })
@@ -161,7 +161,7 @@ export const ClaimAllTokensButton = ({
       // Show progress as backend processes
       setClaimingProgress({ current: 1, total: packData.consolidatedKols.length })
 
-      const response = await fetch("/api/claimAllKOLTokens", {
+      const response = await fetch("/api/pack/claimAllKOLTokens", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

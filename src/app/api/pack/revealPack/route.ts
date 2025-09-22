@@ -22,7 +22,7 @@ import {
   TOKEN_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
-import { Pnlpackprogram, IDL } from '../../../lib/idl';
+import { Pnlpackprogram, IDL } from '../../../../lib/idl';
 import bs58 from 'bs58';
 import NodeWallet from '@coral-xyz/anchor/dist/cjs/nodewallet';
 

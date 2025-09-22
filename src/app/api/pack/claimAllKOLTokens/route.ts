@@ -13,7 +13,7 @@ import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   getAssociatedTokenAddress
 } from '@solana/spl-token';
-import { Pnlpackprogram, IDL } from '../../../lib/idl';
+import { Pnlpackprogram, IDL } from '../../../../lib/idl';
 import NodeWallet from '@coral-xyz/anchor/dist/cjs/nodewallet';
 import { PrismaClient } from '@prisma/client';
 

@@ -83,9 +83,9 @@ export const ClaimPackButton = ({
         packId: packId,
         amountPerKol: amountPerKol,
       }
-      console.debug("[ClaimPackButton] Sending POST /api/claimPack with body:", requestBody)
+      console.debug("[ClaimPackButton] Sending POST /api/pack/claimPack with body:", requestBody)
 
-      const response = await fetch("/api/claimPack", {
+      const response = await fetch("/api/pack/claimPack", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -94,10 +94,10 @@ export const ClaimPackButton = ({
       })
 
       const data = await response.json()
-      console.debug("[ClaimPackButton] /api/claimPack response:", data)
+      console.debug("[ClaimPackButton] /api/pack/claimPack response:", data)
 
       if (!response.ok) {
-        console.error("[ClaimPackButton] /api/claimPack error:", data.error || `HTTP error! status: ${response.status}`)
+        console.error("[ClaimPackButton] /api/pack/claimPack error:", data.error || `HTTP error! status: ${response.status}`)
         throw new Error(data.error || `HTTP error! status: ${response.status}`)
       }
 

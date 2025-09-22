@@ -635,6 +635,157 @@ export type Pnlpackprogram = {
       ]
     },
     {
+      "name": "initKolVaultAndTransferV2",
+      "discriminator": [
+        116,
+        242,
+        58,
+        20,
+        125,
+        127,
+        97,
+        98
+      ],
+      "accounts": [
+        {
+          "name": "globalPackPool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  112,
+                  97,
+                  99,
+                  107,
+                  95,
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true,
+          "address": "7E85TTXg5FjT5G6q14nZUSE3KAgjM2kjBs8ddAW6eBeR"
+        },
+        {
+          "name": "mint",
+          "docs": [
+            "The token mint - CRITICAL: Authority must be global_pack_pool"
+          ],
+          "writable": true
+        },
+        {
+          "name": "tokenVault",
+          "docs": [
+            "Token vault owned by global pack pool (94% destination)"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "kolTicker"
+              },
+              {
+                "kind": "account",
+                "path": "globalPackPool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "poolTokenAccount",
+          "docs": [
+            "Pool token account (6% destination) - provided by client",
+            "Assumes pool is already created by client[meteora createPool DAMM v2 ixn] and will be used for Meteora pool creation"
+          ],
+          "writable": true
+        },
+        {
+          "name": "configAccount",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  67,
+                  79,
+                  78,
+                  70,
+                  73,
+                  71,
+                  95,
+                  65,
+                  67,
+                  67,
+                  79,
+                  85,
+                  78,
+                  84
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "tokenProgram"
+        },
+        {
+          "name": "associatedTokenProgram",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "kolTicker",
+          "type": "string"
+        },
+        {
+          "name": "totalSupply",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "initialize",
       "discriminator": [
         175,
@@ -1532,6 +1683,21 @@ export type Pnlpackprogram = {
       ]
     }
   ],
+  "events": [
+    {
+      "name": "kolTokenCreated",
+      "discriminator": [
+        238,
+        15,
+        96,
+        230,
+        247,
+        254,
+        219,
+        64
+      ]
+    }
+  ],
   "errors": [
     {
       "code": 6000,
@@ -1632,6 +1798,21 @@ export type Pnlpackprogram = {
       "code": 6019,
       "name": "insufficientFundsForAta",
       "msg": "Global pack pool has insufficient funds for ATA creation"
+    },
+    {
+      "code": 6020,
+      "name": "invalidPoolTokenAccount",
+      "msg": "Invalid pool token account"
+    },
+    {
+      "code": 6021,
+      "name": "supplyTooLarge",
+      "msg": "Supply amount too large"
+    },
+    {
+      "code": 6022,
+      "name": "invalidDistributionCalculation",
+      "msg": "Invalid distribution calculation"
     }
   ],
   "types": [
@@ -1691,6 +1872,46 @@ export type Pnlpackprogram = {
           {
             "name": "kolTokenMintAddress",
             "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "kolTokenCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "kolTicker",
+            "type": "string"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "poolAccount",
+            "type": "pubkey"
+          },
+          {
+            "name": "totalSupply",
+            "type": "u64"
+          },
+          {
+            "name": "vaultAmount",
+            "type": "u64"
+          },
+          {
+            "name": "poolAmount",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
           }
         ]
       }

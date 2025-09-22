@@ -57,7 +57,7 @@ export function useUserData(authenticated: boolean) {
     try {
       // Fetch both APIs in parallel
       const [packsResponse, holdingsResponse] = await Promise.all([
-        fetch('/api/getUserPacks', {
+        fetch('/api/pack/getUserPacks', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userPrivyWalletAddress: embeddedWallet.address }),

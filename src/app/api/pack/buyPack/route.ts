@@ -73,7 +73,6 @@ export async function POST(request: Request) {
       throw e;
     }
 
-    // Anchor/Program setup
     let adminWallet, provider, program;
     try {
       adminWallet = new NodeWallet(adminKeypair);
@@ -88,7 +87,6 @@ export async function POST(request: Request) {
       throw e;
     }
 
-    // Find globalPackPool PDA
     let globalPackPool;
     try {
       [globalPackPool] = PublicKey.findProgramAddressSync([Buffer.from("global_pack_pool")], program.programId);

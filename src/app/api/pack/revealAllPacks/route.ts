@@ -11,7 +11,7 @@ import {
 } from '@solana/web3.js';
 import { Program, AnchorProvider, Wallet, BN } from '@coral-xyz/anchor';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import { Pnlpackprogram, IDL } from '../../../lib/idl';
+import { Pnlpackprogram, IDL } from '../../../../lib/idl';
 import NodeWallet from '@coral-xyz/anchor/dist/cjs/nodewallet';
 
 const DEVNET_RPC = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';

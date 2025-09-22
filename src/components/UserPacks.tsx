@@ -25,7 +25,7 @@ export default function UserPacks() {
 
     setLoading(true)
     try {
-      const response = await fetch("/api/getUserPacks", {
+      const response = await fetch("/api/pack/getUserPacks", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

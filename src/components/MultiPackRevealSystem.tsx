@@ -24,7 +24,7 @@ export const MultiPackRevealSystem = () => {
         if (!embeddedWallet) return
   
         try {
-          const response = await fetch("/api/getUserPacks", {
+          const response = await fetch("/api/pack/getUserPacks", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ userPrivyWalletAddress: embeddedWallet.address }),
@@ -52,7 +52,7 @@ export const MultiPackRevealSystem = () => {
       setCurrentStep("loading")
   
       try {
-        const response = await fetch("/api/revealAllPacks", {
+        const response = await fetch("/api/pack/revealAllPacks", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ numberOfPacks: packCount }),
@@ -89,7 +89,7 @@ export const MultiPackRevealSystem = () => {
       if (!embeddedWallet) return
 
       try {
-        const response = await fetch("/api/resetUserPackHoldings", {
+        const response = await fetch("/api/pack/resetUserPackHoldings", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userPrivyWalletAddress: embeddedWallet.address }),
@@ -124,38 +124,6 @@ export const MultiPackRevealSystem = () => {
         console.error("No embedded wallet found")
         return
       }
-
-      // try {
-      //   // Call the new backend API that handles direct vault-to-user transfers
-      //   const response = await fetch("/api/claimAllKOLTokens", {
-      //     method: "POST", 
-      //     headers: { "Content-Type": "application/json" },
-      //     body: JSON.stringify({
-      //       userPrivyWalletAddress: embeddedWallet.address,
-      //       consolidatedKols: packData.consolidatedKols
-      //     }),
-      //   })
-
-      //   if (response.ok) {
-      //     const result = await response.json()
-      //     if (result.success) {
-      //       console.log("✅ All tokens claimed successfully via backend:", result.data)
-      //       // Update the pack data with transfer signatures if available
-      //       if (result.data.consolidatedKols) {
-      //         setPackData(prev => prev ? {
-      //           ...prev,
-      //           consolidatedKols: result.data.consolidatedKols
-      //         } : null)
-      //       }
-      //     } else {
-      //       console.error("❌ Token claim failed:", result.error)
-      //     }
-      //   } else {
-      //     console.error("❌ Token claim request failed:", response.status)
-      //   }
-      // } catch (error) {
-      //   console.error("❌ Error during token claim:", error)
-      // }
     }
   
     return (

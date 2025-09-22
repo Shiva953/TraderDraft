@@ -3,11 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-        "vercel-build": "npx prisma generate && next build",
-        "dev": "next dev",
-        "build": "prisma generate && prisma db push && next build",
-        "dev-nolog": "next dev -p 8080",
-        "build-nolog": "next build"
+    "vercel-build": "npx prisma generate && next build",
+    "dev": "next dev",
+    "build": "prisma generate && prisma db push && next build",
+    "dev-nolog": "next dev -p 8080",
+    "build-nolog": "next build"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.1",
@@ -18,6 +18,7 @@
     "@prisma/client": "^6.15.0",
     "@privy-io/react-auth": "^2.24.0",
     "@privy-io/server-auth": "^1.32.2",
+    "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@solana/kit": "^2.3.0",
     "@solana/spl-token": "^0.4.14",
@@ -27,6 +28,7 @@
     "bn": "^1.0.5",
     "bn.js": "^5.2.2",
     "cheerio": "^1.1.2",
+    "class-variance-authority": "^0.7.1",
     "framer-motion": "^12.23.13",
     "fs": "^0.0.1-security",
     "jito-ts": "^4.2.1",

@@ -73,7 +73,7 @@ const PackRevealSystem = () => {
       }
 
       try {
-        const response = await fetch("/api/getUserPacks", {
+        const response = await fetch("/api/pack/getUserPacks", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userPrivyWalletAddress: embeddedWallet.address }),
@@ -105,7 +105,7 @@ const PackRevealSystem = () => {
 
     try {
       // Call the pack reveal API
-      const response = await fetch("/api/revealPack", {
+      const response = await fetch("/api/pack/revealPack", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ packId: "user-pack" }),
