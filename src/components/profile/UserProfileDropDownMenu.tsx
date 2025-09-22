@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { ExternalLink, Package, Coins, ChevronRight, Copy } from 'lucide-react'
-import TokenHoldingsModal from './TokenHoldingsModal'
+import TokenHoldingsModal from '../TokenHoldingsModal'
 
 interface UserPacksData {
   packHoldings: number
