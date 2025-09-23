@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Providers from "@/components/PrivyAuthProvider";
+import Providers from "@/components/privy/PrivyAuthProvider";
 import { Toaster } from "sonner";
 // import { CronInitializer } from "@/components/CronInitializer";
 import {PrivyProvider} from '@privy-io/react-auth';

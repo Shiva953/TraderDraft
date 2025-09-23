@@ -1,139 +1,34 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 
 import { useState } from "react"
-import { useSendTransaction, useSolanaWallets } from "@privy-io/react-auth/solana"
-import { Connection, VersionedTransaction } from "@solana/web3.js"
-import { Buffer } from "buffer"
+import { usePackPurchase } from "@/app/hooks/usePackPurchase"
 
 interface BuyPackModalProps {
   isOpen: boolean
   onClose: () => void
+  onPurchaseComplete?: () => void 
 }
 
-const connection = new Connection("https://api.devnet.solana.com", { commitment: "confirmed" })
-
-export default function BuyPackModal({ isOpen, onClose }: BuyPackModalProps) {
-  const [packCount, setPackCount] = useState(0) // Start with 100 as shown in image
-  const [isLoading, setIsLoading] = useState(false)
-  const [txnHash, setTxnHash] = useState<string | null>(null)
-  const [showSuccess, setShowSuccess] = useState(false)
-  const { wallets } = useSolanaWallets()
-  const { sendTransaction } = useSendTransaction()
+export default function BuyPackModal({ isOpen, onClose, onPurchaseComplete }: BuyPackModalProps) {
+  const [packCount, setPackCount] = useState(0)
+  const { isLoading, txnHash, showSuccess, error, purchasePacks, resetState } = usePackPurchase()
 
   const totalPrice = packCount * 0.1
   const maxPacks = 250
 
   const handleBuyPacks = async () => {
-    if (!wallets || wallets.length === 0) {
-      alert("No wallet found. Please connect your wallet first.")
-      return
-    }
-
-    const embeddedWallet = wallets.find((w) => w.walletClientType === "privy")
-    if (!embeddedWallet) {
-      alert("No embedded wallet found.")
-      return
-    }
-
-    setIsLoading(true)
-    try {
-      console.log("🔵 [BuyPack] Starting transaction process")
-      console.log("🔵 [BuyPack] Wallet address:", embeddedWallet.address)
-      console.log(" [BuyPack] Total price:", totalPrice)
-      console.log("🔍 [BuyPack] packCount:", packCount)
-      console.log("🔍 [BuyPack] totalPrice:", totalPrice)
-      console.log("🔍 [BuyPack] Expected: packCount * 0.1 =", packCount * 0.1)
-
-
-      const response = await fetch("/api/pack/buyPack", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userPrivyWalletAddress: embeddedWallet.address,
-          amount: totalPrice,
-        }),
-      })
-
-      const data = await response.json()
-      console.log("🟢 [BuyPack] API response:", data)
-
-      if (!response.ok) {
-        throw new Error(data.error || `HTTP error! status: ${response.status}`)
-      }
-
-      if (data.success && data.data.buyPackTransaction) {
-        console.log("🔄 [BuyPack] Deserializing transaction")
-
-        // Deserialize the transaction from base64
-        const txBuffer = Buffer.from(data.data.buyPackTransaction, "base64")
-        const transaction = VersionedTransaction.deserialize(txBuffer)
-
-        console.log("🟡 [BuyPack] Transaction deserialized, signing and sending...")
-
-        // Sign and send the transaction using Privy
-        const result = await sendTransaction({
-          transaction: transaction,
-          connection: connection,
-          address: embeddedWallet.address,
-        })
-
-        console.log("✅ [BuyPack] Transaction sent successfully:", result)
-
-        setTxnHash(result.signature)
-        setShowSuccess(true)
-
-        // Update user packs in database
-        console.log("🔄 [BuyPack] Updating user packs in database...")
-        try {
-          const updateResponse = await fetch("/api/pack/updateUserPacks", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              userPrivyWalletAddress: embeddedWallet.address,
-              packsBought: packCount,
-              totalValue: totalPrice,
-              transactionHash: result.signature, // Add this line
-            }),
-          })
-
-          const updateData = await updateResponse.json()
-          if (updateData.success) {
-            console.log("✅ [BuyPack] User packs updated successfully")
-          } else {
-            console.error("❌ [BuyPack] Failed to update user packs:", updateData.error)
-          }
-        } catch (updateError) {
-          console.error("❌ [BuyPack] Error updating user packs:", updateError)
-        }
-
-        // Remove the automatic closing - let user close manually
-        // setTimeout(() => {
-        //   onClose()
-        //   setShowSuccess(false)
-        //   setTxnHash(null)
-        //   setPackCount(100)
-        // }, 3000)
-      } else {
-        throw new Error(data.error || "Failed to create transaction")
-      }
-    } catch (error) {
-      console.error("❌ [BuyPack] Error buying packs:", error)
-      alert(`Error buying packs: ${error instanceof Error ? error.message : "Unknown error"}`)
-    } finally {
-      setIsLoading(false)
+    if (packCount <= 0) return
+    
+    const success = await purchasePacks(packCount, totalPrice)
+    if (success && onPurchaseComplete) {
+      onPurchaseComplete()
     }
   }
 
   const handleClose = () => {
     if (!isLoading) {
       onClose()
-      setShowSuccess(false)
-      setTxnHash(null)
+      resetState()
       setPackCount(0)
     }
   }
@@ -145,6 +40,20 @@ export default function BuyPackModal({ isOpen, onClose }: BuyPackModalProps) {
       <div className="fixed inset-0 backdrop-blur-sm" onClick={handleClose} />
 
       <div className="relative w-full max-w-lg rounded-2xl bg-gray-200 p-6 shadow-2xl font-mono">
+        {error && !showSuccess && (
+          <div className="mb-4 rounded-lg bg-red-100 border border-red-300 p-3 text-sm text-red-700">
+            <div className="flex items-center justify-between">
+              <span>{error}</span>
+              <button 
+                onClick={resetState}
+                className="text-red-500 hover:text-red-700 ml-2"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        )}
+
         {!showSuccess ? (
           <div className="space-y-4">
             <div className="mb-6 text-center">
@@ -216,7 +125,7 @@ export default function BuyPackModal({ isOpen, onClose }: BuyPackModalProps) {
                   Processing...
                 </>
               ) : (
-                `Buy ${packCount} Pack${packCount > 1 ? "s" : ""}`
+                `Buy ${packCount} Pack${packCount !== 1 ? "s" : ""}`
               )}
             </button>
           </div>
@@ -263,7 +172,6 @@ export default function BuyPackModal({ isOpen, onClose }: BuyPackModalProps) {
                     <button
                       onClick={() => {
                         navigator.clipboard.writeText(txnHash)
-                        // You could add a toast notification here if you have one
                       }}
                       className="flex cursor-pointer items-center gap-1 text-xs text-gray-600 hover:text-black transition-colors"
                     >
@@ -278,6 +186,15 @@ export default function BuyPackModal({ isOpen, onClose }: BuyPackModalProps) {
                   </p>
                 </div>
               )}
+
+              <div className="mt-6">
+                <button
+                  onClick={handleClose}
+                  className="w-full rounded-full px-6 py-4 text-lg font-light text-white bg-black hover:bg-gray-800 transition-colors"
+                >
+                  Done
+                </button>
+              </div>
             </div>
           </div>
         )}

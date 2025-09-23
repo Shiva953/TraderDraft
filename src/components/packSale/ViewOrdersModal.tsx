@@ -1,15 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useSolanaWallets } from "@privy-io/react-auth"
-
-interface Order {
-  id: string
-  packsBought: number
-  totalValue: number
-  transactionHash?: string
-  createdAt: string
-}
+import { useEffect } from "react"
+import { useOrders } from "@/app/hooks/useOrders"
 
 interface ViewOrdersModalProps {
   isOpen: boolean
@@ -17,44 +9,13 @@ interface ViewOrdersModalProps {
 }
 
 export default function ViewOrdersModal({ isOpen, onClose }: ViewOrdersModalProps) {
-  const [orders, setOrders] = useState<Order[]>([])
-  const [loading, setLoading] = useState(false)
-  const { wallets } = useSolanaWallets()
-
-  const fetchOrders = async () => {
-    if (!wallets || wallets.length === 0) return
-
-    const embeddedWallet = wallets.find((w) => w.walletClientType === "privy")
-    if (!embeddedWallet) return
-
-    setLoading(true)
-    try {
-      const response = await fetch("/api/getOrders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userPrivyWalletAddress: embeddedWallet.address,
-        }),
-      })
-
-      const data = await response.json()
-      if (data.success) {
-        setOrders(data.data)
-      }
-    } catch (error) {
-      console.error("Error fetching orders:", error)
-    } finally {
-      setLoading(false)
-    }
-  }
+  const { orders, loading, error, fetchOrders, totalPacks, totalValue } = useOrders()
 
   useEffect(() => {
     if (isOpen) {
       fetchOrders()
     }
-  }, [isOpen, wallets])
+  }, [isOpen, fetchOrders])
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -67,9 +28,6 @@ export default function ViewOrdersModal({ isOpen, onClose }: ViewOrdersModalProp
     })
   }
 
-  const totalPacks = orders.reduce((sum, order) => sum + order.packsBought, 0)
-  const totalValue = orders.reduce((sum, order) => sum + Number(order.totalValue), 0)
-
   if (!isOpen) return null
 
   return (
@@ -79,12 +37,38 @@ export default function ViewOrdersModal({ isOpen, onClose }: ViewOrdersModalProp
       <div className="relative w-full max-w-3xl rounded-2xl bg-gray-200 p-6 shadow-2xl font-mono">
         <div className="mb-6 text-center">
           <h2 className="text-xl font-light text-gray-600 uppercase tracking-wide">Your Orders</h2>
+          {!loading && orders.length > 0 && (
+            <div className="mt-2 text-sm text-gray-500">
+              {totalPacks} total packs • {totalValue.toFixed(2)} SOL spent
+            </div>
+          )}
         </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600"></div>
             <span className="ml-3 text-gray-600 font-light">Loading orders...</span>
+          </div>
+        ) : error ? (
+          <div className="text-center py-8">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                />
+              </svg>
+            </div>
+            <h3 className="text-lg font-light text-black mb-2">Error Loading Orders</h3>
+            <p className="text-gray-600 font-light mb-4">{error}</p>
+            <button 
+              onClick={fetchOrders}
+              className="px-4 py-2 bg-black text-white rounded-lg font-light hover:bg-gray-800"
+            >
+              Try Again
+            </button>
           </div>
         ) : orders.length === 0 ? (
           <div className="text-center py-8">
@@ -105,7 +89,7 @@ export default function ViewOrdersModal({ isOpen, onClose }: ViewOrdersModalProp
           <>
             {/* Scrollable orders container */}
             <div className="max-h-96 overflow-y-auto space-y-4 pr-2">
-              {orders.map((order, index) => {
+              {orders.map((order) => {
                 const orderDate = new Date(order.createdAt)
                 const timeString = orderDate.toLocaleTimeString("en-US", {
                   hour: "numeric",
@@ -145,6 +129,15 @@ export default function ViewOrdersModal({ isOpen, onClose }: ViewOrdersModalProp
 
                       <div className="text-right">
                         <div className="text-lg text-gray-600 font-light">Completed</div>
+                        {order.transactionHash && (
+                          <button
+                            onClick={() => navigator.clipboard.writeText(order.transactionHash!)}
+                            className="text-xs text-gray-500 hover:text-gray-700 mt-1"
+                            title="Copy transaction hash"
+                          >
+                            Copy TX
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>

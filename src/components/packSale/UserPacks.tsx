@@ -1,56 +1,13 @@
-"use client"
-
-import { useState, useEffect } from "react"
-import { useSolanaWallets } from "@privy-io/react-auth"
-import ViewOrdersModal from "./ViewOrdersModal"
-
-interface UserPacksData {
-  packHoldings: number
-  totalValueOfPackHoldings: number
-  claimedPacks: number
-  unclaimedPacks: number
-}
+import React, { useState } from 'react';
+import { useUserPacks } from '@/app/hooks/useUserPacks';
+import ViewOrdersModal from './ViewOrdersModal';
 
 export default function UserPacks() {
-  const [userPacks, setUserPacks] = useState<UserPacksData | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [showOrdersModal, setShowOrdersModal] = useState(false)
-  const { wallets } = useSolanaWallets()
+  const [showOrdersModal, setShowOrdersModal] = useState(false);
+  const { data: userPacks, loading, error, refresh, isConnected } = useUserPacks();
 
-  const fetchUserPacks = async () => {
-    if (!wallets || wallets.length === 0) return
-
-    const embeddedWallet = wallets.find((w) => w.walletClientType === "privy")
-    if (!embeddedWallet) return
-
-    setLoading(true)
-    try {
-      const response = await fetch("/api/pack/getUserPacks", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userPrivyWalletAddress: embeddedWallet.address,
-        }),
-      })
-
-      const data = await response.json()
-      if (data.success) {
-        setUserPacks(data.data)
-      }
-    } catch (error) {
-      console.error("Error fetching user packs:", error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchUserPacks()
-  }, [wallets])
-
-  if (!userPacks) return null
+  // Don't render if not connected or no pack data
+  if (!isConnected || !userPacks) return null;
 
   return (
     <>
@@ -65,7 +22,7 @@ export default function UserPacks() {
               View Orders
             </button>
             <button
-              onClick={fetchUserPacks}
+              onClick={refresh}
               disabled={loading}
               className="cursor-pointer text-sm text-gray-500 hover:text-black transition-colors disabled:opacity-50"
             >
@@ -73,6 +30,12 @@ export default function UserPacks() {
             </button>
           </div>
         </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">
+            Error: {error}
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-4">
           <div className="rounded-lg bg-gray-300 p-4">
@@ -99,5 +62,5 @@ export default function UserPacks() {
 
       <ViewOrdersModal isOpen={showOrdersModal} onClose={() => setShowOrdersModal(false)} />
     </>
-  )
+  );
 }
