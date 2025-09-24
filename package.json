@@ -3,11 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "vercel-build": "npx prisma generate && next build",
-    "dev": "next dev",
-    "build": "prisma generate && prisma db push && next build",
-    "dev-nolog": "next dev -p 8080",
-    "build-nolog": "next build"
+    "vercel-build": "bunx prisma generate && bun run build:next",
+    "dev": "bun run dev:next",
+    "build": "bunx prisma generate && bunx prisma db push && bun run build:next",
+    "dev:next": "bunx next dev",
+    "build:next": "bunx next build",
+    "dev-nolog": "bunx next dev -p 8080",
+    "build-nolog": "bunx next build"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.1",

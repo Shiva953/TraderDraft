@@ -43,4 +43,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+#bun
+bun.lock
+
 /src/generated/prisma
