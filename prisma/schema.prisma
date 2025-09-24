@@ -18,8 +18,10 @@ model Trader {
   xUrl             String?
   tokenMintAddress String?
   poolAddress      String?
-  ticker           String?  // Add this new field
+  ticker           String?
   period           Period
+  rarity           Rarity   @default(COMMON) // Add this new field
+  rarityWeight     Float    @default(1.0)    // Add this for selection probability
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -27,8 +29,16 @@ model Trader {
   @@index([period, rank])
   @@index([tokenMintAddress])
   @@index([poolAddress])
-  @@index([ticker])  // Add index for ticker
+  @@index([ticker])
+  @@index([rarity])     // Add index for rarity
   @@map("traders")
+}
+
+enum Rarity {
+  LEGENDARY  // Top 3 (6%)
+  EPIC      // Ranks 4-10 (14%) 
+  RARE      // Ranks 11-25 (30%)
+  COMMON    // Ranks 26-50 (50%)
 }
 
 model ScrapingMetadata {

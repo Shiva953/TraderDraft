@@ -56,7 +56,7 @@ interface ConsolidatedKolData extends KolData {
   packIds: string[];
 }
 
-function generatePackId(): string {
+export function generatePackId(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   let id = '';
   for (let i = 0; i < 4; i++) {
@@ -152,7 +152,7 @@ export async function POST(request: Request) {
 }
 
 // MODIFIED: Only create pack accounts, no token transfers
-async function executePackCreationOnly(
+export async function executePackCreationOnly(
   packs: PackData[]
 ): Promise<{ success: boolean; signatures?: string[]; error?: string }> {
   console.log('📦 [executePackCreationOnly] Starting pack creation only...');
@@ -489,7 +489,7 @@ function consolidateKolsAcrossPacks(packs: PackData[]): ConsolidatedKolData[] {
   return consolidatedArray;
 }
 
-function createConsolidatedPackMetadata(
+export function createConsolidatedPackMetadata(
   packs: PackData[], 
   consolidatedKols: ConsolidatedKolData[], 
   txResult: any
