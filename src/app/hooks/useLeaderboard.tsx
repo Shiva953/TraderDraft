@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useApi } from './useApi';
 
 export interface TraderData {
@@ -39,7 +39,6 @@ export interface PeriodData {
   period: string;
 }
 
-// Define the API response type
 export interface ApiResponse {
   ok: boolean;
   message: string;
@@ -94,70 +93,147 @@ export const useLeaderboard = (initialPeriod: Period = 'daily') => {
   const [allPeriodsData, setAllPeriodsData] = useState<Record<Period, PeriodData> | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
+  
+  // Track initialization state
+  const [isInitialized, setIsInitialized] = useState(false);
+  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Explicitly type the useApi hook with the ApiResponse interface
   const { data, loading, error, execute } = useApi<ApiResponse>('/api/getTopTraders', {
     dedupe: true,
-    cacheTtl: 60000, // 1 minute cache for leaderboard
+    cacheTtl: 60000,
   });
 
   const leaderboardData = useMemo(() => {
-    if (!data?.selected?.traders) return [];
-    return convertApiDataToLeaderboardEntry(data.selected.traders);
+    console.log('🔍 [useLeaderboard] Processing data:', data?.selected?.traders?.length || 0, 'traders');
+    if (!data?.selected?.traders) {
+      console.log('⚠️ [useLeaderboard] No traders data available');
+      return [];
+    }
+    const converted = convertApiDataToLeaderboardEntry(data.selected.traders);
+    console.log('✅ [useLeaderboard] Converted to leaderboard entries:', converted.length);
+    return converted;
   }, [data]);
 
   const fetchData = useCallback(async (fetchAllPeriods = false) => {
-    const result = await execute({
-      period: currentPeriod,
-      limit: 20,
-      fetchAll: fetchAllPeriods,
-    });
+    console.log(`🚀 [useLeaderboard] fetchData called - period: ${currentPeriod}, fetchAll: ${fetchAllPeriods}`);
+    
+    try {
+      const result = await execute({
+        period: currentPeriod,
+        limit: 20,
+        fetchAll: fetchAllPeriods,
+      });
 
-    if (result?.selected) {
-      if (fetchAllPeriods && result.data) {
-        setAllPeriodsData(result.data);
+      console.log('📊 [useLeaderboard] API result:', {
+        ok: result?.ok,
+        selectedTradersCount: result?.selected?.traders?.length || 0,
+        hasData: !!result?.data,
+        period: result?.selected?.period
+      });
+
+      if (result?.selected) {
+        if (fetchAllPeriods && result.data) {
+          console.log('💾 [useLeaderboard] Updating all periods data');
+          setAllPeriodsData(result.data);
+        }
+        
+        const updatedTime = result.selected.lastUpdated ? new Date(result.selected.lastUpdated) : new Date();
+        setLastUpdated(updatedTime);
+        console.log('⏰ [useLeaderboard] Updated lastUpdated:', updatedTime.toISOString());
       }
-      setLastUpdated(new Date(result.selected.lastUpdated ?? Date.now()));
-    }
 
-    return result;
+      return result;
+    } catch (err) {
+      console.error('❌ [useLeaderboard] fetchData error:', err);
+      throw err;
+    }
   }, [execute, currentPeriod]);
 
   const changePeriod = useCallback((newPeriod: Period) => {
+    console.log(`🔄 [useLeaderboard] Changing period from ${currentPeriod} to ${newPeriod}`);
     setCurrentPeriod(newPeriod);
     
     // Use cached data if available
     if (allPeriodsData?.[newPeriod]?.traders.length) {
-      // Update with cached data immediately
+      console.log('📂 [useLeaderboard] Using cached data for', newPeriod);
       if (allPeriodsData[newPeriod].lastUpdated) {
         setLastUpdated(new Date(allPeriodsData[newPeriod].lastUpdated));
       }
     } else {
-      // Fetch new data for this period
+      console.log('🔄 [useLeaderboard] Fetching fresh data for', newPeriod);
       fetchData(false);
     }
   }, [allPeriodsData, fetchData]);
 
   const refresh = useCallback(() => {
+    console.log('🔄 [useLeaderboard] Manual refresh triggered');
     const shouldFetchAll = allPeriodsData && Object.keys(allPeriodsData).length > 1;
     return fetchData(!!shouldFetchAll);
   }, [fetchData, allPeriodsData]);
 
-  // Auto-refresh effect
+  // Initial fetch effect - FIXED: This should run immediately on mount
   useEffect(() => {
-    if (!autoRefresh) return;
+    if (isInitialized) return;
     
-    const interval = setInterval(() => {
-      fetchData();
+    console.log('🌟 [useLeaderboard] Initial data fetch starting');
+    setIsInitialized(true);
+    
+    fetchData(true).catch(err => {
+      console.error('❌ [useLeaderboard] Initial fetch failed:', err);
+    });
+  }, [fetchData]); 
+
+  // handling period changes(ONLY after initialization)
+  useEffect(() => {
+    if (!isInitialized) return; // Don't run until initialized
+    
+    console.log(`🔄 [useLeaderboard] Period changed to ${currentPeriod}, checking for data`);
+    
+    if (!allPeriodsData?.[currentPeriod]?.traders?.length) {
+      console.log(`📡 [useLeaderboard] No cached data for ${currentPeriod}, fetching...`);
+      fetchData(false);
+    }
+  }, [currentPeriod, allPeriodsData, fetchData, isInitialized]);
+
+
+  useEffect(() => {
+
+    if (refreshIntervalRef.current) {
+      clearInterval(refreshIntervalRef.current);
+      refreshIntervalRef.current = null;
+    }
+
+    if (!autoRefresh || !isInitialized) {
+      console.log('⏸️ [useLeaderboard] Auto-refresh disabled or not initialized');
+      return;
+    }
+    
+    console.log('▶️ [useLeaderboard] Starting auto-refresh (1 minute interval)');
+    refreshIntervalRef.current = setInterval(() => {
+      console.log('⏰ [useLeaderboard] Auto-refresh triggered');
+      fetchData(false);
     }, 60000); // 1 minute
 
-    return () => clearInterval(interval);
-  }, [autoRefresh, fetchData]);
+    return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+        refreshIntervalRef.current = null;
+      }
+    };
+  }, [autoRefresh, fetchData, isInitialized]);
 
-  // Initial fetch
+  // Debug effect
   useEffect(() => {
-    fetchData(true);
-  }, []);
+    console.log('🐛 [useLeaderboard] State update:', {
+      loading,
+      error: error!,
+      leaderboardDataLength: leaderboardData.length,
+      hasApiData: !!data,
+      currentPeriod,
+      lastUpdated: lastUpdated?.toISOString(),
+      isInitialized
+    });
+  }, [loading, error, leaderboardData.length, data, currentPeriod, lastUpdated, isInitialized]);
 
   return {
     leaderboardData,

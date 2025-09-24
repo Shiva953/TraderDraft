@@ -1,7 +1,7 @@
 'use client'
 
 import Image from "next/image";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/router";
 import { useLogin, useLogout } from '@privy-io/react-auth';
 
@@ -21,11 +21,11 @@ import { useLeaderboard } from "./hooks/useLeaderboard";
 
 export default function Home() {
   const [showPackReveal, setShowPackReveal] = useState(false);
+  const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
   
   const { login } = useLogin();
   const { logout } = useLogout();
   const { triggerManualUpdate, isTriggering } = useDevBackgroundJobs();
-
 
   const { 
     address: walletAddress, 
@@ -49,6 +49,25 @@ export default function Home() {
     changePeriod,
     refresh: refreshLeaderboard,
   } = useLeaderboard();
+
+  // Track when we've successfully loaded data for the first time
+  useEffect(() => {
+    if (!hasInitiallyLoaded && leaderboardData && leaderboardData.length > 0) {
+      console.log('✅ [Page] Initial leaderboard data loaded:', leaderboardData.length, 'entries');
+      setHasInitiallyLoaded(true);
+    }
+  }, [leaderboardData, hasInitiallyLoaded]);
+
+  // Debug logging for leaderboard state
+  useEffect(() => {
+    console.log('🐛 [Page] Leaderboard state:', {
+      loading: leaderboardLoading,
+      dataLength: leaderboardData?.length || 0,
+      error: leaderboardError,
+      hasInitiallyLoaded,
+      currentPeriod
+    });
+  }, [leaderboardLoading, leaderboardData, leaderboardError, hasInitiallyLoaded, currentPeriod]);
 
   // Static data - could be moved to a separate hook if it becomes dynamic
   const trendingData: TrendingItem[] = [
@@ -88,13 +107,23 @@ export default function Home() {
     }
   }, [currentPeriod]);
 
+  // Enhanced refresh handler with loading state management
+  const handleRefresh = useCallback(async () => {
+    console.log('🔄 [Page] Manual refresh triggered');
+    try {
+      await refreshLeaderboard();
+      console.log('✅ [Page] Manual refresh completed');
+    } catch (error) {
+      console.error('❌ [Page] Manual refresh failed:', error);
+    }
+  }, [refreshLeaderboard]);
 
   if (isWalletLoading) {
     return (
       <div className="min-h-screen bg-neutral-950 text-white flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto"></div>
-          <p>Loading...</p>
+          <p>Loading wallet...</p>
         </div>
       </div>
     );
@@ -188,6 +217,7 @@ export default function Home() {
                 value={currentPeriod}
                 onChange={(e) => changePeriod(e.target.value as 'daily' | 'weekly' | 'monthly')}
                 className="rounded bg-neutral-800 border border-neutral-600 text-white text-sm px-2 py-1"
+                disabled={leaderboardLoading}
               >
                 <option value="daily">Daily</option>
                 <option value="weekly">Weekly</option>
@@ -200,6 +230,7 @@ export default function Home() {
                 checked={autoRefresh}
                 onChange={(e) => setAutoRefresh(e.target.checked)}
                 className="rounded bg-neutral-800 border-neutral-600"
+                disabled={leaderboardLoading}
               />
               Auto-refresh (1min)
             </label>
@@ -211,11 +242,18 @@ export default function Home() {
               </span>
             )}
             <button
-              onClick={refreshLeaderboard}
+              onClick={handleRefresh}
               disabled={leaderboardLoading}
-              className="rounded bg-neutral-700 px-3 py-1 text-xs text-neutral-300 hover:bg-neutral-600 disabled:opacity-50 flex items-center gap-1"
+              className="rounded bg-neutral-700 px-3 py-1 text-xs text-neutral-300 hover:bg-neutral-600 disabled:opacity-50 flex items-center gap-1 transition-colors"
             >
-              {leaderboardLoading ? 'Refreshing...' : '↻ Refresh'}
+              {leaderboardLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-3 w-3 border-b border-neutral-300"></div>
+                  Refreshing...
+                </>
+              ) : (
+                '↻ Refresh'
+              )}
             </button>
           </div>
         </div>
@@ -223,13 +261,27 @@ export default function Home() {
         {leaderboardError && (
           <div className="mb-4 rounded-lg bg-red-900/20 border border-red-800 p-3 text-sm text-red-400">
             <strong>Error:</strong> {leaderboardError}
-            <button onClick={refreshLeaderboard} className="ml-2 text-red-300 underline">
+            <button onClick={handleRefresh} className="ml-2 text-red-300 underline hover:text-red-200">
               Retry
             </button>
           </div>
         )}
 
-        <Leaderboard title={getPeriodTitle()} entries={leaderboardData} loading={leaderboardLoading} />
+        {/* Debug info for development */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="mb-4 rounded-lg bg-blue-900/20 border border-blue-800 p-3 text-sm text-blue-400">
+            <strong>Debug:</strong> Loading: {leaderboardLoading.toString()}, 
+            Data Length: {leaderboardData?.length || 0}, 
+            Has Initially Loaded: {hasInitiallyLoaded.toString()},
+            Period: {currentPeriod}
+          </div>
+        )}
+
+        <Leaderboard 
+          title={getPeriodTitle()} 
+          entries={leaderboardData || []} 
+          loading={leaderboardLoading && !hasInitiallyLoaded} // Only show loading for initial load
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

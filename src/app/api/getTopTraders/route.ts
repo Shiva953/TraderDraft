@@ -4,8 +4,19 @@ import { meteoraClient } from '@/lib/meteoraPriceUtils';
 
 const prisma = new PrismaClient();
 
+// Cache for price data to avoid repeated API calls
+const priceDataCache = new Map<string, {
+  data: any;
+  timestamp: number;
+  ttl: number;
+}>();
+
+const PRICE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const MAX_CONCURRENT_PRICE_REQUESTS = 5;
+
 export async function POST(request: NextRequest) {
-  console.log("🔵 [API] POST /getTopTraders called (optimized)");
+  const startTime = Date.now();
+  console.log("🔵 [API] POST /getTopTraders called (optimized v2)");
 
   try {
     const contentType = request.headers.get('content-type') || '';
@@ -18,24 +29,26 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { period = 'daily', limit = 20, fetchAll = false } = body;
+    const { 
+      period = 'daily', 
+      limit = 20, 
+      fetchAll = false,
+      includePriceData = true // Allow disabling price data fetching
+    } = body;
 
-    console.log(`🔵 [API] Fetching ${period} data with limit ${limit} from database`);
+    console.log(`🔵 [API] Params: period=${period}, limit=${limit}, fetchAll=${fetchAll}, includePriceData=${includePriceData}`);
 
     let response;
 
-    // THIS NEEDS TO BE SORTED BY PNL ON THE BACKEND SIDE, NOT THE FRONTEND
     if (fetchAll) {
       // Fetch all periods (for initial load or when explicitly requested)
       const [dailyData, weeklyData, monthlyData] = await Promise.all([
-        fetchTradersData('DAILY', limit),
-        fetchTradersData('WEEKLY', limit),
-        fetchTradersData('MONTHLY', limit)
+        fetchTradersData('DAILY', limit, includePriceData),
+        fetchTradersData('WEEKLY', limit, includePriceData),
+        fetchTradersData('MONTHLY', limit, includePriceData)
       ]);
 
-      console.log("🔵 [API] Daily Traders:", dailyData.traders.length);
-      console.log("🔵 [API] Weekly Traders:", weeklyData.traders.length);
-      console.log("🔵 [API] Monthly Traders:", monthlyData.traders.length);
+      console.log(`🔵 [API] Fetched data - Daily: ${dailyData.traders.length}, Weekly: ${weeklyData.traders.length}, Monthly: ${monthlyData.traders.length}`);
 
       let selectedData;
       let periodLabel;
@@ -61,7 +74,6 @@ export async function POST(request: NextRequest) {
         message: 'All traders data retrieved successfully from database',
         period: periodLabel.toLowerCase(),
         timestamp: new Date().toISOString(),
-        topTradersForDay: period === 'daily' ? selectedData.traders : [],
         data: {
           daily: {
             traders: dailyData.traders,
@@ -92,7 +104,7 @@ export async function POST(request: NextRequest) {
     } else {
       // Fetch only the requested period
       const periodEnum = period.toUpperCase() as 'DAILY' | 'WEEKLY' | 'MONTHLY';
-      const selectedData = await fetchTradersData(periodEnum, limit);
+      const selectedData = await fetchTradersData(periodEnum, limit, includePriceData);
 
       if (!selectedData.traders || selectedData.traders.length === 0) {
         const hasAnyData = await prisma.trader.count({
@@ -129,6 +141,9 @@ export async function POST(request: NextRequest) {
       };
     }
 
+    const endTime = Date.now();
+    console.log(`✅ [API] Request completed in ${endTime - startTime}ms`);
+
     return NextResponse.json(response, { status: 200 });
 
   } catch (error) {
@@ -143,7 +158,6 @@ export async function POST(request: NextRequest) {
     );
   } finally {
     await prisma.$disconnect();
-    console.log("🔵 [API] Request completed");
   }
 }
 
@@ -152,20 +166,21 @@ export async function GET(request: NextRequest) {
   const period = searchParams.get('period') || 'daily';
   const limit = parseInt(searchParams.get('limit') || '20');
   const fetchAll = searchParams.get('fetchAll') === 'true';
+  const includePriceData = searchParams.get('includePriceData') !== 'false';
 
   const mockRequest = new NextRequest(request.url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ period, limit, fetchAll })
+    body: JSON.stringify({ period, limit, fetchAll, includePriceData })
   });
 
   return POST(mockRequest);
 }
 
-// Enhanced function with price data fetching
-async function fetchTradersData(period: 'DAILY' | 'WEEKLY' | 'MONTHLY', limit: number) {
+// Optimized function with better caching and concurrency control
+async function fetchTradersData(period: 'DAILY' | 'WEEKLY' | 'MONTHLY', limit: number, includePriceData: boolean = true) {
   try {
-    console.log(`🔍 [DB] Fetching ${period} traders with limit ${limit}`);
+    console.log(`🔍 [DB] Fetching ${period} traders with limit ${limit}, includePriceData: ${includePriceData}`);
     const startTime = Date.now();
 
     // Use a single transaction to fetch both metadata and traders
@@ -183,7 +198,7 @@ async function fetchTradersData(period: 'DAILY' | 'WEEKLY' | 'MONTHLY', limit: n
       }),
       prisma.trader.findMany({
         where: { period: period },
-        orderBy: { rank: 'asc' }, // this is where we sort by PNL(rank actually, and rank is already assigned by PnL(high -> low))
+        orderBy: { rank: 'asc' }, // Sort by rank (which is based on PnL)
         take: limit,
         select: {
           rank: true,
@@ -199,11 +214,28 @@ async function fetchTradersData(period: 'DAILY' | 'WEEKLY' | 'MONTHLY', limit: n
       })
     ]);
 
-    const endTime = Date.now();
-    console.log(`✅ [DB] ${period} query completed in ${endTime - startTime}ms`);
+    const dbEndTime = Date.now();
+    console.log(`✅ [DB] ${period} query completed in ${dbEndTime - startTime}ms, found ${traders.length} traders`);
 
-    // Fetch price data for traders with pool addresses
-    const tradersWithPriceData = await enrichTradersWithPriceData(traders);
+    if (!includePriceData) {
+      console.log(`⚠️ [PRICE] Skipping price data fetching for ${period}`);
+      return {
+        traders: traders.map(trader => ({
+          ...trader,
+          tokenPrice: undefined,
+          priceChange24h: undefined,
+          priceChange24hPercent: undefined
+        })),
+        totalTraders: metadata?.totalTraders || 0,
+        lastUpdated: metadata?.scrapedAt?.toISOString()
+      };
+    }
+
+    // Fetch price data with optimizations
+    const tradersWithPriceData = await enrichTradersWithPriceDataOptimized(traders, period);
+
+    const totalEndTime = Date.now();
+    console.log(`✅ [TOTAL] ${period} processing completed in ${totalEndTime - startTime}ms`);
 
     return {
       traders: tradersWithPriceData,
@@ -220,11 +252,9 @@ async function fetchTradersData(period: 'DAILY' | 'WEEKLY' | 'MONTHLY', limit: n
   }
 }
 
-// New function to enrich traders with price data
-async function enrichTradersWithPriceData(traders: any[]) {
-  console.log(`💰 [PRICE] Enriching ${traders.length} traders with price data`);
+async function enrichTradersWithPriceDataOptimized(traders: any[], period: string) {
+  console.log(`💰 [PRICE] Enriching ${traders.length} traders with price data (optimized)`);
   
-  // Filter traders that have pool addresses
   const tradersWithPools = traders.filter(trader => trader.poolAddress);
   
   if (tradersWithPools.length === 0) {
@@ -238,13 +268,62 @@ async function enrichTradersWithPriceData(traders: any[]) {
   }
 
   try {
-    // Get pool addresses for price fetching
-    const poolAddresses = tradersWithPools.map(trader => trader.poolAddress);
-    console.log(`🔍 [PRICE] Fetching price data for ${poolAddresses.length} pools`);
+    const now = Date.now();
+    const poolAddresses = [...new Set(tradersWithPools.map(trader => trader.poolAddress))]; // Remove duplicates
     
-    // Batch fetch price data
-    const priceDataMap = await meteoraClient.batchGetTokenPriceData(poolAddresses);
-    console.log(`✅ [PRICE] Retrieved price data for ${priceDataMap.size} pools`);
+    console.log(`🔍 [PRICE] Fetching price data for ${poolAddresses.length} unique pools`);
+    
+    // Check cache first and separate cached vs uncached pools
+    const cachedPools = new Map();
+    const uncachedPools = [];
+    
+    for (const poolAddress of poolAddresses) {
+      const cacheKey = `${period}-${poolAddress}`;
+      const cached = priceDataCache.get(cacheKey);
+      
+      if (cached && (now - cached.timestamp) < cached.ttl) {
+        cachedPools.set(poolAddress, cached.data);
+        console.log(`📂 [CACHE] Using cached data for pool ${poolAddress}`);
+      } else {
+        uncachedPools.push(poolAddress);
+      }
+    }
+    
+    let priceDataMap = new Map(cachedPools);
+    
+    // Fetch uncached data with concurrency control
+    if (uncachedPools.length > 0) {
+      console.log(`🌐 [PRICE] Fetching fresh data for ${uncachedPools.length} uncached pools`);
+      
+      // Process in batches to avoid overwhelming the API
+      const batches = [];
+      for (let i = 0; i < uncachedPools.length; i += MAX_CONCURRENT_PRICE_REQUESTS) {
+        batches.push(uncachedPools.slice(i, i + MAX_CONCURRENT_PRICE_REQUESTS));
+      }
+      
+      for (const batch of batches) {
+        try {
+          const batchPriceData = await meteoraClient.batchGetTokenPriceData(batch);
+          
+          // Merge batch results and update cache
+          for (const [poolAddress, priceData] of batchPriceData.entries()) {
+            priceDataMap.set(poolAddress, priceData);
+            
+            // Update cache
+            const cacheKey = `${period}-${poolAddress}`;
+            priceDataCache.set(cacheKey, {
+              data: priceData,
+              timestamp: now,
+              ttl: PRICE_CACHE_TTL
+            });
+          }
+        } catch (batchError) {
+          console.error(`❌ [PRICE] Error fetching batch:`, batchError);
+        }
+      }
+    }
+    
+    console.log(`✅ [PRICE] Retrieved price data for ${priceDataMap.size} pools total`);
 
     // Enrich traders with price data
     return traders.map(trader => {
@@ -260,7 +339,6 @@ async function enrichTradersWithPriceData(traders: any[]) {
       const priceData = priceDataMap.get(trader.poolAddress);
       
       if (!priceData) {
-        console.log(`⚠️ [PRICE] No price data found for pool ${trader.poolAddress}`);
         return {
           ...trader,
           tokenPrice: undefined,
@@ -287,3 +365,13 @@ async function enrichTradersWithPriceData(traders: any[]) {
     }));
   }
 }
+
+// Cleanup function to remove expired cache entries
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, cached] of priceDataCache.entries()) {
+    if ((now - cached.timestamp) > cached.ttl) {
+      priceDataCache.delete(key);
+    }
+  }
+}, 10 * 60 * 1000); // Clean up every 10 minutes
