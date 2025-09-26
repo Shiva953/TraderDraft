@@ -7,6 +7,25 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id                       Int      @id @default(autoincrement())
+  userPrivyWalletAddress   String   @unique
+  packHoldings             Int?
+  totalValueOfPackHoldings Decimal? @db.Decimal
+  claimedPacks             Int?
+  unclaimedPacks           Int?
+  totalTournamentPoints    Decimal  @default(0) @db.Decimal
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  // Relations
+  orders                   Order[]  @relation("UserOrders")
+  competitionEntries       CompetitionEntry[]
+  kolHoldings             KolHolding[]
+
+  @@map("users")
+}
+
 model Trader {
   id               String   @id @default(cuid())
   rank             Int
@@ -20,25 +39,105 @@ model Trader {
   poolAddress      String?
   ticker           String?
   period           Period
-  rarity           Rarity   @default(COMMON) // Add this new field
-  rarityWeight     Float    @default(1.0)    // Add this for selection probability
+  rarity           Rarity   @default(COMMON)
+  rarityWeight     Float    @default(1.0)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+
+  // Relations
+  kolHoldings      KolHolding[]
 
   @@unique([address, period])
   @@index([period, rank])
   @@index([tokenMintAddress])
   @@index([poolAddress])
   @@index([ticker])
-  @@index([rarity])     // Add index for rarity
+  @@index([rarity])
   @@map("traders")
 }
 
-enum Rarity {
-  LEGENDARY  // Top 3 (6%)
-  EPIC      // Ranks 4-10 (14%) 
-  RARE      // Ranks 11-25 (30%)
-  COMMON    // Ranks 26-50 (50%)
+model Competition {
+  id          String            @id @default(cuid())
+  startDate   DateTime
+  endDate     DateTime
+  status      CompetitionStatus @default(ACTIVE)
+  tpPool      Decimal           @default(10000) @db.Decimal
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  // Relations
+  entries     CompetitionEntry[]
+  kolHoldings KolHolding[]
+
+  @@index([startDate, endDate])
+  @@index([status])
+  @@map("competitions")
+}
+
+// User participation in competitions
+model CompetitionEntry {
+  id                  String      @id @default(cuid())
+  competitionId       String
+  userId              Int
+  joinedAt            DateTime    @default(now())
+  
+  // Final results (calculated after competition ends)
+  windowScore         Decimal?    @db.Decimal
+  tournamentPoints    Decimal?    @db.Decimal
+  leaderboardPoints   Decimal?    @db.Decimal
+  finalizedAt         DateTime?
+
+  // Relations
+  competition         Competition @relation(fields: [competitionId], references: [id])
+  user                User        @relation(fields: [userId], references: [id])
+
+  @@unique([competitionId, userId])
+  @@index([competitionId])
+  @@index([userId])
+  @@map("competition_entries")
+}
+
+// KOL token holdings + daily scores combined for a given competition
+model KolHolding {
+  id              String      @id @default(cuid())
+  userId          Int
+  traderId        String
+  competitionId   String
+  tokenAmount     Decimal     @db.Decimal
+  purchasePrice   Decimal?    @db.Decimal
+  transactionHash String?
+  purchasedAt     DateTime    @default(now())
+  
+  // Daily score tracking (updated daily at 14:00 UTC)
+  dailyScore      Decimal     @default(0) @db.Decimal
+  lastScoreUpdate DateTime?
+
+  // Relations
+  user            User        @relation(fields: [userId], references: [id])
+  trader          Trader      @relation(fields: [traderId], references: [id])
+  competition     Competition @relation(fields: [competitionId], references: [id])
+
+  @@index([userId, competitionId])
+  @@index([competitionId])
+  @@index([traderId])
+  @@index([competitionId, lastScoreUpdate])
+  @@map("kol_holdings")
+}
+
+model Order {
+  id                     String   @id @default(cuid())
+  userPrivyWalletAddress String
+  userId                 Int
+  packsBought            Int
+  totalValue             Decimal  @db.Decimal
+  transactionHash        String?
+  createdAt              DateTime @default(now())
+  
+  user                   User     @relation("UserOrders", fields: [userId], references: [id])
+
+  @@index([userPrivyWalletAddress])
+  @@index([createdAt])
+  @@map("orders")
 }
 
 model ScrapingMetadata {
@@ -52,29 +151,18 @@ model ScrapingMetadata {
   @@map("scraping_metadata")
 }
 
-model user {
-  id                       Int      @id @default(autoincrement())
-  userPrivyWalletAddress   String?
-  packHoldings             Int?
-  totalValueOfPackHoldings Decimal? @db.Decimal
-  claimedPacks             Int?
-  unclaimedPacks           Int?
-  orders                   Order[]  @relation("UserOrders")
+
+enum CompetitionStatus {
+  ACTIVE
+  ENDED
+  FINALIZED
 }
 
-model Order {
-  id                     String   @id @default(cuid())
-  userPrivyWalletAddress String
-  userId                 Int
-  packsBought            Int
-  totalValue             Decimal  @db.Decimal
-  transactionHash        String?
-  createdAt              DateTime @default(now())
-  user                   user     @relation("UserOrders", fields: [userId], references: [id])
-
-  @@index([userPrivyWalletAddress])
-  @@index([createdAt])
-  @@map("orders")
+enum Rarity {
+  LEGENDARY
+  EPIC
+  RARE
+  COMMON
 }
 
 enum Period {

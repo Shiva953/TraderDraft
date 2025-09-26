@@ -40,6 +40,7 @@ export async function POST(request: Request) {
       console.log('✅ [updateUserPacks] Updated existing user:', updatedUser);
     } else {
       // Create new user
+      // this has to be moved inside privy wallet creation api endpoint, ONLY UPDATING THE PACKS FIELD SHOULD HAPPEN HERE
       const newUser = await prisma.user.create({
         data: {
           userPrivyWalletAddress,

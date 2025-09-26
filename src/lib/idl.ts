@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/pnlpackprogram.json`.
  */
 export type Pnlpackprogram = {
-  "address": "51qa3toZbwVC1zTyntYZSsyqb2uZVuxpgJeYXZPoWJcY",
+  "address": "CzhWAZRNcshcFiEgwoQAgKpXdQV1cxUNVEVsoGHzMxui",
   "metadata": {
     "name": "pnlpackprogram",
     "version": "0.1.0",
@@ -1952,7 +1952,7 @@ export type Pnlpackprogram = {
 };
   
   export const IDL = {
-    "address": "51qa3toZbwVC1zTyntYZSsyqb2uZVuxpgJeYXZPoWJcY",
+    "address": "CzhWAZRNcshcFiEgwoQAgKpXdQV1cxUNVEVsoGHzMxui",
     "metadata": {
       "name": "pnlpackprogram",
       "version": "0.1.0",
@@ -2578,6 +2578,157 @@ export type Pnlpackprogram = {
           {
             "name": "total_kols",
             "type": "u8"
+          }
+        ]
+      },
+      {
+        "name": "init_kol_vault_and_transfer_v2",
+        "discriminator": [
+          116,
+          242,
+          58,
+          20,
+          125,
+          127,
+          97,
+          98
+        ],
+        "accounts": [
+          {
+            "name": "global_pack_pool",
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "const",
+                  "value": [
+                    103,
+                    108,
+                    111,
+                    98,
+                    97,
+                    108,
+                    95,
+                    112,
+                    97,
+                    99,
+                    107,
+                    95,
+                    112,
+                    111,
+                    111,
+                    108
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "admin",
+            "writable": true,
+            "signer": true,
+            "address": "7E85TTXg5FjT5G6q14nZUSE3KAgjM2kjBs8ddAW6eBeR"
+          },
+          {
+            "name": "mint",
+            "docs": [
+              "The token mint - CRITICAL: Authority must be global_pack_pool"
+            ],
+            "writable": true
+          },
+          {
+            "name": "token_vault",
+            "docs": [
+              "Token vault owned by global pack pool (94% destination)"
+            ],
+            "writable": true,
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "const",
+                  "value": [
+                    116,
+                    111,
+                    107,
+                    101,
+                    110,
+                    95,
+                    118,
+                    97,
+                    117,
+                    108,
+                    116
+                  ]
+                },
+                {
+                  "kind": "arg",
+                  "path": "kol_ticker"
+                },
+                {
+                  "kind": "account",
+                  "path": "global_pack_pool"
+                }
+              ]
+            }
+          },
+          {
+            "name": "pool_token_account",
+            "docs": [
+              "Pool token account (6% destination) - provided by client",
+              "Assumes pool is already created by client[meteora createPool DAMM v2 ixn] and will be used for Meteora pool creation"
+            ],
+            "writable": true
+          },
+          {
+            "name": "config_account",
+            "pda": {
+              "seeds": [
+                {
+                  "kind": "const",
+                  "value": [
+                    67,
+                    79,
+                    78,
+                    70,
+                    73,
+                    71,
+                    95,
+                    65,
+                    67,
+                    67,
+                    79,
+                    85,
+                    78,
+                    84
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "name": "system_program",
+            "address": "11111111111111111111111111111111"
+          },
+          {
+            "name": "token_program"
+          },
+          {
+            "name": "associated_token_program",
+            "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+          },
+          {
+            "name": "rent",
+            "address": "SysvarRent111111111111111111111111111111111"
+          }
+        ],
+        "args": [
+          {
+            "name": "kol_ticker",
+            "type": "string"
+          },
+          {
+            "name": "total_supply",
+            "type": "u64"
           }
         ]
       },
@@ -3479,6 +3630,21 @@ export type Pnlpackprogram = {
         ]
       }
     ],
+    "events": [
+      {
+        "name": "KolTokenCreated",
+        "discriminator": [
+          238,
+          15,
+          96,
+          230,
+          247,
+          254,
+          219,
+          64
+        ]
+      }
+    ],
     "errors": [
       {
         "code": 6000,
@@ -3579,6 +3745,21 @@ export type Pnlpackprogram = {
         "code": 6019,
         "name": "InsufficientFundsForATA",
         "msg": "Global pack pool has insufficient funds for ATA creation"
+      },
+      {
+        "code": 6020,
+        "name": "InvalidPoolTokenAccount",
+        "msg": "Invalid pool token account"
+      },
+      {
+        "code": 6021,
+        "name": "SupplyTooLarge",
+        "msg": "Supply amount too large"
+      },
+      {
+        "code": 6022,
+        "name": "InvalidDistributionCalculation",
+        "msg": "Invalid distribution calculation"
       }
     ],
     "types": [
@@ -3638,6 +3819,46 @@ export type Pnlpackprogram = {
             {
               "name": "kol_token_mint_address",
               "type": "pubkey"
+            }
+          ]
+        }
+      },
+      {
+        "name": "KolTokenCreated",
+        "type": {
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "kol_ticker",
+              "type": "string"
+            },
+            {
+              "name": "mint",
+              "type": "pubkey"
+            },
+            {
+              "name": "vault",
+              "type": "pubkey"
+            },
+            {
+              "name": "pool_account",
+              "type": "pubkey"
+            },
+            {
+              "name": "total_supply",
+              "type": "u64"
+            },
+            {
+              "name": "vault_amount",
+              "type": "u64"
+            },
+            {
+              "name": "pool_amount",
+              "type": "u64"
+            },
+            {
+              "name": "timestamp",
+              "type": "i64"
             }
           ]
         }

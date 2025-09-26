@@ -15,7 +15,7 @@ import { Pnlpackprogram, IDL } from '../../../../lib/idl';
 import NodeWallet from '@coral-xyz/anchor/dist/cjs/nodewallet';
 
 const DEVNET_RPC = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
-const PROGRAM_ID = new PublicKey('51qa3toZbwVC1zTyntYZSsyqb2uZVuxpgJeYXZPoWJcY');
+const PROGRAM_ID = new PublicKey('CzhWAZRNcshcFiEgwoQAgKpXdQV1cxUNVEVsoGHzMxui');
 const ADMIN_KEY = new PublicKey('7E85TTXg5FjT5G6q14nZUSE3KAgjM2kjBs8ddAW6eBeR');
 const TOKENS_PER_KOL = new BN(40000 * Math.pow(10, 6)); // 40K tokens with 6 decimals
 
@@ -607,7 +607,7 @@ async function fetchTopTradersWithTokens(): Promise<KolData[]> {
     return traders.map((trader) => ({
       id: trader.id,
       name: trader.name || 'Unknown',
-      address: trader.address,
+      address: cleanSolanaAddress(trader.address),
       pnl: trader.pnl || '$0',
       winRate: trader.winRate || 0,
       avatarUrl: trader.avatarUrl,
@@ -680,4 +680,19 @@ function formatTokenAmountToK(tokenAmount: BN): string {
     return `${Math.floor(tokens / 1000)}K`;
   }
   return tokens.toLocaleString('en-US', { maximumFractionDigits: 0 });
+}
+
+function cleanSolanaAddress(address: string | null): string | null {
+  if (!address) return null;
+  
+  // Remove URL parameters (everything after ?)
+  const cleanedAddress = address.split('?')[0];
+  
+  // Validate it's a proper Solana address
+  if (cleanedAddress.length === 44 && /^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+$/.test(cleanedAddress)) {
+    return cleanedAddress;
+  }
+  
+  console.warn(`⚠️ Invalid address after cleaning: "${address}" -> "${cleanedAddress}"`);
+  return null;
 }

@@ -21,7 +21,7 @@ const connection = new Connection("https://api.devnet.solana.com", { commitment:
 const prisma = new PrismaClient();
 
 const MAX_TRANSFERS_PER_TX = 5; // Conservative limit for vault-to-user transfers
-const PROGRAM_ID = new PublicKey('51qa3toZbwVC1zTyntYZSsyqb2uZVuxpgJeYXZPoWJcY');
+const PROGRAM_ID = new PublicKey('CzhWAZRNcshcFiEgwoQAgKpXdQV1cxUNVEVsoGHzMxui');
 
 interface ClaimAllTokensRequest {
   userPrivyWalletAddress: string;

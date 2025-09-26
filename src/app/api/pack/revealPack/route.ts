@@ -27,7 +27,7 @@ import bs58 from 'bs58';
 import NodeWallet from '@coral-xyz/anchor/dist/cjs/nodewallet';
 
 const DEVNET_RPC = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
-const PROGRAM_ID = new PublicKey('51qa3toZbwVC1zTyntYZSsyqb2uZVuxpgJeYXZPoWJcY');
+const PROGRAM_ID = new PublicKey('CzhWAZRNcshcFiEgwoQAgKpXdQV1cxUNVEVsoGHzMxui');
 const ADMIN_KEY = new PublicKey('7E85TTXg5FjT5G6q14nZUSE3KAgjM2kjBs8ddAW6eBeR');
 const TOKENS_PER_KOL = new BN(40000 * Math.pow(10, 6)); // 40K tokens with 6 decimals
 
