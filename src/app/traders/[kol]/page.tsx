@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowDown, Users, ExternalLink } from "lucide-react";
+import { useSolanaWallets } from "@privy-io/react-auth";
 
 interface TraderPageProps {
   params: { kol: string };
@@ -31,11 +32,29 @@ interface KOLData {
   monthly: TraderData | null;
 }
 
+interface TokenHolding {
+  ticker: string;
+  name: string;
+  balance: string;
+  mintAddress: string;
+  poolAddress?: string;
+  tokenPrice?: string;
+  priceChange24h?: string;
+  priceChange24hPercent?: number;
+}
+
 export default function TraderPage({ params }: TraderPageProps) {
   const [kolData, setKOLData] = useState<KOLData | null>(null);
+  const [userHoldings, setUserHoldings] = useState<TokenHolding[]>([]);
+  const [userShares, setUserShares] = useState<string>("0");
   const [loading, setLoading] = useState(true);
+  const [holdingsLoading, setHoldingsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isJupiterReady, setIsJupiterReady] = useState(false);
+  const {wallets} = useSolanaWallets()
+
+  const embeddedWallet = wallets.find((w) => w.walletClientType === "privy");
+  const userPrivyWalletAddress = embeddedWallet ? embeddedWallet.address : '9JxBhWbrwkqX2heLq1mA3YXWKsbkCH8rE5gaVxzH7Foo' 
 
   // Fetch KOL data
   useEffect(() => {
@@ -68,6 +87,66 @@ export default function TraderPage({ params }: TraderPageProps) {
 
     fetchKOLData();
   }, [params]);
+
+  // Fetch user's KOL token holdings
+  useEffect(() => {
+    const fetchUserHoldings = async () => {
+      if (!userPrivyWalletAddress || userPrivyWalletAddress === "YOUR_USER_WALLET_ADDRESS") {
+        console.warn("User wallet address not set");
+        return;
+      }
+
+      try {
+        setHoldingsLoading(true);
+        const response = await fetch('/api/getUserKOLTokenHoldings', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ userPrivyWalletAddress }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to fetch user holdings');
+        }
+
+        const data = await response.json();
+        setUserHoldings(data.data.holdings);
+      } catch (err) {
+        console.error('Error fetching user holdings:', err);
+      } finally {
+        setHoldingsLoading(false);
+      }
+    };
+
+    fetchUserHoldings();
+  }, [userPrivyWalletAddress]);
+
+  // Calculate user shares for current KOL
+  useEffect(() => {
+    const currentData = getCurrentData();
+    if (!currentData?.tokenMintAddress || !userHoldings.length) {
+      setUserShares("0");
+      return;
+    }
+
+    // Find the holding that matches this KOL's token
+    const kolHolding = userHoldings.find(
+      holding => holding.mintAddress === currentData.tokenMintAddress
+    );
+
+    if (kolHolding) {
+      // Convert from smallest unit (assuming 6 decimals for most tokens)
+      // You may need to adjust this based on the actual token decimals
+      const decimals = 6; // Most SPL tokens use 6 decimals
+      const balance = parseInt(kolHolding.balance);
+      const formattedBalance = (balance / Math.pow(10, decimals)).toLocaleString();
+      setUserShares(formattedBalance);
+    } else {
+      setUserShares("0");
+    }
+  }, [userHoldings, kolData]);
 
   // Get the most recent data (prefer daily, then weekly, then monthly)
   const getCurrentData = () => {
@@ -105,6 +184,10 @@ export default function TraderPage({ params }: TraderPageProps) {
               enableWalletPassthrough: true,
               onSuccess: ({ txid }: { txid: any }) => {
                 console.log("Swap successful:", txid);
+                // Refresh user holdings after successful swap
+                if (userPrivyWalletAddress !== "YOUR_USER_WALLET_ADDRESS") {
+                  fetchUserHoldings();
+                }
               },
               onSwapError: ({ error }: { error: any }) => {
                 console.error("Swap error:", error);
@@ -135,6 +218,36 @@ export default function TraderPage({ params }: TraderPageProps) {
 
     loadJupiterTerminal();
   }, [currentData?.tokenMintAddress]);
+
+  // Helper function to refresh holdings (reusable)
+  const fetchUserHoldings = async () => {
+    if (!userPrivyWalletAddress || userPrivyWalletAddress === "YOUR_USER_WALLET_ADDRESS") {
+      return;
+    }
+
+    try {
+      setHoldingsLoading(true);
+      const response = await fetch('/api/getUserKOLTokenHoldings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userPrivyWalletAddress }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch user holdings');
+      }
+
+      const data = await response.json();
+      setUserHoldings(data.data.holdings);
+    } catch (err) {
+      console.error('Error fetching user holdings:', err);
+    } finally {
+      setHoldingsLoading(false);
+    }
+  };
 
   const handleBuyClick = () => {
     console.log("Buy button clicked");
@@ -262,12 +375,24 @@ export default function TraderPage({ params }: TraderPageProps) {
               </div>
             </div>
 
+            {/* Holdings status indicator */}
+            {holdingsLoading && (
+              <div className="mt-2">
+                <div className="flex items-center space-x-2 text-sm">
+                  <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></div>
+                  <span className="text-gray-400">Loading holdings...</span>
+                </div>
+              </div>
+            )}
+
             {/* Debug info - remove in production */}
             {process.env.NODE_ENV === 'development' && (
               <div className="mt-4 text-xs text-gray-500 space-y-1">
                 <p>Jupiter Ready: {isJupiterReady ? 'Yes' : 'No'}</p>
                 <p>Token: {currentData.tokenMintAddress}</p>
                 <p>Jupiter Object: {typeof window !== 'undefined' && window.Jupiter ? 'Available' : 'Not Available'}</p>
+                <p>User Holdings: {userHoldings.length} tokens</p>
+                <p>Current KOL Holding: {userShares}</p>
               </div>
             )}
           </div>
@@ -331,8 +456,20 @@ export default function TraderPage({ params }: TraderPageProps) {
             </div>
             <div className="flex items-center space-x-2">
               <Users className="text-white/60" size={20} />
-              <span className="text-white text-2xl font-bold">40,000</span>
+              <span className="text-white text-2xl font-bold">
+                {holdingsLoading ? (
+                  <div className="animate-pulse bg-gray-600 rounded w-20 h-8"></div>
+                ) : (
+                  userShares
+                )}
+              </span>
+              {userShares !== "0" && !holdingsLoading && (
+                <span className="text-green-400 text-sm">tokens</span>
+              )}
             </div>
+            {userShares === "0" && !holdingsLoading && (
+              <p className="text-white/50 text-xs mt-1">No holdings found</p>
+            )}
           </div>
         </div>
       </div>
