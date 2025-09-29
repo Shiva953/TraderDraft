@@ -1,12 +1,3 @@
-// (record all user activity during competiton period, with first buy user becomes part of competition)
-
-// ANY USER KOL TOKEN BUY DURING GIVEN PERIOD GETS ADDED TO THE TABLE
-// USER ALSO GETS ADDED TO THE COMPETITION(IF NOT ALREADY, CHECK THE USERS[] IN COMPETITION TABLE)
-// IF ITS EMPTY/CURRENT USER ISN'T IN THE TABLE, ADD HIM TO THE COMPETITION
-// THIS HAPPENS DURING ANY KOL TOKEN BUY BY ANY USER DURING THE WINDOW PERIOD
-
-// INVOKED IMMEDIATELY AFTER USER BUYS A TOKEN FROM THE POOL DURING THE COMPETITION WINDOW
-
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
@@ -19,7 +10,6 @@ export async function POST(
   try {
     const competitionId = params.id;
     const body = await request.json();
-    
 
     const { 
       userPrivyWalletAddress, 
@@ -29,21 +19,25 @@ export async function POST(
       transactionHash 
     } = body;
 
+    console.debug("[DEBUG] Incoming POST /buyKOLToken body:", body);
+
     if (!userPrivyWalletAddress || !traderId || !tokenAmount) {
+      console.warn("[WARN] Missing required fields:", { userPrivyWalletAddress, traderId, tokenAmount });
       return NextResponse.json(
         { error: 'Missing required fields: userPrivyWalletAddress, traderId, tokenAmount' },
         { status: 400 }
       );
     }
 
-    if (parseFloat(tokenAmount) <= 0) {
+    const parsedTokenAmount = parseFloat(tokenAmount);
+    if (isNaN(parsedTokenAmount) || parsedTokenAmount <= 0) {
+      console.warn("[WARN] Invalid tokenAmount:", tokenAmount);
       return NextResponse.json(
         { error: 'Token amount must be greater than 0' },
         { status: 400 }
       );
     }
 
-    // Check if competition exists and is active
     const competition = await prisma.competition.findUnique({
       where: { id: competitionId },
       select: {
@@ -54,6 +48,8 @@ export async function POST(
       }
     });
 
+    console.debug("[DEBUG] Competition lookup:", { competitionId, found: !!competition, competition });
+
     if (!competition) {
       return NextResponse.json(
         { error: 'Competition not found' },
@@ -62,15 +58,16 @@ export async function POST(
     }
 
     if (competition.status !== 'ACTIVE') {
+      console.warn("[WARN] Competition not active:", { competitionId, status: competition.status });
       return NextResponse.json(
         { error: 'Competition is not active' },
         { status: 400 }
       );
     }
 
-    // current time ∈ window
     const now = new Date();
     if (now < competition.startDate || now > competition.endDate) {
+      console.warn("[WARN] Competition not running at this time:", { now, startDate: competition.startDate, endDate: competition.endDate });
       return NextResponse.json(
         { error: 'Competition is not currently running' },
         { status: 400 }
@@ -82,6 +79,8 @@ export async function POST(
       select: { id: true, name: true, ticker: true }
     });
 
+    console.debug("[DEBUG] Trader lookup:", { traderId, found: !!trader, trader });
+
     if (!trader) {
       return NextResponse.json(
         { error: 'Trader not found' },
@@ -89,21 +88,21 @@ export async function POST(
       );
     }
 
-    // get/create user
     let user = await prisma.user.findUnique({
       where: { userPrivyWalletAddress },
       select: { id: true }
     });
 
-    // this is if user is buying a KOL token for the first time in the competition window
+    console.debug("[DEBUG] User lookup:", { userPrivyWalletAddress, found: !!user, user });
+
     if (!user) {
       user = await prisma.user.create({
         data: { userPrivyWalletAddress },
         select: { id: true }
       });
+      console.info("[INFO] Created new user:", { userPrivyWalletAddress, userId: user.id });
     }
 
-    // check if user is already in the competition, if not add them
     let competitionEntry = await prisma.competitionEntry.findUnique({
       where: {
         competitionId_userId: {
@@ -113,6 +112,8 @@ export async function POST(
       }
     });
 
+    console.debug("[DEBUG] CompetitionEntry lookup:", { competitionId, userId: user.id, found: !!competitionEntry });
+
     if (!competitionEntry) {
       competitionEntry = await prisma.competitionEntry.create({
         data: {
@@ -121,19 +122,39 @@ export async function POST(
           joinedAt: now
         }
       });
+      console.info("[INFO] Created new competitionEntry:", { competitionId, userId: user.id, joinedAt: now });
     }
 
-    // Create KOL holding record
+    let parsedPurchasePrice: number | undefined = undefined;
+    if (purchasePrice !== undefined && purchasePrice !== null && purchasePrice !== "") {
+      const num = parseFloat(purchasePrice);
+      if (isNaN(num)) {
+        console.warn("[WARN] Invalid purchasePrice:", purchasePrice);
+      } else {
+        parsedPurchasePrice = num;
+      }
+    }
+
+    console.debug("[DEBUG] Creating kolHolding with:", {
+      userId: user.id,
+      traderId,
+      competitionId,
+      tokenAmount: parsedTokenAmount,
+      purchasePrice: parsedPurchasePrice,
+      transactionHash,
+      purchasedAt: now
+    });
+
     const kolHolding = await prisma.kolHolding.create({
       data: {
         userId: user.id,
         traderId,
         competitionId,
-        tokenAmount: parseFloat(tokenAmount),
-        purchasePrice: purchasePrice ? parseFloat(purchasePrice) : null,
+        tokenAmount: parsedTokenAmount,
+        purchasePrice: parsedPurchasePrice,
         transactionHash,
         purchasedAt: now,
-        dailyScore: 0, // Will be calculated during daily scoring
+        dailyScore: 0, // dailyScore will be calculated at next 14:00 UTC snapshot
         lastScoreUpdate: null
       },
       include: {
@@ -143,16 +164,19 @@ export async function POST(
       }
     });
 
-    // Log the purchase for monitoring
-    console.log(`KOL token purchase recorded:`, {
+    console.info(`[INFO] KOL token purchase recorded:`, {
       competitionId,
       userId: user.id,
       userWallet: userPrivyWalletAddress,
       traderId,
       traderName: trader.name,
-      tokenAmount,
-      transactionHash
+      tokenAmount: parsedTokenAmount,
+      purchasePrice: parsedPurchasePrice,
+      transactionHash,
+      purchasedAt: now.toISOString()
     });
+
+    console.debug("[DEBUG] kolHolding DB result:", kolHolding);
 
     return NextResponse.json({
       success: true,
@@ -168,15 +192,16 @@ export async function POST(
         purchasePrice: kolHolding.purchasePrice?.toString(),
         transactionHash: kolHolding.transactionHash,
         purchasedAt: kolHolding.purchasedAt.toISOString(),
-        competitionJoined: !competitionEntry.joinedAt || competitionEntry.joinedAt.getTime() === now.getTime()
+        competitionJoined: !competitionEntry.joinedAt || competitionEntry.joinedAt.getTime() === now.getTime(),
+        note: "Daily score will be calculated at next 14:00 UTC snapshot"
       }
     }, { status: 201 });
 
   } catch (error) {
     console.error('Error recording KOL token purchase:', error);
-    
-    // Handle unique constraint violations
-    if (error instanceof Error && 'code' in error && error.code === 'P2002') {
+
+    if (typeof error === 'object' && error !== null && 'code' in error && (error as any).code === 'P2002') {
+      console.warn("[WARN] Duplicate transaction or entry detected:", error);
       return NextResponse.json(
         { error: 'Duplicate transaction or entry detected' },
         { status: 409 }
@@ -190,7 +215,6 @@ export async function POST(
   }
 }
 
-// fetch user's KOL holdings for a competition
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -200,18 +224,22 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const userPrivyWalletAddress = searchParams.get('userWallet');
 
+    console.debug("[DEBUG] GET /buyKOLToken params:", { competitionId, userPrivyWalletAddress });
+
     if (!userPrivyWalletAddress) {
+      console.warn("[WARN] Missing userWallet query parameter");
       return NextResponse.json(
         { error: 'userWallet query parameter is required' },
         { status: 400 }
       );
     }
 
-    // Find user
     const user = await prisma.user.findUnique({
       where: { userPrivyWalletAddress },
       select: { id: true }
     });
+
+    console.debug("[DEBUG] User lookup for GET:", { userPrivyWalletAddress, found: !!user, user });
 
     if (!user) {
       return NextResponse.json({
@@ -221,7 +249,6 @@ export async function GET(
       });
     }
 
-    // Get user's KOL holdings for this competition
     const holdings = await prisma.kolHolding.findMany({
       where: {
         userId: user.id,
@@ -240,6 +267,20 @@ export async function GET(
       orderBy: {
         purchasedAt: 'desc'
       }
+    });
+
+    console.debug("[DEBUG] Holdings fetched for user:", { userId: user.id, competitionId, count: holdings.length });
+    holdings.forEach((h, idx) => {
+      console.debug(`[DEBUG] Holding[${idx}]:`, {
+        id: h.id,
+        traderId: h.traderId,
+        tokenAmount: h.tokenAmount,
+        purchasePrice: h.purchasePrice,
+        transactionHash: h.transactionHash,
+        purchasedAt: h.purchasedAt,
+        dailyScore: h.dailyScore,
+        lastScoreUpdate: h.lastScoreUpdate
+      });
     });
 
     return NextResponse.json({
