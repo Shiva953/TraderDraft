@@ -8,7 +8,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const competitionId = params.id;
+    const competitionId = (await params).id;
     const now = new Date();
 
     console.log(`[SNAPSHOT] Starting daily snapshot for competition ${competitionId} at ${now.toISOString()}`);
@@ -222,7 +222,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const competitionId = params.id;
+    const competitionId = (await params).id;
     const { searchParams } = new URL(request.url);
     const userWallet = searchParams.get('userWallet');
 

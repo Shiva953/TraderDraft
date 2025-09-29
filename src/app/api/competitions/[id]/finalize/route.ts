@@ -17,7 +17,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const competitionId = params.id;
+    const competitionId = (await params).id;
     const now = new Date();
 
     console.log(`[FINALIZE] Starting finalization for competition ${competitionId} at ${now.toISOString()}`);
@@ -292,7 +292,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const competitionId = params.id;
+    const competitionId = (await params).id;
 
     const competition = await prisma.competition.findUnique({
       where: { id: competitionId },

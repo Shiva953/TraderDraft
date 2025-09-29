@@ -8,7 +8,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const competitionId = params.id;
+    const competitionId = (await params).id;
     const body = await request.json();
 
     const { 
@@ -220,7 +220,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const competitionId = params.id;
+    const competitionId = (await params).id;
     const { searchParams } = new URL(request.url);
     const userPrivyWalletAddress = searchParams.get('userWallet');
 
