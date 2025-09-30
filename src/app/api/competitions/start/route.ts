@@ -158,11 +158,11 @@ export async function POST(request: NextRequest) {
   try {
     const now = new Date();
     
-    // FOR TESTING: Create 2-minute competition
+    // FOR TESTING: Create 5-minute competition
     // FOR PRODUCTION: Use getNextMonday logic
     const startDate = new Date(now);
     const endDate = new Date(now);
-    endDate.setMinutes(endDate.getMinutes() + 2); // 2 minutes for testing
+    endDate.setMinutes(endDate.getMinutes() + 5); // 5 minutes for testing
     
     // Check if a competition already exists that's active
     const existingCompetition = await prisma.competition.findFirst({
