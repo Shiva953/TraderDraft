@@ -135,34 +135,116 @@ export async function POST(
       }
     }
 
-    console.debug("[DEBUG] Creating kolHolding with:", {
+    // Check if user already has a holding for this KOL in this competition
+    const existingHolding = await prisma.kolHolding.findFirst({
+      where: {
+        userId: user.id,
+        traderId,
+        competitionId
+      }
+    });
+
+    console.debug("[DEBUG] Existing holding lookup:", {
       userId: user.id,
       traderId,
       competitionId,
-      tokenAmount: parsedTokenAmount,
-      purchasePrice: parsedPurchasePrice,
-      transactionHash,
-      purchasedAt: now
+      found: !!existingHolding,
+      currentAmount: existingHolding?.tokenAmount.toString()
     });
 
-    const kolHolding = await prisma.kolHolding.create({
-      data: {
+    let kolHolding;
+
+    if (existingHolding) {
+      // Update existing holding: add to token amount, calculate weighted average price
+      const newTotalAmount = parseFloat(existingHolding.tokenAmount.toString()) + parsedTokenAmount;
+      const existingPrice = existingHolding.purchasePrice ? parseFloat(existingHolding.purchasePrice.toString()) : 0;
+      const existingAmount = parseFloat(existingHolding.tokenAmount.toString());
+
+      // Calculate weighted average purchase price
+      let newWeightedPrice: number | undefined = undefined;
+      if (parsedPurchasePrice !== undefined && existingPrice > 0) {
+        newWeightedPrice = ((existingPrice * existingAmount) + (parsedPurchasePrice * parsedTokenAmount)) / newTotalAmount;
+      } else if (parsedPurchasePrice !== undefined) {
+        newWeightedPrice = parsedPurchasePrice;
+      } else if (existingPrice > 0) {
+        newWeightedPrice = existingPrice;
+      }
+
+      console.debug("[DEBUG] Updating existing holding with:", {
+        oldAmount: existingAmount,
+        addedAmount: parsedTokenAmount,
+        newTotalAmount,
+        oldPrice: existingPrice,
+        newPurchasePrice: parsedPurchasePrice,
+        weightedAveragePrice: newWeightedPrice,
+        transactionHash
+      });
+
+      kolHolding = await prisma.kolHolding.update({
+        where: { id: existingHolding.id },
+        data: {
+          tokenAmount: newTotalAmount,
+          purchasePrice: newWeightedPrice,
+          transactionHash, // Update to latest transaction hash
+          purchasedAt: now // Update to latest purchase time
+        },
+        include: {
+          trader: {
+            select: { name: true, ticker: true }
+          }
+        }
+      });
+
+      console.info(`[INFO] Updated existing KOL holding:`, {
+        holdingId: kolHolding.id,
+        competitionId,
+        userId: user.id,
+        traderId,
+        previousAmount: existingAmount,
+        addedAmount: parsedTokenAmount,
+        newTotalAmount,
+        weightedAveragePrice: newWeightedPrice
+      });
+    } else {
+      // Create new holding
+      console.debug("[DEBUG] Creating new kolHolding with:", {
         userId: user.id,
         traderId,
         competitionId,
         tokenAmount: parsedTokenAmount,
         purchasePrice: parsedPurchasePrice,
         transactionHash,
-        purchasedAt: now,
-        dailyScore: 0, // dailyScore will be calculated at next 14:00 UTC snapshot
-        lastScoreUpdate: null
-      },
-      include: {
-        trader: {
-          select: { name: true, ticker: true }
+        purchasedAt: now
+      });
+
+      kolHolding = await prisma.kolHolding.create({
+        data: {
+          userId: user.id,
+          traderId,
+          competitionId,
+          tokenAmount: parsedTokenAmount,
+          purchasePrice: parsedPurchasePrice,
+          transactionHash,
+          purchasedAt: now,
+          dailyScore: 0, // dailyScore will be calculated at next 14:00 UTC snapshot
+          lastScoreUpdate: null
+        },
+        include: {
+          trader: {
+            select: { name: true, ticker: true }
+          }
         }
-      }
-    });
+      });
+
+      console.info(`[INFO] Created new KOL holding:`, {
+        holdingId: kolHolding.id,
+        competitionId,
+        userId: user.id,
+        traderId,
+        tokenAmount: parsedTokenAmount,
+        purchasePrice: parsedPurchasePrice
+      });
+    }
 
     console.info(`[INFO] KOL token purchase recorded:`, {
       competitionId,
