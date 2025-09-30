@@ -50,9 +50,9 @@ export async function POST(request: Request) {
     const body: RevealAllPacksRequestWithRarity = await request.json();
     const { numberOfPacks, initializeRarity = false } = body;
 
-    if (!numberOfPacks || numberOfPacks < 1 || numberOfPacks > 50) {
+    if (!numberOfPacks || numberOfPacks < 1) {
       return NextResponse.json(
-        { success: false, error: 'numberOfPacks must be between 1 and 50' },
+        { success: false, error: 'numberOfPacks must be more than 1' },
         { status: 400 }
       );
     }
