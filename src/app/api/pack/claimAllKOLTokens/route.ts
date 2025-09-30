@@ -17,6 +17,7 @@ import { Pnlpackprogram, IDL } from '../../../../lib/idl';
 import NodeWallet from '@coral-xyz/anchor/dist/cjs/nodewallet';
 import { PrismaClient } from '@prisma/client';
 import { ClaimAllTokensRequest, TransferResult } from '@/types';
+import { ConsolidatedKolData } from '@/types';
 
 const connection = new Connection("https://api.devnet.solana.com", { commitment: "confirmed" });
 const prisma = new PrismaClient();
@@ -216,7 +217,7 @@ async function executeVaultToUserTransfer(
   const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
 
   const userPubkey = new PublicKey(userAddress);
-  const mintPubkey = new PublicKey(kol.tokenMintAddress);
+  const mintPubkey = new PublicKey(kol.tokenMintAddress!);
   
   const [globalPackPool] = PublicKey.findProgramAddressSync(
     [Buffer.from('global_pack_pool')],
@@ -229,7 +230,7 @@ async function executeVaultToUserTransfer(
   );
 
   const [tokenVault] = PublicKey.findProgramAddressSync(
-    [Buffer.from('token_vault'), Buffer.from(kol.ticker), globalPackPool.toBuffer()],
+    [Buffer.from('token_vault'), Buffer.from(kol.ticker!), globalPackPool.toBuffer()],
     PROGRAM_ID
   );
 
@@ -241,10 +242,10 @@ async function executeVaultToUserTransfer(
   );
 
   // Convert token amount to proper decimals (assuming 6 decimals)
-  const transferAmount = new BN(kol.totalTokenAmount);
+  const transferAmount = new BN(kol.totalTokenAmount!);
 
   const transferIx = await program.methods
-    .transferFromKolVaultToUser(kol.ticker, transferAmount)
+    .transferFromKolVaultToUser(kol.ticker!, transferAmount)
     .accountsPartial({
       globalPackPool,
       user: userPubkey,

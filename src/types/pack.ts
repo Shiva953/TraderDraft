@@ -2,11 +2,16 @@
  * Pack system types
  */
 
-import type { KolData, ConsolidatedKolData } from "./kol";
+import type { KolData, KolDataWithRarity, ConsolidatedKolData } from "./kol";
 
 export interface PackData {
   packId: string;
   kols: KolData[];
+}
+
+export interface PackDataWithRarity {
+  packId: string;
+  kols: KolDataWithRarity[];
 }
 
 export interface RevealAllPacksRequest {

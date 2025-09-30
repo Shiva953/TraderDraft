@@ -1,9 +1,9 @@
 import { PrismaClient } from '@prisma/client';
 import { createConsolidatedPackMetadata } from '@/app/api/pack/revealAllPacks/route';
 import { generatePackId } from '@/app/api/pack/revealAllPacks/route';
-import type { Rarity } from '@/types';
-import type { KolDataWithRarity, PackData, RevealAllPacksRequest, ConsolidatedKolData } from '@/types';
-
+import type { Rarity, KolData } from '@/types';
+import type { KolDataWithRarity, PackData, PackDataWithRarity, RevealAllPacksRequest, ConsolidatedKolData } from '@/types';
+import { PublicKey } from '@solana/web3.js';
 // Rarity config for leaderboard distribution and pack odds
 const RARITY_CONFIG = {
   LEGENDARY: {
@@ -51,12 +51,12 @@ export function getRarityWeight(rarity: Rarity): number {
   return RARITY_CONFIG[rarity].weight;
 }
 
-export function selectRandomKolsWithRarity(kols: KolData[], count: number): KolData[] {
+export function selectRandomKolsWithRarity(kols: KolDataWithRarity[], count: number): KolDataWithRarity[] {
   if (kols.length < count) {
     throw new Error(`Need ${count} KOLs, got ${kols.length}`);
   }
 
-  const selected: KolData[] = [];
+  const selected: KolDataWithRarity[] = [];
   const availableKols = [...kols];
 
   for (let i = 0; i < count; i++) {
@@ -64,7 +64,7 @@ export function selectRandomKolsWithRarity(kols: KolData[], count: number): KolD
 
     const selectedIndex = weightedRandomSelection(availableKols);
     const selectedKol = availableKols[selectedIndex];
-    
+
     selected.push(selectedKol);
     availableKols.splice(selectedIndex, 1);
   }
@@ -72,18 +72,16 @@ export function selectRandomKolsWithRarity(kols: KolData[], count: number): KolD
   return selected;
 }
 
-function weightedRandomSelection(kols: KolData[]): number {
+function weightedRandomSelection(kols: KolDataWithRarity[]): number {
   const totalWeight = kols.reduce((sum, kol) => {
-    const rarity = kol.rarity || determineRarity(kol.rank);
-    return sum + getRarityWeight(rarity);
+    return sum + getRarityWeight(kol.rarity);
   }, 0);
 
   const randomValue = Math.random() * totalWeight;
 
   let currentWeight = 0;
   for (let i = 0; i < kols.length; i++) {
-    const rarity = kols[i].rarity || determineRarity(kols[i].rank);
-    currentWeight += getRarityWeight(rarity);
+    currentWeight += getRarityWeight(kols[i].rarity);
     if (randomValue <= currentWeight) {
       return i;
     }
@@ -135,7 +133,7 @@ export async function updateTradersWithRarity(prisma: PrismaClient) {
   }
 }
 
-export async function fetchTopTradersWithTokensAndRarity(prisma: PrismaClient): Promise<KolData[]> {
+export async function fetchTopTradersWithTokensAndRarity(prisma: PrismaClient): Promise<KolDataWithRarity[]> {
   try {
     console.log('📈 Fetching KOLs with token mint addresses and rarity from database...');
     
@@ -247,33 +245,32 @@ export function createEnhancedPackMetadata(
   };
 }
 
-interface KolDataWithRarity extends KolData {
-  rarity: Rarity;
-  rarityWeight: number;
-}
+// interface KolDataWithRarity extends KolData {
+//   rarity: Rarity;
+//   rarityWeight: number;
+// }
 
-export function generateMultiplePacksWithRarity(allKols: KolDataWithRarity[], numberOfPacks: number): PackData[] {
+export function generateMultiplePacksWithRarity(allKols: KolDataWithRarity[], numberOfPacks: number): PackDataWithRarity[] {
   console.log(`🎲 [generateMultiplePacksWithRarity] Creating ${numberOfPacks} packs with rarity-based selection from ${allKols.length} available KOLs`);
-  
-  const packs: PackData[] = [];
-  
+
+  const packs: PackDataWithRarity[] = [];
+
   for (let i = 0; i < numberOfPacks; i++) {
     const packId = generatePackId();
     const selectedKols = selectRandomKolsWithRarity(allKols, 4);
-    
+
     packs.push({
       packId,
       kols: selectedKols
     });
-    
+
     const rarityInfo = selectedKols.map(k => {
-      const rarity = k.rarity || determineRarity(k.rank);
-      return `${k.name}(${RARITY_CONFIG[rarity].label})`;
+      return `${k.name}(${RARITY_CONFIG[k.rarity as keyof typeof RARITY_CONFIG].label})`;
     }).join(', ');
-    
+
     console.log(`🎲 Pack ${i + 1}/${numberOfPacks} (${packId}): ${rarityInfo}`);
   }
-  
+
   console.log(`✅ Generated ${packs.length} packs with rarity-based selection`);
   return packs;
 }

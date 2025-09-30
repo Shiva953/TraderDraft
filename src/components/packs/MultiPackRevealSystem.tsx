@@ -1,4 +1,4 @@
-import { MultiPackRevealResponse } from "./MultiPackKOLGrid";
+import { MultiPackRevealResponse } from "@/types/pack";
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useSolanaWallets } from "@privy-io/react-auth/solana"

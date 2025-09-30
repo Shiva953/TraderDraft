@@ -25,7 +25,7 @@ import {
 } from '@/lib/rarity';
 import { Rarity } from '@prisma/client';
 import { executePackCreationOnly } from '../revealAllPacks/route';
-import { KolDataWithRarity, PackData, ConsolidatedKolData } from '@/types';
+import { KolDataWithRarity, PackDataWithRarity, ConsolidatedKolData } from '@/types';
 
 const DEVNET_RPC = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 const PROGRAM_ID = new PublicKey('CzhWAZRNcshcFiEgwoQAgKpXdQV1cxUNVEVsoGHzMxui');
@@ -78,8 +78,8 @@ export async function POST(request: Request) {
     }
 
     const rarityDistribution = allKolsData.reduce((dist, kol) => {
-      const rarity = kol.rarity || determineRarity(kol.rank);
-      dist[rarity] = (dist[rarity] || 0) + 1;
+      const rarity = kol.rarity;
+      dist[rarity as string] = (dist[rarity as string] || 0) + 1;
       return dist;
     }, {} as Record<string, number>);
     
@@ -201,17 +201,17 @@ async function prepareConsolidatedKolTokenDataWithRarity(kols: ConsolidatedKolDa
   }));
 }
 
-function consolidateKolsAcrossPacks(packs: PackData[]): ConsolidatedKolData[] {
+function consolidateKolsAcrossPacks(packs: PackDataWithRarity[]): ConsolidatedKolData[] {
   console.log('🔄 [consolidateKolsAcrossPacks] Starting consolidation with rarity preservation...');
-  
+
   const kolMap = new Map<string, ConsolidatedKolData>();
-  
+
   packs.forEach((pack, packIndex) => {
     console.log(`🔄 Processing pack ${packIndex + 1}: ${pack.packId}`);
-    
-    pack.kols.forEach(kol => {
+
+    pack.kols.forEach((kol: KolDataWithRarity) => {
       const kolKey = kol.id;
-      const rarity = kol.rarity || determineRarity(kol.rank);
+      const rarity = kol.rarity;
       
       if (kolMap.has(kolKey)) {
         const existingKol = kolMap.get(kolKey)!;

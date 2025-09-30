@@ -1,5 +1,5 @@
 // Stats Summary Component
-import { MultiPackRevealResponse } from "./MultiPackKOLGrid"
+import { MultiPackRevealResponse } from "@/types/pack"
 
 export const StatsSummary = ({ stats }: { stats: MultiPackRevealResponse['data']['stats'] }) => {
     return (
