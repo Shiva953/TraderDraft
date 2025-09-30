@@ -13,6 +13,7 @@ import { Program, AnchorProvider, Wallet, BN } from '@coral-xyz/anchor';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { Pnlpackprogram, IDL } from '../../../../lib/idl';
 import NodeWallet from '@coral-xyz/anchor/dist/cjs/nodewallet';
+import { KolData, PackData, RevealAllPacksRequest, ConsolidatedKolData } from '@/types';
 
 const DEVNET_RPC = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 const PROGRAM_ID = new PublicKey('CzhWAZRNcshcFiEgwoQAgKpXdQV1cxUNVEVsoGHzMxui');
@@ -23,38 +24,6 @@ const MAX_TRANSACTION_SIZE = 1222; // Leave some buffer under 1232
 const MAX_PACK_REVEALS_PER_TX = 4; // Estimated based on transaction size
 
 const prisma = new PrismaClient();
-
-interface KolData {
-  id: string;
-  name: string;
-  address: string | null;
-  pnl: string;
-  winRate: number | null;
-  avatarUrl: string | null;
-  xUrl: string | null;
-  rank: number;
-  ticker?: string;
-  tokenMintAddress?: PublicKey;
-  tokenPrice?: number;
-  packOccurrences?: number;
-  totalTokens?: BN;
-}
-
-interface PackData {
-  packId: string;
-  kols: KolData[];
-}
-
-interface RevealAllPacksRequest {
-  numberOfPacks: number;
-  userPublicKey?: string;
-}
-
-interface ConsolidatedKolData extends KolData {
-  packOccurrences: number;
-  totalTokens: BN;
-  packIds: string[];
-}
 
 export function generatePackId(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';

@@ -1,22 +1,7 @@
 import React from "react";
 import { FiArrowUpRight } from "react-icons/fi";
 import Image from "next/image";
-
-export type LeaderboardEntry = {
-  rank: number;
-  handle: string;
-  avatarUrl?: string;
-  xUrl?: string; 
-  traderUrl?: string; 
-  pnl: string; 
-  winRate: string;
-  walletAddress?: string;
-  tokenPrice?: string;
-  priceChange24h?: string;
-  priceChange24hPercent?: number;
-  poolAddress?: string;
-  tokenMintAddress?: string;
-};
+import type { LeaderboardEntry } from "@/types";
 
 interface LeaderboardProps {
   title?: string;

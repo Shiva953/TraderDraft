@@ -12,57 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-
-// Import the consolidated KOL data interface
-interface ConsolidatedKOLData {
-  id: string
-  name: string
-  ticker: string
-  address: string | null
-  tokenMintAddress: string
-  pnl: string
-  winRate: number
-  avatarUrl: string | null
-  xUrl: string | null
-  rank: number
-  tokenPrice: number
-  packOccurrences: number
-  tokensReceived: string
-  tokensReceivedFormatted: string
-  totalTokenAmount: number
-  totalTokenAmountFormatted: string
-  estimatedValueSOL: number
-  estimatedValueUSD: number
-  appearsInPacks: string[]
-  transferSignature?: string | null
-}
-
-interface MultiPackRevealResponseData {
-  revealType: string
-  revealedAt: string
-  totalPacksRevealed: number
-  totalUniqueKols: number
-  transactionSignatures: string[]
-  packCreationSignatures?: string[]
-  executionMode: string
-  network: string
-  optimizations: string[]
-  consolidatedKols: ConsolidatedKOLData[]
-  stats: {
-    totalPacksRevealed: number
-    totalUniqueKols: number
-    totalTokensReceived: number
-    totalEstimatedValueSOL: number
-    totalEstimatedValueUSD: number
-    avgWinRate: number
-    totalPnl: number
-    avgRank: number
-    bestRank: number
-    worstRank: number
-    mostFrequentKol: ConsolidatedKOLData
-    duplicateRate: number
-  }
-}
+import type { ConsolidatedKolData, MultiPackRevealResponse } from "@/types"
 
 interface TransferResult {
   kolId: string
@@ -78,7 +28,7 @@ export const ClaimAllTokensButton = ({
   packData,
   onClaim,
 }: {
-  packData: MultiPackRevealResponseData | null
+  packData: MultiPackRevealResponse['data'] | null
   onClaim: () => void
 }) => {
   const [scope, animate] = useAnimate()

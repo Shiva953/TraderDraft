@@ -2,35 +2,7 @@ import { chromium, Browser, Page, BrowserContext } from 'playwright';
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import * as cheerio from 'cheerio';
 import * as path from 'path';
-
-interface TraderData {
-  period: number;
-  walletName: string;
-  walletAddress: string;
-  walletAvatar?: string;
-  accountName?: string;
-  wins: string;
-  losses: string;
-  pnlUsd: string;
-  pnlSol: string;
-  telegram?: string | null;
-  twitter?: string | null;
-  rank?: number;
-}
-
-interface ScrapingResult {
-  traders: TraderData[];
-  timestamp: string;
-  totalTraders: number;
-  period: string;
-}
-
-interface SocialLookup {
-  [walletAddress: string]: {
-    telegram: string | null;
-    twitter: string | null;
-  };
-}
+import type { ScraperTraderData, ScrapingResult, SocialLookup } from '@/types';
 
 class KOLScanScraper {
   private browser: Browser | null = null;
@@ -109,7 +81,7 @@ class KOLScanScraper {
     throw new Error(`Could not click ${period} button`);
   }
 
-  private async extractData(page: Page, period: 'Daily' | 'Weekly' | 'Monthly'): Promise<TraderData[]> {
+  private async extractData(page: Page, period: 'Daily' | 'Weekly' | 'Monthly'): Promise<ScraperTraderData[]> {
     this.logger.info(`Extracting data for ${period}`);
     const periodDays = { Daily: 1, Weekly: 7, Monthly: 30 };
     const pageSource = await page.content();
@@ -117,7 +89,7 @@ class KOLScanScraper {
 
     const socialLookup = this.extractSocialLookup($);
     const users = $('div.leaderboard_leaderboardUser__8OZpJ');
-    const data: TraderData[] = [];
+    const data: ScraperTraderData[] = [];
 
     users.each((index, userEl) => {
       try {
@@ -312,15 +284,15 @@ class Logger {
 }
 
 export class DataProcessor {
-  static filterProfitableTraders(traders: TraderData[]) {
+  static filterProfitableTraders(traders: ScraperTraderData[]) {
     return traders.filter(t => parseFloat(t.pnlSol.replace(/[^\d.-]/g, '')) > 0);
   }
   
-  static getTopTraders(traders: TraderData[], count = 10) {
+  static getTopTraders(traders: ScraperTraderData[], count = 10) {
     return traders.sort((a, b) => parseFloat(b.pnlSol) - parseFloat(a.pnlSol)).slice(0, count);
   }
   
-  static calculateStats(traders: TraderData[]) {
+  static calculateStats(traders: ScraperTraderData[]) {
     const totalPnL = traders.reduce((s, t) => s + parseFloat(t.pnlSol.replace(/[^\d.-]/g, '')), 0);
     const profitable = traders.filter(t => parseFloat(t.pnlSol) > 0);
     return {

@@ -1,43 +1,8 @@
-import { Rarity } from '@prisma/client';
 import { PrismaClient } from '@prisma/client';
-import { PublicKey } from '@solana/web3.js';
 import { createConsolidatedPackMetadata } from '@/app/api/pack/revealAllPacks/route';
 import { generatePackId } from '@/app/api/pack/revealAllPacks/route';
-import BN from 'bn.js';
-
-interface KolData {
-  id: string;
-  name: string;
-  address: string | null;
-  pnl: string;
-  winRate: number | null;
-  avatarUrl: string | null;
-  xUrl: string | null;
-  rank: number;
-  ticker?: string;
-  tokenMintAddress?: PublicKey;
-  tokenPrice?: number;
-  packOccurrences?: number;
-  totalTokens?: BN;
-  rarity: Rarity,
-  rarityWeight: number;
-}
-
-interface PackData {
-  packId: string;
-  kols: KolData[];
-}
-
-interface RevealAllPacksRequest {
-  numberOfPacks: number;
-  userPublicKey?: string;
-}
-
-interface ConsolidatedKolData extends KolData {
-  packOccurrences: number;
-  totalTokens: BN;
-  packIds: string[];
-}
+import type { Rarity } from '@/types';
+import type { KolDataWithRarity, PackData, RevealAllPacksRequest, ConsolidatedKolData } from '@/types';
 
 // Rarity config for leaderboard distribution and pack odds
 const RARITY_CONFIG = {

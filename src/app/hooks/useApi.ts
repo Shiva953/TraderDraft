@@ -1,15 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-
-interface ApiState<T> {
-  data: T | null;
-  loading: boolean;
-  error: string | null;
-}
-
-interface ApiOptions {
-  dedupe?: boolean;
-  cacheTtl?: number;
-}
+import type { ApiState, ApiOptions } from '@/types';
 
 const apiCache = new Map<string, { data: any; timestamp: number; ttl: number }>();
 

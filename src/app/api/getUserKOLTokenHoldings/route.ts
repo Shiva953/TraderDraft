@@ -2,23 +2,13 @@ import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { Connection, PublicKey, GetMultipleAccountsConfig } from '@solana/web3.js';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
+import { TokenHolding } from '@/types';
 
 const prisma = new PrismaClient();
 const connection = new Connection("https://api.devnet.solana.com", "confirmed");
 
 // Batch size for RPC requests to avoid rate limits
 const BATCH_SIZE = 100;
-
-interface TokenHolding {
-  ticker: string;
-  name: string;
-  balance: string;
-  mintAddress: string;
-  poolAddress?: string;
-  tokenPrice?: string;
-  priceChange24h?: string;
-  priceChange24hPercent?: number;
-}
 
 export async function POST(request: Request) {
   try {

@@ -1,65 +1,10 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useApi } from './useApi';
-
-export interface TraderData {
-  rank: number;
-  name: string;
-  address: string;
-  pnl: string;
-  winRate: string;
-  avatarUrl?: string;
-  xUrl?: string;
-  tokenMintAddress?: string;
-  poolAddress?: string;
-  tokenPrice?: string;
-  priceChange24h?: string;
-  priceChange24hPercent?: number;
-}
-
-export interface LeaderboardEntry {
-  rank: number;
-  handle: string;
-  avatarUrl?: string;
-  xUrl?: string;
-  traderUrl?: string;
-  pnl: string;
-  winRate: string;
-  walletAddress?: string;
-  tokenPrice?: string;
-  priceChange24h?: string;
-  priceChange24hPercent?: number;
-  poolAddress?: string;
-  tokenMintAddress?: string;
-}
-
-export interface PeriodData {
-  traders: TraderData[];
-  totalTraders: number;
-  lastUpdated: string | null;
-  period: string;
-}
-
-export interface ApiResponse {
-  ok: boolean;
-  message: string;
-  period: string;
-  timestamp: string;
-  selected: {
-    traders: TraderData[];
-    totalTraders: number;
-    lastUpdated: string | null;
-    period: string;
-  };
-  data?: {
-    daily: PeriodData;
-    weekly: PeriodData;
-    monthly: PeriodData;
-  };
-}
+import type { TraderApiData, LeaderboardEntry, PeriodData, LeaderboardApiResponse } from '@/types';
 
 export type Period = 'daily' | 'weekly' | 'monthly';
 
-const convertApiDataToLeaderboardEntry = (data: TraderData[]): LeaderboardEntry[] => {
+const convertApiDataToLeaderboardEntry = (data: TraderApiData[]): LeaderboardEntry[] => {
   return data.map((trader) => {
     const traderUrl = trader.address 
       ? `https://kolscan.io/account/${trader.address}` 
@@ -98,7 +43,7 @@ export const useLeaderboard = (initialPeriod: Period = 'daily') => {
   const [isInitialized, setIsInitialized] = useState(false);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const { data, loading, error, execute } = useApi<ApiResponse>('/api/getTopTraders', {
+  const { data, loading, error, execute } = useApi<LeaderboardApiResponse>('/api/getTopTraders', {
     dedupe: true,
     cacheTtl: 60000,
   });

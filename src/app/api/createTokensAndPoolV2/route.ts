@@ -36,6 +36,7 @@ import { Pnlpackprogram, IDL } from "@/lib/idl";
 import { AnchorProvider, Program } from "@coral-xyz/anchor"
 import * as anchor from "@coral-xyz/anchor";
 import NodeWallet from '@coral-xyz/anchor/dist/cjs/nodewallet';
+import { KolData } from '@/types';
 
 const connection = new Connection("https://api.devnet.solana.com", "confirmed");
 const prisma = new PrismaClient();
@@ -43,17 +44,6 @@ const prisma = new PrismaClient();
 const cpAmm = new CpAmm(connection)
 const tokenADecimal = 6;
 const tokenBDecimal = 9; // SOL has 9 decimals
-
-interface KolData {
-  id: string;
-  name: string;
-  rank: number;
-  address: string | null;
-  pnl: string;
-  winRate: number | null;
-  avatarUrl: string | null;
-  xUrl: string | null;
-}
 
 function generateTicker(name: string, rank: number): string {
   const cleanName = name.replace(/[^a-zA-Z0-9]/g, '');

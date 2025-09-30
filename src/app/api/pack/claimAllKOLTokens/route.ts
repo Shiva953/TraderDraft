@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { 
+import {
   Connection,
   PublicKey,
   Transaction,
@@ -8,55 +8,21 @@ import {
   TransactionInstruction,
 } from '@solana/web3.js';
 import { AnchorProvider, Program, BN } from '@coral-xyz/anchor';
-import { 
-  TOKEN_PROGRAM_ID, 
+import {
+  TOKEN_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID,
   getAssociatedTokenAddress
 } from '@solana/spl-token';
 import { Pnlpackprogram, IDL } from '../../../../lib/idl';
 import NodeWallet from '@coral-xyz/anchor/dist/cjs/nodewallet';
 import { PrismaClient } from '@prisma/client';
+import { ClaimAllTokensRequest, TransferResult } from '@/types';
 
 const connection = new Connection("https://api.devnet.solana.com", { commitment: "confirmed" });
 const prisma = new PrismaClient();
 
 const MAX_TRANSFERS_PER_TX = 5; // Conservative limit for vault-to-user transfers
 const PROGRAM_ID = new PublicKey('CzhWAZRNcshcFiEgwoQAgKpXdQV1cxUNVEVsoGHzMxui');
-
-interface ClaimAllTokensRequest {
-  userPrivyWalletAddress: string;
-  consolidatedKols: ConsolidatedKolData[];
-}
-
-interface ConsolidatedKolData {
-  id: string;
-  name: string;
-  ticker: string;
-  address: string | null;
-  tokenMintAddress: string;
-  pnl: string;
-  winRate: number;
-  avatarUrl: string | null;
-  xUrl: string | null;
-  rank: number;
-  tokenPrice: number;
-  packOccurrences: number;
-  tokensReceived: string;
-  tokensReceivedFormatted: string;
-  totalTokenAmount: number;
-  totalTokenAmountFormatted: string;
-  estimatedValueSOL: number;
-  estimatedValueUSD: number;
-  appearsInPacks: string[];
-  transferSignature?: string | null;
-}
-
-interface TransferResult {
-  signature: string;
-  kol: ConsolidatedKolData;
-  success: boolean;
-  error?: string;
-}
 
 
 export async function POST(request: Request) {

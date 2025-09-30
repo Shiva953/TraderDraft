@@ -2,23 +2,9 @@ import { useState, useCallback } from 'react';
 import { useSendTransaction, useSolanaWallets } from "@privy-io/react-auth/solana";
 import { Connection, VersionedTransaction } from "@solana/web3.js";
 import { Buffer } from "buffer";
+import type { PurchaseState, BuyPackResponse } from '@/types';
 
 const connection = new Connection("https://api.devnet.solana.com", { commitment: "confirmed" });
-
-interface PurchaseState {
-  isLoading: boolean;
-  txnHash: string | null;
-  showSuccess: boolean;
-  error: string | null;
-}
-
-interface BuyPackResponse {
-  success: boolean;
-  data: {
-    buyPackTransaction: string;
-  };
-  error?: string;
-}
 
 export const usePackPurchase = () => {
   const [state, setState] = useState<PurchaseState>({

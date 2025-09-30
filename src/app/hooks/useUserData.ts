@@ -1,33 +1,7 @@
 // hooks/useUserData.ts
 import { useState, useEffect, useCallback } from 'react'
 import { useSolanaWallets } from '@privy-io/react-auth'
-
-interface UserPacksData {
-  packHoldings: number
-  totalValueOfPackHoldings: number
-  claimedPacks: number
-  unclaimedPacks: number
-}
-
-interface TokenHolding {
-  ticker: string
-  name: string
-  balance: string
-  mintAddress: string
-  poolAddress?: string
-  tokenPrice?: string
-  priceChange24h?: string
-  priceChange24hPercent?: number
-}
-
-interface UserData {
-  packs: UserPacksData | null
-  tokenHoldings: TokenHolding[]
-  tokenHoldingsCount: number
-  loading: boolean
-  error: string | null
-  lastUpdated: Date | null
-}
+import type { UserPacksData, TokenHolding, UserData } from '@/types'
 
 export function useUserData(authenticated: boolean) {
   const { wallets } = useSolanaWallets()

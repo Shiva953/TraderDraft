@@ -1,13 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { useWallet } from './useWallet';
 import { useApi } from './useApi';
-
-export interface UserPacksData {
-  packHoldings: number;
-  totalValueOfPackHoldings: number;
-  claimedPacks: number;
-  unclaimedPacks: number;
-}
+import type { UserPacksData } from '@/types';
 
 export const useUserPacks = () => {
   const { fullAddress, isConnected } = useWallet();

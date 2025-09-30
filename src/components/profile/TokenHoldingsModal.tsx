@@ -1,17 +1,7 @@
 'use client'
 
 import { X, Link as LinkIcon } from 'lucide-react'
-
-interface TokenHolding {
-  ticker: string
-  name: string
-  balance: string
-  mintAddress: string
-  poolAddress?: string
-  tokenPrice?: string
-  priceChange24h?: string
-  priceChange24hPercent?: number
-}
+import type { TokenHolding } from '@/types'
 
 interface TokenHoldingsModalProps {
   isOpen: boolean

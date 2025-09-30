@@ -2,67 +2,7 @@ import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useSolanaWallets } from "@privy-io/react-auth/solana"
 import { ExternalLink } from "lucide-react"
-
-// Types
-interface ConsolidatedKOLData {
-  id: string
-  name: string
-  ticker: string
-  address: string | null
-  tokenMintAddress: string
-  pnl: string
-  winRate: number
-  avatarUrl: string | null
-  xUrl: string | null
-  rank: number
-  tokenPrice: number
-  packOccurrences: number
-  tokensReceived: string
-  tokensReceivedFormatted: string
-  totalTokenAmount: number
-  totalTokenAmountFormatted: string
-  estimatedValueSOL: number
-  estimatedValueUSD: number
-  appearsInPacks: string[]
-  transferSignature: string | null
-}
-
-export interface MultiPackRevealResponse {
-  success: boolean
-  data: {
-    revealType: string
-    revealedAt: string
-    totalPacksRevealed: number
-    totalUniqueKols: number
-    transactionSignatures: string[]
-    packCreationSignatures: string[]
-    executionMode: string
-    network: string
-    optimizations: string[]
-    consolidatedKols: ConsolidatedKOLData[]
-    stats: {
-      totalPacksRevealed: number
-      totalUniqueKols: number
-      totalTokensReceived: number
-      totalEstimatedValueSOL: number
-      totalEstimatedValueUSD: number
-      avgWinRate: number
-      totalPnl: number
-      avgRank: number
-      bestRank: number
-      worstRank: number
-      mostFrequentKol: ConsolidatedKOLData
-      duplicateRate: number
-    }
-  }
-}
-
-interface UserPackData {
-  packHoldings: number
-  totalValueOfPackHoldings: number
-  claimedPacks: number
-  unclaimedPacks: number
-}
+import type { ConsolidatedKolData, MultiPackRevealResponse, UserPacksData } from "@/types"
 
 // KOL Grid Component
 // Accept an optional totalPacksRevealed prop for the title
@@ -70,7 +10,7 @@ export const ConsolidatedKOLGrid = ({
   kols,
   totalPacksRevealed,
 }: {
-  kols: ConsolidatedKOLData[]
+  kols: ConsolidatedKolData[]
   totalPacksRevealed?: number
 }) => {
   // Compose the title
@@ -144,7 +84,7 @@ export const ConsolidatedKOLGrid = ({
                     {kol.totalTokenAmountFormatted} tokens
                   </div>
                   <div className="text-gray-600 text-xs">
-                    {kol.pnl} • {kol.winRate.toFixed(1)}% WR
+                    {kol.pnl} • {kol?.winRate?.toFixed(1)}% WR
                   </div>
                 </div>
                 

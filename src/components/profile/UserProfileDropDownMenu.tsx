@@ -3,24 +3,7 @@
 import { useState } from 'react'
 import { ExternalLink, Package, Coins, ChevronRight, Copy } from 'lucide-react'
 import TokenHoldingsModal from './TokenHoldingsModal'
-
-interface UserPacksData {
-  packHoldings: number
-  totalValueOfPackHoldings: number
-  claimedPacks: number
-  unclaimedPacks: number
-}
-
-interface TokenHolding {
-  ticker: string
-  name: string
-  balance: string
-  mintAddress: string
-  poolAddress?: string
-  tokenPrice?: string
-  priceChange24h?: string
-  priceChange24hPercent?: number
-}
+import type { UserPacksData, TokenHolding } from '@/types'
 
 interface UserProfileDropDownMenuProps {
   isOpen: boolean

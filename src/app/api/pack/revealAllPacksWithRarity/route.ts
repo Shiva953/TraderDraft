@@ -13,18 +13,19 @@ import { Program, AnchorProvider, Wallet, BN } from '@coral-xyz/anchor';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { Pnlpackprogram, IDL } from '../../../../lib/idl';
 import NodeWallet from '@coral-xyz/anchor/dist/cjs/nodewallet';
-import { 
-  determineRarity, 
-  getRarityWeight, 
+import {
+  determineRarity,
+  getRarityWeight,
   selectRandomKolsWithRarity,
   fetchTopTradersWithTokensAndRarity,
   generateMultiplePacksWithRarity,
   createEnhancedPackMetadata,
   updateTradersWithRarity,
-  RARITY_CONFIG 
+  RARITY_CONFIG
 } from '@/lib/rarity';
 import { Rarity } from '@prisma/client';
 import { executePackCreationOnly } from '../revealAllPacks/route';
+import { KolDataWithRarity, PackData, ConsolidatedKolData } from '@/types';
 
 const DEVNET_RPC = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 const PROGRAM_ID = new PublicKey('CzhWAZRNcshcFiEgwoQAgKpXdQV1cxUNVEVsoGHzMxui');
@@ -36,46 +37,7 @@ const MAX_PACK_REVEALS_PER_TX = 4;
 
 const prisma = new PrismaClient();
 
-interface KolData {
-    id: string;
-    name: string;
-    address: string | null;
-    pnl: string;
-    winRate: number | null;
-    avatarUrl: string | null;
-    xUrl: string | null;
-    rank: number;
-    ticker?: string;
-    tokenMintAddress?: PublicKey;
-    tokenPrice?: number;
-    packOccurrences?: number;
-    totalTokens?: BN;
-    rarity: Rarity,
-    rarityWeight: number;
-  }
-  
-  interface PackData {
-    packId: string;
-    kols: KolData[];
-  }
-  
-  interface RevealAllPacksRequest {
-    numberOfPacks: number;
-    userPublicKey?: string;
-  }
-  
-  interface ConsolidatedKolData extends KolData {
-    packOccurrences: number;
-    totalTokens: BN;
-    packIds: string[];
-  }
-
-interface KolDataWithRarity extends KolData {
-  rarity: 'LEGENDARY' | 'EPIC' | 'RARE' | 'COMMON';
-  rarityWeight: number;
-}
-
-interface RevealAllPacksRequest {
+interface RevealAllPacksRequestWithRarity {
   numberOfPacks: number;
   userPublicKey?: string;
   initializeRarity?: boolean; // Optional flag to initialize rarity system
@@ -85,7 +47,7 @@ export async function POST(request: Request) {
   console.log('🚀 [API] /revealAllPacks with RARITY called at', new Date().toISOString());
 
   try {
-    const body: RevealAllPacksRequest = await request.json();
+    const body: RevealAllPacksRequestWithRarity = await request.json();
     const { numberOfPacks, initializeRarity = false } = body;
 
     if (!numberOfPacks || numberOfPacks < 1 || numberOfPacks > 50) {

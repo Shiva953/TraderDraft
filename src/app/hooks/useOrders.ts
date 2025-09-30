@@ -1,22 +1,9 @@
 import { useState, useCallback } from 'react';
 import { useSolanaWallets } from "@privy-io/react-auth";
-
-interface Order {
-  id: string;
-  packsBought: number;
-  totalValue: number;
-  transactionHash?: string;
-  createdAt: string;
-}
-
-interface OrdersResponse {
-  success: boolean;
-  data: Order[];
-  error?: string;
-}
+import type { OrderRecord, OrdersResponse } from '@/types';
 
 export const useOrders = () => {
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { wallets } = useSolanaWallets();

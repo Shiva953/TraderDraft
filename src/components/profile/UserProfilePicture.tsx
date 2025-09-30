@@ -2,24 +2,7 @@
 
 import { useState } from 'react'
 import UserProfileDropDownMenu from './UserProfileDropDownMenu'
-
-interface UserPacksData {
-  packHoldings: number
-  totalValueOfPackHoldings: number
-  claimedPacks: number
-  unclaimedPacks: number
-}
-
-interface TokenHolding {
-  ticker: string
-  name: string
-  balance: string
-  mintAddress: string
-  poolAddress?: string
-  tokenPrice?: string
-  priceChange24h?: string
-  priceChange24hPercent?: number
-}
+import type { UserPacksData, TokenHolding } from '@/types'
 
 interface UserProfilePictureProps {
   walletAddress: string
