@@ -90,7 +90,8 @@ export const useLeaderboard = (initialPeriod: Period = 'daily') => {
       return result;
     } catch (err) {
       console.error('❌ [useLeaderboard] fetchData error:', err);
-      throw err;
+      // Don't re-throw - let useApi handle error state
+      return null;
     }
   }, [execute, currentPeriod]);
 

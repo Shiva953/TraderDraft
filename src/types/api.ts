@@ -14,6 +14,7 @@ export interface ApiState<T> {
 export interface ApiOptions {
   dedupe?: boolean;
   cacheTtl?: number;
+  retries?: number;
 }
 
 export interface LeaderboardApiResponse {

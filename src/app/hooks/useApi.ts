@@ -5,7 +5,7 @@ const apiCache = new Map<string, { data: any; timestamp: number; ttl: number }>(
 
 export const useApi = <T>(
   endpoint: string,
-  options: ApiOptions = { dedupe: true, cacheTtl: 30000 }
+  options: ApiOptions = { dedupe: true, cacheTtl: 30000, retries: 2 }
 ) => {
   const [state, setState] = useState<ApiState<T>>({
     data: null,
@@ -15,10 +15,11 @@ export const useApi = <T>(
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const requestIdRef = useRef(0);
+  const retryCountRef = useRef(0);
 
-  const execute = useCallback(async (body?: any, method = 'POST') => {
+  const executeInternal = useCallback(async (body?: any, method = 'POST', retryCount = 0): Promise<any> => {
     // Check cache first
-    if (options.dedupe) {
+    if (options.dedupe && retryCount === 0) {
       const cacheKey = `${endpoint}-${JSON.stringify(body)}`;
       const cached = apiCache.get(cacheKey);
       if (cached && Date.now() - cached.timestamp < cached.ttl) {
@@ -35,7 +36,10 @@ export const useApi = <T>(
     const currentRequestId = ++requestIdRef.current;
     abortControllerRef.current = new AbortController();
 
-    setState(prev => ({ ...prev, loading: true, error: null }));
+    // Only show loading state on initial attempt, not retries
+    if (retryCount === 0) {
+      setState(prev => ({ ...prev, loading: true, error: null }));
+    }
 
     try {
       const timeoutId = setTimeout(() => {
@@ -76,17 +80,39 @@ export const useApi = <T>(
       return data.data || data;
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        console.error(`❌ [useApi] ${endpoint} request timed out`);
+        console.error(`❌ [useApi] ${endpoint} request timed out (attempt ${retryCount + 1})`);
+
+        // Retry on timeout
+        if (retryCount < (options.retries || 0)) {
+          const delay = Math.pow(2, retryCount) * 500; // 500ms, 1s, 2s
+          console.log(`⏳ [useApi] Retrying ${endpoint} in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return executeInternal(body, method, retryCount + 1);
+        }
+
         setState(prev => ({ ...prev, loading: false, error: 'Request timed out. Please try again.' }));
         return null;
       }
 
       const errorMessage = error instanceof Error ? error.message : 'Request failed';
-      console.error(`❌ [useApi] ${endpoint} error:`, errorMessage);
+      console.error(`❌ [useApi] ${endpoint} error (attempt ${retryCount + 1}):`, errorMessage);
+
+      // Retry on HTTP errors (500, 404, etc)
+      if (retryCount < (options.retries || 0)) {
+        const delay = Math.pow(2, retryCount) * 500; // 500ms, 1s, 2s
+        console.log(`⏳ [useApi] Retrying ${endpoint} in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return executeInternal(body, method, retryCount + 1);
+      }
+
       setState(prev => ({ ...prev, loading: false, error: errorMessage }));
       throw error;
     }
-  }, [endpoint, options.dedupe, options.cacheTtl]);
+  }, [endpoint, options.dedupe, options.cacheTtl, options.retries]);
+
+  const execute = useCallback(async (body?: any, method = 'POST') => {
+    return executeInternal(body, method, 0);
+  }, [executeInternal]);
 
   const reset = useCallback(() => {
     setState({ data: null, loading: false, error: null });
