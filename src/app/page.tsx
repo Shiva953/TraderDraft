@@ -291,29 +291,10 @@ export default function Home() {
           </div>
         </div>
 
-        {leaderboardError && (
-          <div className="mb-4 rounded-lg bg-red-900/20 border border-red-800 p-3 text-sm text-red-400">
-            <strong>Error:</strong> {leaderboardError}
-            <button onClick={handleRefresh} className="ml-2 text-red-300 underline hover:text-red-200">
-              Retry
-            </button>
-          </div>
-        )}
-
-        {/* Debug info for development */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="mb-4 rounded-lg bg-blue-900/20 border border-blue-800 p-3 text-sm text-blue-400">
-            <strong>Debug:</strong> Loading: {leaderboardLoading.toString()}, 
-            Data Length: {leaderboardData?.length || 0}, 
-            Has Initially Loaded: {hasInitiallyLoaded.toString()},
-            Period: {currentPeriod}
-          </div>
-        )}
-
         <Leaderboard
           title={getPeriodTitle()}
           entries={leaderboardData || []}
-          loading={leaderboardLoading && !hasInitiallyLoaded} // Only show loading for initial load
+          loading={leaderboardLoading || !leaderboardData || leaderboardData.length === 0} // Always show skeleton when loading or no data
           showActions={isCompetitionActive} // Show Buy/Sell buttons when competition is active
         />
       </div>

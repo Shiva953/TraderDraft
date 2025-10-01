@@ -119,7 +119,7 @@ export default function ViewOrdersModal({ isOpen, onClose }: ViewOrdersModalProp
                             className="w-8 h-8 rounded-lg object-cover"
                           />
                         </div>
-                        <span className="text-2xl font-light text-black">{order.totalValue} SOL</span>
+                        <span className="text-2xl font-light text-black">{order.totalValue.toFixed(2)} SOL</span>
                       </div>
 
                       <div className="flex items-center gap-3">

@@ -80,7 +80,7 @@ export function Leaderboard({
               </div>
             </div>
           ))
-        ) : (
+        ) : entries.length > 0 ? (
           entries.map((e) => {
             // Determine if PnL is positive or negative for coloring
             const pnlText = e.pnl || "—";
@@ -192,9 +192,7 @@ export function Leaderboard({
               </div>
             );
           })
-        )}
-        
-        {entries.length === 0 && !loading && (
+        ) : (
           <div className="rounded-lg bg-neutral-800/50 p-4 text-center text-sm text-neutral-400">
             No entries yet
           </div>

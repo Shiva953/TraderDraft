@@ -13,8 +13,8 @@ export default function UserPacks() {
   // Don't render if not connected
   if (!isConnected) return null;
 
-  // Show loading skeleton on initial load
-  if (loading && !userPacks) {
+  // Show loading skeleton on initial load, during retries, or when connected but no data yet
+  if (loading || !userPacks) {
     return (
       <Card className="bg-gray-200 p-6 font-mono border-gray-300">
         <div className="flex items-center justify-between mb-6">
@@ -35,9 +35,6 @@ export default function UserPacks() {
       </Card>
     );
   }
-
-  // Don't render if no pack data after loading
-  if (!userPacks) return null;
 
   return (
     <>
@@ -81,7 +78,7 @@ export default function UserPacks() {
 
           <Card className="bg-gray-300 p-4 border-gray-400">
             <div className="text-sm text-gray-600 uppercase tracking-wide font-light mb-1">Total Value</div>
-            <div className="text-2xl font-light text-black">{userPacks.totalValueOfPackHoldings} SOL</div>
+            <div className="text-2xl font-light text-black">{Number(userPacks.totalValueOfPackHoldings).toFixed(2)} SOL</div>
           </Card>
 
           <Card className="bg-gray-300 p-4 border-gray-400">

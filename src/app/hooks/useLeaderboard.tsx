@@ -41,11 +41,13 @@ export const useLeaderboard = (initialPeriod: Period = 'daily') => {
   
   // Track initialization state
   const [isInitialized, setIsInitialized] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true); // Start in loading state
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const { data, loading, error, execute } = useApi<LeaderboardApiResponse>('/api/getTopTraders', {
     dedupe: true,
     cacheTtl: 60000,
+    retries: 2,
   });
 
   const leaderboardData = useMemo(() => {
@@ -117,16 +119,20 @@ export const useLeaderboard = (initialPeriod: Period = 'daily') => {
     return fetchData(!!shouldFetchAll);
   }, [fetchData, allPeriodsData]);
 
-  // Initial fetch effect - FIXED: This should run immediately on mount
+  // Initial fetch effect - Only fetch current period for fast initial load
   useEffect(() => {
     if (isInitialized) return;
-    
-    console.log('🌟 [useLeaderboard] Initial data fetch starting');
+
+    console.log('🌟 [useLeaderboard] Initial data fetch starting (single period for performance)');
     setIsInitialized(true);
-    
-    fetchData(true).catch(err => {
-      console.error('❌ [useLeaderboard] Initial fetch failed:', err);
-    });
+
+    fetchData(false)
+      .catch(err => {
+        console.error('❌ [useLeaderboard] Initial fetch failed:', err);
+      })
+      .finally(() => {
+        setInitialLoading(false); // Stop showing initial loading state
+      });
   }, []); // Only run once on mount - fetchData is stable
 
   // handling period changes(ONLY after initialization)
@@ -183,7 +189,7 @@ export const useLeaderboard = (initialPeriod: Period = 'daily') => {
 
   return {
     leaderboardData,
-    loading,
+    loading: initialLoading || loading, // Show loading if either initial load or API is loading
     error,
     currentPeriod,
     lastUpdated,

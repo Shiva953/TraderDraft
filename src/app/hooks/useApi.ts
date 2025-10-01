@@ -36,17 +36,16 @@ export const useApi = <T>(
     const currentRequestId = ++requestIdRef.current;
     abortControllerRef.current = new AbortController();
 
-    // Only show loading state on initial attempt, not retries
-    if (retryCount === 0) {
-      setState(prev => ({ ...prev, loading: true, error: null }));
-    }
+    // Always set loading state and clear errors (including on retries)
+    // This ensures skeleton stays visible during retries instead of showing errors
+    setState(prev => ({ ...prev, loading: true, error: null }));
 
     try {
       const timeoutId = setTimeout(() => {
         if (abortControllerRef.current) {
           abortControllerRef.current.abort();
         }
-      }, 15000); // 15 second timeout
+      }, 30000); // 30 second timeout for cold starts
 
       const response = await fetch(endpoint, {
         method,
@@ -86,10 +85,12 @@ export const useApi = <T>(
         if (retryCount < (options.retries || 0)) {
           const delay = Math.pow(2, retryCount) * 500; // 500ms, 1s, 2s
           console.log(`⏳ [useApi] Retrying ${endpoint} in ${delay}ms...`);
+          // Keep loading state during retry - don't show error
           await new Promise(resolve => setTimeout(resolve, delay));
           return executeInternal(body, method, retryCount + 1);
         }
 
+        // Only set error after all retries exhausted
         setState(prev => ({ ...prev, loading: false, error: 'Request timed out. Please try again.' }));
         return null;
       }
@@ -101,10 +102,12 @@ export const useApi = <T>(
       if (retryCount < (options.retries || 0)) {
         const delay = Math.pow(2, retryCount) * 500; // 500ms, 1s, 2s
         console.log(`⏳ [useApi] Retrying ${endpoint} in ${delay}ms...`);
+        // Keep loading state during retry - don't show error
         await new Promise(resolve => setTimeout(resolve, delay));
         return executeInternal(body, method, retryCount + 1);
       }
 
+      // Only set error after all retries exhausted
       setState(prev => ({ ...prev, loading: false, error: errorMessage }));
       throw error;
     }
