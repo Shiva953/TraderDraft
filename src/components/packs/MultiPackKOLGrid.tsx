@@ -1,34 +1,34 @@
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useSolanaWallets } from "@privy-io/react-auth/solana"
-import { ExternalLink } from "lucide-react"
+import { ExternalLink, TrendingUp, Trophy } from "lucide-react"
 import type { ConsolidatedKolData, MultiPackRevealResponse, UserPacksData } from "@/types"
+import { Card } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
 
-// Rarity configuration for UI display
+// Rarity configuration for minimal UI
 const RARITY_CONFIG = {
   LEGENDARY: {
     label: 'Legendary',
-    color: '#FFD700',
-    bgColor: 'bg-gradient-to-r from-yellow-500 to-yellow-600',
-    textColor: 'text-yellow-100'
+    badgeClass: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50',
+    icon: '👑'
   },
   EPIC: {
     label: 'Epic',
-    color: '#9D4EDD',
-    bgColor: 'bg-gradient-to-r from-purple-500 to-purple-600',
-    textColor: 'text-purple-100'
+    badgeClass: 'bg-purple-500/20 text-purple-400 border-purple-500/50',
+    icon: '💎'
   },
   RARE: {
     label: 'Rare',
-    color: '#0077BE',
-    bgColor: 'bg-gradient-to-r from-blue-500 to-blue-600',
-    textColor: 'text-blue-100'
+    badgeClass: 'bg-blue-500/20 text-blue-400 border-blue-500/50',
+    icon: '⭐'
   },
   COMMON: {
     label: 'Common',
-    color: '#6B7280',
-    bgColor: 'bg-gradient-to-r from-gray-500 to-gray-600',
-    textColor: 'text-gray-100'
+    badgeClass: 'bg-gray-500/20 text-gray-400 border-gray-500/50',
+    icon: '◆'
   }
 }
 
@@ -51,20 +51,10 @@ export const ConsolidatedKOLGrid = ({
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto p-6">
-      {/* Header */}
-      {/* <div className="mb-8">
-        <h1 className="text-white text-2xl md:text-3xl font-medium">
-          {title}
-        </h1>
-        <p className="text-gray-400 text-sm mt-2">
-          Duplicate KOLs have been consolidated with combined token amounts
-        </p>
-      </div> */}
-
+    <div className="w-full max-w-7xl mx-auto p-6">
       {/* Scrollable Grid Container */}
       <div className="mb-8">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 max-h-[600px] overflow-y-auto pr-2 scrollbar-thin scrollbar-track-gray-800 scrollbar-thumb-gray-600">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 max-h-[600px] overflow-y-auto pr-2">
           {kols.map((kol, index) => {
             // Determine rarity with fallback
             const rarity = kol.rarity || 'COMMON';
@@ -76,70 +66,85 @@ export const ConsolidatedKOLGrid = ({
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05, duration: 0.3 }}
-                className="bg-gray-900 rounded-2xl overflow-hidden hover:bg-gray-800 transition-all duration-200 hover:scale-105 border border-gray-700"
               >
-                {/* Avatar Image */}
-                <div className="aspect-square relative">
-                  <img
-                    src={kol.avatarUrl || "/placeholder.svg"}
-                    alt={kol.name}
-                    className="w-full h-full object-cover"
-                  />
-                  {/* Rarity badge - top left */}
-                  <div className={`absolute top-2 left-2 ${rarityConfig.bgColor} ${rarityConfig.textColor} text-xs font-bold px-2 py-1 rounded shadow-lg`}>
-                    {rarityConfig.label}
-                  </div>
-                  {/* Pack occurrence badge - top right */}
-                  {kol.packOccurrences > 1 && (
-                    <div className="absolute top-2 right-2 bg-purple-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-lg">
-                      {kol.packOccurrences}x
-                    </div>
-                  )}
-                  {/* Rank badge - bottom left */}
-                  <div className="absolute bottom-2 left-2 bg-gray-900/80 text-white text-xs font-semibold px-2 py-1 rounded">
-                    #{kol.rank}
-                  </div>
-                </div>
+                <Card className="group bg-neutral-900 border-neutral-800 hover:border-neutral-700 overflow-hidden hover:shadow-xl hover:shadow-neutral-900/50 transition-all duration-300 cursor-pointer">
+                  {/* Card Header with Avatar */}
+                  <div className="p-4 relative">
+                    {/* Avatar */}
+                    <div className="flex items-start justify-between mb-3">
+                      <Avatar className="h-16 w-16 ring-2 ring-neutral-800 group-hover:ring-neutral-700 transition-all">
+                        <AvatarImage src={kol.avatarUrl || "/placeholder.svg"} alt={kol.name} />
+                        <AvatarFallback className="bg-neutral-800 text-neutral-400">
+                          {kol.name.substring(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
 
-              {/* Info Section */}
-              <div className="p-4 bg-gray-200">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="w-3 h-3 rounded-full bg-green-500" />
-                  <span className="text-black font-semibold text-lg opacity-80">{kol.ticker}</span>
-                  <a
-                    href={`https://orb.helius.dev/address/${kol.tokenMintAddress}?cluster=devnet`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-gray-600 hover:text-gray-800 transition-colors"
-                  >
-                    <ExternalLink size={16} />
-                  </a>
-                </div>
-                {/* <div className="text-gray-600 text-xs mb-2">{kol.ticker}</div> */}
-                <div className="space-y-1">
-                  <div className="text-black font-semibold text-sm">
-                    {kol.totalTokenAmountFormatted} tokens
+                      {/* Rarity & Occurrences */}
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge variant="outline" className={`text-xs ${rarityConfig.badgeClass}`}>
+                          {rarityConfig.icon}
+                        </Badge>
+                        {kol.packOccurrences > 1 && (
+                          <Badge variant="secondary" className="text-xs bg-purple-500/20 text-purple-400 border-purple-500/50">
+                            {kol.packOccurrences}x
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* KOL Name & Ticker */}
+                    <div className="mb-3">
+                      <h3 className="text-white font-semibold text-base truncate">
+                        {kol.ticker}
+                      </h3>
+                      <div className="flex items-center gap-1 text-neutral-400 text-xs mt-1">
+                        <Trophy className="h-3 w-3" />
+                        <span>#{kol.rank}</span>
+                      </div>
+                    </div>
+
+                    {/* Stats */}
+                    <div className="space-y-2 mb-3">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-neutral-500">Tokens</span>
+                        <span className="text-white font-medium">{kol.totalTokenAmountFormatted}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-neutral-500">PnL</span>
+                        <span className={`font-medium ${kol.pnl.includes('+') ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {kol.pnl}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-neutral-500">Win Rate</span>
+                        <span className="text-white font-medium">{kol?.winRate?.toFixed(1)}%</span>
+                      </div>
+                    </div>
+
+                    {/* Links */}
+                    <div className="flex gap-2 pt-2 border-t border-neutral-800">
+                      {kol.xUrl && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="flex-1 h-8 text-xs hover:bg-blue-500/10 hover:text-blue-400"
+                          onClick={() => window.open(kol.xUrl || 'x.com/Neutron975', '_blank')}
+                        >
+                          X Profile
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 p-0 hover:bg-neutral-800"
+                        onClick={() => window.open(`https://orb.helius.dev/address/${kol.tokenMintAddress}?cluster=devnet`, '_blank')}
+                      >
+                        <ExternalLink className="h-3.5 w-3.5 text-neutral-400" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="text-gray-600 text-xs">
-                    {kol.pnl} • {kol?.winRate?.toFixed(1)}% WR
-                  </div>
-                </div>
-                
-                {/* Links */}
-                <div className="flex gap-1 mt-3">
-                  {kol.xUrl && (
-                    <a
-                      href={kol.xUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-2 py-1 bg-blue-600 hover:bg-blue-500 rounded text-white text-xs transition-colors"
-                    >
-                      X
-                    </a>
-                  )}
-                </div>
-              </div>
-            </motion.div>
+                </Card>
+              </motion.div>
             );
           })}
         </div>

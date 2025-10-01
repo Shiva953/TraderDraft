@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import prisma from "@/lib/prisma";
 import { meteoraClient } from '@/lib/meteoraPriceUtils';
 
-const prisma = new PrismaClient();
+
 
 // Cache for price data to avoid repeated API calls
 const priceDataCache = new Map<string, {
@@ -156,8 +156,6 @@ export async function POST(request: NextRequest) {
       },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 

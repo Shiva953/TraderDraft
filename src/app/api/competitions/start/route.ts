@@ -1,7 +1,7 @@
 // // FOR PROD(COMPETITION WINDOWS: [MON-THU, THU-SUN], RUN 2X MON AND THU 0:00 BG JOBS)
 
 // import { NextRequest, NextResponse } from 'next/server';
-// import { PrismaClient } from '@prisma/client';
+// import prisma from "@/lib/prisma";
 
 // const prisma = new PrismaClient();
 
@@ -148,21 +148,21 @@
 //   }
 // }
 
-// FOR TESTING(COMPETITION LASTS 2 MINS)
+// FOR TESTING(COMPETITION LASTS 1 HOUR)
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import prisma from "@/lib/prisma";
 
-const prisma = new PrismaClient();
+
 
 export async function POST(request: NextRequest) {
   try {
     const now = new Date();
-    
-    // FOR TESTING: Create 5-minute competition
+
+    // FOR TESTING: Create 1-hour competition
     // FOR PRODUCTION: Use getNextMonday logic
     const startDate = new Date(now);
     const endDate = new Date(now);
-    endDate.setMinutes(endDate.getMinutes() + 5); // 5 minutes for testing
+    endDate.setHours(endDate.getHours() + 1); // 1 hour for testing
     
     // Check if a competition already exists that's active
     const existingCompetition = await prisma.competition.findFirst({

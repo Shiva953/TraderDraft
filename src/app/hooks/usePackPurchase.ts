@@ -38,11 +38,11 @@ export const usePackPurchase = () => {
       return false;
     }
 
-    setState(prev => ({ 
-      ...prev, 
-      isLoading: true, 
+    setState(prev => ({
+      ...prev,
+      isLoading: true,
       error: null,
-      showSuccess: false 
+      showSuccess: false
     }));
 
     try {
@@ -50,6 +50,14 @@ export const usePackPurchase = () => {
       console.log("🔵 [BuyPack] Wallet address:", embeddedWallet.address);
       console.log("🔍 [BuyPack] packCount:", packCount);
       console.log("🔍 [BuyPack] totalPrice:", totalPrice);
+
+      // Refresh wallet session before signing
+      console.log("🔄 [BuyPack] Ensuring wallet session is fresh...");
+      try {
+        await embeddedWallet.loginOrLink();
+      } catch (refreshError) {
+        console.warn("⚠️ [BuyPack] Session refresh failed, continuing anyway:", refreshError);
+      }
 
       // Step 1: Get transaction from API
       const response = await fetch("/api/pack/buyPack", {

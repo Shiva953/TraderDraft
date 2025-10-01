@@ -10,10 +10,15 @@ export default function Providers({ children, appId }: { children: React.ReactNo
         // Create embedded wallets for users who don't have a wallet
         loginMethods: ["google", "github", "twitter"],
         embeddedWallets: {
-          createOnLogin: 'all-users', 
+          createOnLogin: 'all-users',
+          requireUserPasswordOnCreate: false,
           solana: {
             createOnLogin: 'all-users' // Explicitly create Solana wallet for all users
           }
+        },
+        // Extend session timeout to prevent KeyQuorum expiration
+        mfa: {
+          noPromptOnMfaRequired: false
         },
         // Add appearance config if needed
         appearance: {

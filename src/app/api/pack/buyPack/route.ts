@@ -5,10 +5,10 @@ import { AnchorProvider, Program } from '@coral-xyz/anchor';
 import { Pnlpackprogram, IDL } from '@/lib/idl';
 import NodeWallet from '@coral-xyz/anchor/dist/cjs/nodewallet';
 import { BN } from 'bn.js';
-import { PrismaClient } from '@prisma/client';
+import prisma from "@/lib/prisma";
 
 const connection = new Connection("https://api.devnet.solana.com", {commitment: "confirmed"})
-const prisma = new PrismaClient();
+
 
 export async function POST(request: Request) {
   const debugPrefix = '[buyPack]';

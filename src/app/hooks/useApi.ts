@@ -38,12 +38,20 @@ export const useApi = <T>(
     setState(prev => ({ ...prev, loading: true, error: null }));
 
     try {
+      const timeoutId = setTimeout(() => {
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+        }
+      }, 15000); // 15 second timeout
+
       const response = await fetch(endpoint, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: body ? JSON.stringify(body) : undefined,
         signal: abortControllerRef.current.signal,
       });
+
+      clearTimeout(timeoutId);
 
 
       if (currentRequestId !== requestIdRef.current) return null;
@@ -67,9 +75,14 @@ export const useApi = <T>(
       setState({ data: data.data || data, loading: false, error: null });
       return data.data || data;
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') return null;
-      
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.error(`❌ [useApi] ${endpoint} request timed out`);
+        setState(prev => ({ ...prev, loading: false, error: 'Request timed out. Please try again.' }));
+        return null;
+      }
+
       const errorMessage = error instanceof Error ? error.message : 'Request failed';
+      console.error(`❌ [useApi] ${endpoint} error:`, errorMessage);
       setState(prev => ({ ...prev, loading: false, error: errorMessage }));
       throw error;
     }

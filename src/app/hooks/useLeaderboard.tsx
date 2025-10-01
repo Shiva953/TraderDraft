@@ -126,7 +126,7 @@ export const useLeaderboard = (initialPeriod: Period = 'daily') => {
     fetchData(true).catch(err => {
       console.error('❌ [useLeaderboard] Initial fetch failed:', err);
     });
-  }, [fetchData]); 
+  }, []); // Only run once on mount - fetchData is stable
 
   // handling period changes(ONLY after initialization)
   useEffect(() => {

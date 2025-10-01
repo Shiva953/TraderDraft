@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react"
 import BuyPackModal from './BuyPackModal';
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 interface CompetitionBannerProps {
   prizeSol?: number
@@ -45,8 +47,7 @@ export function PackSaleBannerNew({ prizeSol = 26, onHowToPlay, onViewLeaderboar
 
   return (
     <>
-    <div className="relative w-full max-w-4xl mx-auto">
-      <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-blue-900 via-blue-800 to-blue-900 p-8">
+    <Card className="relative w-full border-blue-800/50 bg-gradient-to-br from-blue-900 via-blue-800 to-blue-900 p-8 overflow-hidden">
         {/* Background stars effect */}
         <div className="absolute inset-0 opacity-30">
           <div className="absolute top-4 left-8 w-1 h-1 bg-white rounded-full animate-pulse"></div>
@@ -75,29 +76,34 @@ export function PackSaleBannerNew({ prizeSol = 26, onHowToPlay, onViewLeaderboar
 
           {/* Buy now and Skip to Packs Reveal buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
-            <button
+            <Button
               onClick={() => setIsModalOpen(true)}
-              className="bg-white text-gray-800 cursor-pointer px-8 py-3 rounded-full font-medium text-lg hover:bg-gray-100 transition-colors"
+              size="lg"
+              className="bg-white text-gray-800 hover:bg-gray-100 rounded-full font-medium cursor-pointer"
             >
               Buy Now
-            </button>
-            
+            </Button>
+
             {onSkipToReveal && (
-              <button
+              <Button
                 onClick={onSkipToReveal}
-                className="bg-transparent border-2 border-white text-white cursor-pointer px-8 py-3 rounded-full font-medium text-lg hover:bg-white hover:text-gray-800 transition-colors"
+                size="lg"
+                variant="outline"
+                className="border-2 border-white text-white hover:bg-white hover:text-gray-800 rounded-full font-medium cursor-pointer bg-transparent"
               >
                 Reveal All Packs
-              </button>
+              </Button>
             )}
 
             {onTestSinglePackReveal && (
-              <button
+              <Button
                 onClick={onTestSinglePackReveal}
-                className="bg-transparent border-2 border-blue-300 text-blue-300 cursor-pointer px-8 py-3 rounded-full font-medium text-lg hover:bg-blue-300 hover:text-gray-800 transition-colors"
+                size="lg"
+                variant="outline"
+                className="border-2 border-blue-300 text-blue-300 hover:bg-blue-300 hover:text-gray-800 rounded-full font-medium cursor-pointer bg-transparent"
               >
                 Test Single Pack Reveal
-              </button>
+              </Button>
             )}
           </div>
 
@@ -112,11 +118,10 @@ export function PackSaleBannerNew({ prizeSol = 26, onHowToPlay, onViewLeaderboar
             <span className="bg-black/20 px-3 py-2 rounded">{seconds.toString().padStart(2, "0")}</span>
           </div>
         </div>
-      </div>
-    </div>
-    <BuyPackModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
+    </Card>
+    <BuyPackModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
       />
     </>
   )

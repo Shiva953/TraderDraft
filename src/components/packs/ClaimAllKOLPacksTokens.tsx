@@ -199,16 +199,6 @@ export const ClaimAllTokensButton = ({
         </Button>
       </div>
 
-      <div className="mb-8 max-w-4xl mx-auto">
-        <Alert className="border-green-500/30 bg-green-500/10">
-          <CheckCircle className="h-4 w-4 text-green-500" />
-          <AlertDescription className="text-green-700 dark:text-green-300">
-            <span className="font-medium">Backend-Handled Token Claims</span>
-            <br />
-            No wallet signatures required! Tokens are transferred directly from vault to your wallet by our backend.
-          </AlertDescription>
-        </Alert>
-      </div>
 
       <Dialog open={showModal} onOpenChange={setShowModal}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">

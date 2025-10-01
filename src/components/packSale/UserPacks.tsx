@@ -1,64 +1,100 @@
 import React, { useState } from 'react';
 import { useUserPacks } from '@/app/hooks/useUserPacks';
 import ViewOrdersModal from './ViewOrdersModal';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function UserPacks() {
   const [showOrdersModal, setShowOrdersModal] = useState(false);
   const { data: userPacks, loading, error, refresh, isConnected } = useUserPacks();
 
-  // Don't render if not connected or no pack data
-  if (!isConnected || !userPacks) return null;
+  // Don't render if not connected
+  if (!isConnected) return null;
+
+  // Show loading skeleton on initial load
+  if (loading && !userPacks) {
+    return (
+      <Card className="bg-gray-200 p-6 font-mono border-gray-300">
+        <div className="flex items-center justify-between mb-6">
+          <Skeleton className="h-6 w-32 bg-gray-300" />
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-8 w-24 bg-gray-300" />
+            <Skeleton className="h-8 w-20 bg-gray-300" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} className="bg-gray-300 p-4 border-gray-400">
+              <Skeleton className="h-4 w-24 mb-2 bg-gray-400" />
+              <Skeleton className="h-8 w-16 bg-gray-400" />
+            </Card>
+          ))}
+        </div>
+      </Card>
+    );
+  }
+
+  // Don't render if no pack data after loading
+  if (!userPacks) return null;
 
   return (
     <>
-      <div className="rounded-2xl bg-gray-200 p-6 font-mono">
+      <Card className="bg-gray-200 p-6 font-mono border-gray-300">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-light text-gray-600 uppercase tracking-wide">Your Packs</h3>
           <div className="flex items-center gap-3">
-            <button
+            <Button
               onClick={() => setShowOrdersModal(true)}
-              className="cursor-pointer px-4 py-2 text-sm font-light text-gray-600 hover:text-black transition-colors"
+              variant="ghost"
+              size="sm"
+              className="text-gray-600 hover:text-black cursor-pointer"
             >
               View Orders
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={refresh}
               disabled={loading}
-              className="cursor-pointer text-sm text-gray-500 hover:text-black transition-colors disabled:opacity-50"
+              variant="ghost"
+              size="sm"
+              className="text-gray-500 hover:text-black cursor-pointer"
             >
               {loading ? "Refreshing..." : "Refresh"}
-            </button>
+            </Button>
           </div>
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">
-            Error: {error}
-          </div>
+          <Alert variant="destructive" className="mb-4 bg-red-100 border-red-300">
+            <AlertDescription className="text-red-700">
+              Error: {error}
+            </AlertDescription>
+          </Alert>
         )}
 
         <div className="grid grid-cols-2 gap-4">
-          <div className="rounded-lg bg-gray-300 p-4">
+          <Card className="bg-gray-300 p-4 border-gray-400">
             <div className="text-sm text-gray-600 uppercase tracking-wide font-light mb-1">Total Packs</div>
             <div className="text-2xl font-light text-black">{userPacks.packHoldings}</div>
-          </div>
+          </Card>
 
-          <div className="rounded-lg bg-gray-300 p-4">
+          <Card className="bg-gray-300 p-4 border-gray-400">
             <div className="text-sm text-gray-600 uppercase tracking-wide font-light mb-1">Total Value</div>
             <div className="text-2xl font-light text-black">{userPacks.totalValueOfPackHoldings} SOL</div>
-          </div>
+          </Card>
 
-          <div className="rounded-lg bg-gray-300 p-4">
+          <Card className="bg-gray-300 p-4 border-gray-400">
             <div className="text-sm text-gray-600 uppercase tracking-wide font-light mb-1">Unclaimed</div>
             <div className="text-2xl font-light text-black">{userPacks.unclaimedPacks}</div>
-          </div>
+          </Card>
 
-          <div className="rounded-lg bg-gray-300 p-4">
+          <Card className="bg-gray-300 p-4 border-gray-400">
             <div className="text-sm text-gray-600 uppercase tracking-wide font-light mb-1">Claimed</div>
             <div className="text-2xl font-light text-black">{userPacks.claimedPacks}</div>
-          </div>
+          </Card>
         </div>
-      </div>
+      </Card>
 
       <ViewOrdersModal isOpen={showOrdersModal} onClose={() => setShowOrdersModal(false)} />
     </>

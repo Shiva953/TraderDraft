@@ -14,10 +14,14 @@ import UserPacks from "../components/packSale/UserPacks";
 import { useUserData } from "./hooks/useUserData";
 import MultiPackRevealSystem from "../components/packs/MultiPackRevealSystem";
 import UserProfilePicture from "../components/profile/UserProfilePicture";
+import { CompetitionBanner } from "../components/competition/CompetitionBanner";
+import { CompetitionBannerSkeleton } from "../components/competition/CompetitionBannerSkeleton";
+import { Button } from "../components/ui/button";
 
 import { useWallet } from "./hooks/useWallet";
 import { useUserPacks } from "./hooks/useUserPacks";
 import { useLeaderboard } from "./hooks/useLeaderboard";
+import { useActiveCompetition } from "./hooks/useActiveCompetition";
 
 export default function Home() {
   const [showPackReveal, setShowPackReveal] = useState(false);
@@ -49,6 +53,12 @@ export default function Home() {
     changePeriod,
     refresh: refreshLeaderboard,
   } = useLeaderboard();
+
+  const {
+    competition,
+    loading: competitionLoading,
+    isActive: isCompetitionActive
+  } = useActiveCompetition();
 
   // Track when we've successfully loaded data for the first time
   useEffect(() => {
@@ -162,37 +172,48 @@ export default function Home() {
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-4">
       <div className="flex items-center justify-between">
-        <button
-          onClick={handleOpenMultiPackReveal}
-          className="rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 px-4 py-2 text-sm font-semibold text-white hover:scale-105 transition"
-        >
-          REVEAL ALL PACKS
-        </button>
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={() => {/* TODO: Open buy packs with TP modal */}}
+            className="bg-white text-black font-semibold cursor-pointer"
+          >
+            Buy Packs With TP
+          </Button>
+          <Button
+            onClick={handleOpenMultiPackReveal}
+            variant="outline"
+            className="border-neutral-700 hover:bg-neutral-800 text-white font-semibold cursor-pointer"
+          >
+            Open Your Packs
+          </Button>
+        </div>
 
         <div className="flex items-center gap-3">
           <UserProfilePicture
             walletAddress={walletAddress}
             userPrivyWalletAddress={fullWalletAddress}
             userPacks={userPacksData}
-            tokenHoldings={tokenHoldings} 
-            tokenHoldingsCount={tokenHoldingsCount} 
+            tokenHoldings={tokenHoldings}
+            tokenHoldingsCount={tokenHoldingsCount}
             userDataLoading={userDataLoading}
             userDataError={userDataError}
           />
-          <button 
-            onClick={logout} 
-            className="rounded-full border border-white/20 px-4 py-2 text-sm text-white hover:border-white/40 hover:bg-white/5"
+          <Button
+            onClick={logout}
+            variant="outline"
+            className="rounded-full border-white/20 hover:border-white/40 hover:bg-white/5"
           >
             Log Out
-          </button>
+          </Button>
           {process.env.NODE_ENV === 'development' && (
-            <button
+            <Button
               onClick={triggerManualUpdate}
               disabled={isTriggering}
-              className="rounded-full border border-orange-500/20 px-4 py-2 text-sm text-orange-300 hover:border-orange-500/40 hover:bg-orange-500/5 disabled:opacity-50"
+              variant="outline"
+              className="rounded-full border-orange-500/20 text-orange-300 hover:border-orange-500/40 hover:bg-orange-500/5 disabled:opacity-50"
             >
               {isTriggering ? 'Updating...' : 'Trigger Update'}
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -200,6 +221,16 @@ export default function Home() {
       <header className="text-center">
         <h1 className="text-4xl font-semibold text-neutral-100">Kolscan</h1>
       </header>
+
+      {/* Competition Banner - Below Kolscan heading */}
+      {competitionLoading ? (
+        <CompetitionBannerSkeleton />
+      ) : isCompetitionActive && competition ? (
+        <CompetitionBanner
+          endTime={competition.endDate}
+          competitionId={competition.id}
+        />
+      ) : null}
 
       <PackSaleBannerNew
         onViewLeaderboard={handleScrollToLeaderboard}
@@ -241,20 +272,22 @@ export default function Home() {
                 Updated: {lastUpdated.toLocaleTimeString()}
               </span>
             )}
-            <button
+            <Button
               onClick={handleRefresh}
               disabled={leaderboardLoading}
-              className="rounded bg-neutral-700 px-3 py-1 text-xs text-neutral-300 hover:bg-neutral-600 disabled:opacity-50 flex items-center gap-1 transition-colors"
+              size="sm"
+              variant="secondary"
+              className="bg-neutral-700 hover:bg-neutral-600 text-neutral-300"
             >
               {leaderboardLoading ? (
                 <>
-                  <div className="animate-spin rounded-full h-3 w-3 border-b border-neutral-300"></div>
+                  <div className="animate-spin rounded-full h-3 w-3 border-b border-neutral-300 mr-1"></div>
                   Refreshing...
                 </>
               ) : (
                 '↻ Refresh'
               )}
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -277,10 +310,11 @@ export default function Home() {
           </div>
         )}
 
-        <Leaderboard 
-          title={getPeriodTitle()} 
-          entries={leaderboardData || []} 
+        <Leaderboard
+          title={getPeriodTitle()}
+          entries={leaderboardData || []}
           loading={leaderboardLoading && !hasInitiallyLoaded} // Only show loading for initial load
+          showActions={isCompetitionActive} // Show Buy/Sell buttons when competition is active
         />
       </div>
 
