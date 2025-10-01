@@ -16,7 +16,7 @@
 // import { KolData, PackData, RevealAllPacksRequest, ConsolidatedKolData } from '@/types';
 
 // const DEVNET_RPC = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
-// const PROGRAM_ID = new PublicKey('CzhWAZRNcshcFiEgwoQAgKpXdQV1cxUNVEVsoGHzMxui');
+// const PROGRAM_ID = new PublicKey('3emMS4k8hQ6erWW55TGFKJmh1c7Aud2bbtrYFTfvQQsG');
 // const ADMIN_KEY = new PublicKey('7E85TTXg5FjT5G6q14nZUSE3KAgjM2kjBs8ddAW6eBeR');
 // const TOKENS_PER_KOL = new BN(40000 * Math.pow(10, 6)); // 40K tokens with 6 decimals
 
@@ -681,9 +681,11 @@ import { Program, AnchorProvider, Wallet, BN } from '@coral-xyz/anchor';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { Pnlpackprogram, IDL } from '../../../../lib/idl';
 import NodeWallet from '@coral-xyz/anchor/dist/cjs/nodewallet';
+import { determineRarity, RARITY_CONFIG } from '@/lib/rarity';
+import { Rarity } from '@prisma/client';
 
 const DEVNET_RPC = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
-const PROGRAM_ID = new PublicKey('CzhWAZRNcshcFiEgwoQAgKpXdQV1cxUNVEVsoGHzMxui');
+const PROGRAM_ID = new PublicKey('3emMS4k8hQ6erWW55TGFKJmh1c7Aud2bbtrYFTfvQQsG');
 const ADMIN_KEY = new PublicKey('7E85TTXg5FjT5G6q14nZUSE3KAgjM2kjBs8ddAW6eBeR');
 const TOKENS_PER_KOL = new BN(40000 * Math.pow(10, 6)); // 40K tokens with 6 decimals
 
@@ -706,6 +708,8 @@ interface KolData {
   tokenPrice?: number;
   packOccurrences?: number;
   totalTokens?: BN;
+  rarity?: Rarity;
+  rarityWeight?: number;
 }
 
 interface PackData {
@@ -1190,35 +1194,47 @@ export function createConsolidatedPackMetadata(
     packs: packs.map((pack, index) => ({
       packId: pack.packId,
       packIndex: index + 1,
-      kols: pack.kols.map(kol => ({
+      kols: pack.kols.map(kol => {
+        const rarity = kol.rarity || determineRarity(kol.rank);
+        return {
+          name: kol.name,
+          ticker: kol.ticker,
+          rank: kol.rank,
+          tokenMintAddress: kol.tokenMintAddress?.toString(),
+          rarity: rarity,
+          rarityLabel: RARITY_CONFIG[rarity].label,
+          rarityColor: RARITY_CONFIG[rarity].color
+        };
+      })
+    })),
+    consolidatedKols: consolidatedKols.map((kol, index) => {
+      const rarity = kol.rarity || determineRarity(kol.rank);
+      return {
         name: kol.name,
         ticker: kol.ticker,
+        address: kol.address,
+        tokenMintAddress: kol.tokenMintAddress?.toString(),
+        pnl: kol.pnl,
+        winRate: kol.winRate,
+        avatarUrl: kol.avatarUrl,
+        xUrl: kol.xUrl,
         rank: kol.rank,
-        tokenMintAddress: kol.tokenMintAddress?.toString()
-      }))
-    })),
-    consolidatedKols: consolidatedKols.map((kol, index) => ({
-      name: kol.name,
-      ticker: kol.ticker,
-      address: kol.address,
-      tokenMintAddress: kol.tokenMintAddress?.toString(),
-      pnl: kol.pnl,
-      winRate: kol.winRate,
-      avatarUrl: kol.avatarUrl,
-      xUrl: kol.xUrl,
-      rank: kol.rank,
-      tokenPrice: kol.tokenPrice || 0,
-      packOccurrences: kol.packOccurrences,
-      tokensReceived: kol.totalTokens.toString(),
-      tokensReceivedFormatted: formatTokenAmount(kol.totalTokens),
-      tokensPerPack: TOKENS_PER_KOL.toString(),
-      tokensPerPackFormatted: formatTokenAmount(TOKENS_PER_KOL),
-      totalTokenAmount: kol.totalTokens.toNumber(),
-      totalTokenAmountFormatted: formatTokenAmountToK(kol.totalTokens),
-      estimatedValueSOL: (kol.tokenPrice || 0) * kol.totalTokens.toNumber(),
-      estimatedValueUSD: ((kol.tokenPrice || 0) * kol.totalTokens.toNumber()) * 100,
-      appearsInPacks: kol.packIds
-    })),
+        tokenPrice: kol.tokenPrice || 0,
+        packOccurrences: kol.packOccurrences,
+        tokensReceived: kol.totalTokens.toString(),
+        tokensReceivedFormatted: formatTokenAmount(kol.totalTokens),
+        tokensPerPack: TOKENS_PER_KOL.toString(),
+        tokensPerPackFormatted: formatTokenAmount(TOKENS_PER_KOL),
+        totalTokenAmount: kol.totalTokens.toNumber(),
+        totalTokenAmountFormatted: formatTokenAmountToK(kol.totalTokens),
+        estimatedValueSOL: (kol.tokenPrice || 0) * kol.totalTokens.toNumber(),
+        estimatedValueUSD: ((kol.tokenPrice || 0) * kol.totalTokens.toNumber()) * 100,
+        appearsInPacks: kol.packIds,
+        rarity: rarity,
+        rarityLabel: RARITY_CONFIG[rarity].label,
+        rarityColor: RARITY_CONFIG[rarity].color
+      };
+    }),
     stats: {
       totalPacksRevealed,
       totalUniqueKols,
@@ -1244,10 +1260,10 @@ export function createConsolidatedPackMetadata(
 
 async function fetchTopTradersWithTokens(): Promise<KolData[]> {
   try {
-    console.log('📈 Fetching KOLs with token mint addresses from database...');
-    
+    console.log('📈 Fetching KOLs with token mint addresses and rarity from database...');
+
     const traders = await prisma.trader.findMany({
-      where: { 
+      where: {
         period: 'DAILY',
         tokenMintAddress: { not: null }
       },
@@ -1262,15 +1278,25 @@ async function fetchTopTradersWithTokens(): Promise<KolData[]> {
         winRate: true,
         avatarUrl: true,
         xUrl: true,
-        tokenMintAddress: true
+        tokenMintAddress: true,
+        rarity: true,
+        rarityWeight: true
       }
     });
-    
+
     if (traders.length === 0) {
       throw new Error('No traders with created tokens found in database');
     }
 
-    console.log(`📈 Retrieved ${traders.length} traders with token mints from database`);
+    console.log(`📈 Retrieved ${traders.length} traders with token mints and rarity from database`);
+
+    const rarityCount = traders.reduce((acc, trader) => {
+      const rarity = trader.rarity || 'COMMON';
+      acc[rarity] = (acc[rarity] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    console.log('🎨 Available KOLs by rarity:', rarityCount);
 
     return traders.map((trader) => ({
       id: trader.id,
@@ -1282,12 +1308,14 @@ async function fetchTopTradersWithTokens(): Promise<KolData[]> {
       xUrl: trader.xUrl,
       rank: trader.rank || 0,
       ticker: trader.ticker || '',
-      tokenMintAddress: trader.tokenMintAddress ? new PublicKey(trader.tokenMintAddress) : undefined
+      tokenMintAddress: trader.tokenMintAddress ? new PublicKey(trader.tokenMintAddress) : undefined,
+      rarity: trader.rarity as Rarity || determineRarity(trader.rank),
+      rarityWeight: trader.rarityWeight || 1.0
     })).filter(kol => kol.tokenMintAddress !== undefined) as KolData[];
 
   } catch (error) {
     console.error('❌ Error fetching traders with tokens:', error);
-    throw new Error(`Failed to fetch trader data with tokens: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(`Failed to fetch trader data with tokens and rarity: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 

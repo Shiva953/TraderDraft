@@ -25,6 +25,8 @@ import {
   createAssociatedTokenAccountInstruction,
   getAssociatedTokenAddress,
   TOKEN_PROGRAM_ID,
+  setAuthority,
+  AuthorityType,
 } from "@solana/spl-token";
 import {
   createCreateMetadataAccountV3Instruction,
@@ -37,6 +39,8 @@ import { AnchorProvider, Program } from "@coral-xyz/anchor"
 import * as anchor from "@coral-xyz/anchor";
 import NodeWallet from '@coral-xyz/anchor/dist/cjs/nodewallet';
 import { KolData } from '@/types';
+import { determineRarity, getRarityWeight } from '@/lib/rarity';
+import { Rarity } from '@prisma/client';
 
 const connection = new Connection("https://api.devnet.solana.com", "confirmed");
 const prisma = new PrismaClient();
@@ -83,17 +87,17 @@ async function createSingleKolTokenImproved(
 
     console.log(`💰 [AMOUNTS] totalSupply=${totalSupply.toString()} poolAmount=${poolAmount.toString()}`);
 
-    // --- Step 1: Create token mint with global_pack_pool as authority + metadata, admin is payer
-    console.log("🚀 [STEP 1] Creating token mint + metadata");
+    // --- Step 1: Create token mint with wallet as initial authority (will transfer to PDA later)
+    console.log("🚀 [STEP 1] Creating token mint + metadata with wallet as initial authority");
     const tokenMint = await createMint(
-      connection, 
-      wallet, 
-      globalPackPoolAccount, // CRITICAL: Global pack pool as mint authority (not wallet)
+      connection,
+      wallet,
+      wallet.publicKey, // Start with wallet as mint authority
       null, // freeze authority
-      decimals, 
+      decimals,
       baseMintKeypair
     );
-    console.log(`✅ [STEP 1] Token mint created with global_pack_pool as authority: ${tokenMint.toBase58()}`);
+    console.log(`✅ [STEP 1] Token mint created: ${tokenMint.toBase58()}`);
 
     // Create metadata
     const metadataPDA = getMetadataPDA(baseMintKeypair.publicKey);
@@ -111,7 +115,7 @@ async function createSingleKolTokenImproved(
       {
         metadata: metadataPDA,
         mint: baseMintKeypair.publicKey,
-        mintAuthority: globalPackPoolAccount, // Changed from wallet to globalPackPoolAccount
+        mintAuthority: wallet.publicKey, // Wallet is the initial mint authority
         payer: wallet.publicKey,
         updateAuthority: wallet.publicKey,
       },
@@ -125,6 +129,20 @@ async function createSingleKolTokenImproved(
       maxRetries: 3
     });
     console.log(`✅ [STEP 1] Metadata transaction confirmed: ${metadataSignature}`);
+
+    // --- Step 1.5: Transfer mint authority from wallet to global_pack_pool PDA
+    console.log("🚀 [STEP 1.5] Transferring mint authority to global_pack_pool PDA");
+    await setAuthority(
+      connection,
+      wallet, // payer
+      baseMintKeypair.publicKey, // mint
+      wallet, // current authority
+      AuthorityType.MintTokens, // authority type
+      globalPackPoolAccount, // new authority (the PDA)
+      [], // multiSigners (none)
+      { commitment: "confirmed" }
+    );
+    console.log(`✅ [STEP 1.5] Mint authority transferred to global_pack_pool: ${globalPackPoolAccount.toBase58()}`);
 
     // --- Step 2: Create pool token account for receiving 6%
     console.log("🚀 [STEP 2] Creating pool token account");
@@ -155,6 +173,7 @@ async function createSingleKolTokenImproved(
     );
 
     // Create the instruction transaction
+    // Mint authority has been transferred to global_pack_pool PDA in step 1.5
     const improvedTx = await program.methods
       .initKolVaultAndTransferV2(ticker, totalSupply)
       .accountsPartial({
@@ -279,11 +298,11 @@ export async function POST(request: Request) {
     const provider = new AnchorProvider(connection, anchorWallet, { commitment: "confirmed" });
     anchor.setProvider(provider);
 
-    const programId = new PublicKey("2Bv9DtsyPmwKJSpbhNdK5tEPu4WTugyoWJmx8cBfuAid");
+    const programId = new PublicKey("3emMS4k8hQ6erWW55TGFKJmh1c7Aud2bbtrYFTfvQQsG");
     const program = new Program<Pnlpackprogram>(IDL as Pnlpackprogram, provider);
     const [globalPackPoolAccount] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("global_pack_pool")],
-      program.programId
+      programId
     );
     console.log(`🔗 [ANCHOR] GlobalPackPoolAccount: ${globalPackPoolAccount.toBase58()}`);
 
@@ -312,19 +331,24 @@ export async function POST(request: Request) {
         error: result.error
       });
     
-      // Update database
+      // Update database with rarity
       try {
+        const rarity = determineRarity(kol.rank);
+        const rarityWeight = getRarityWeight(rarity);
+
         await prisma.trader.update({
           where: { id: kol.id },
-          data: { 
+          data: {
             tokenMintAddress: result.success ? result.mintAddress : null,
             poolAddress: result.success ? result.poolAddress : null,
-            ticker: result.success ? result.ticker : null
+            ticker: result.success ? result.ticker : null,
+            rarity: rarity,
+            rarityWeight: rarityWeight
           }
         });
         console.log(result.success
-          ? `✅ [DB] Updated mint, pool, and ticker for ${kol.name}`
-          : `⚠️ [DB] Stored null addresses for ${kol.name} (creation failed)`
+          ? `✅ [DB] Updated mint, pool, ticker, and rarity (${rarity}) for ${kol.name}`
+          : `⚠️ [DB] Stored null addresses and rarity (${rarity}) for ${kol.name} (creation failed)`
         );
         result.success ? successCount++ : failureCount++;
       } catch (dbErr) {

@@ -18,12 +18,14 @@ import NodeWallet from '@coral-xyz/anchor/dist/cjs/nodewallet';
 import { PrismaClient } from '@prisma/client';
 import { ClaimAllTokensRequest, TransferResult } from '@/types';
 import { ConsolidatedKolData } from '@/types';
+import { determineRarity, RARITY_CONFIG } from '@/lib/rarity';
+import { Rarity } from '@prisma/client';
 
 const connection = new Connection("https://api.devnet.solana.com", { commitment: "confirmed" });
 const prisma = new PrismaClient();
 
 const MAX_TRANSFERS_PER_TX = 5; // Conservative limit for vault-to-user transfers
-const PROGRAM_ID = new PublicKey('CzhWAZRNcshcFiEgwoQAgKpXdQV1cxUNVEVsoGHzMxui');
+const PROGRAM_ID = new PublicKey('3emMS4k8hQ6erWW55TGFKJmh1c7Aud2bbtrYFTfvQQsG');
 
 
 export async function POST(request: Request) {
@@ -129,15 +131,21 @@ export async function POST(request: Request) {
         totalKols: consolidatedKols.length,
         successfulTransfers: successfulTransfers.length,
         failedTransfers: failedTransfers.length,
-        transferResults: transferResults.map(r => ({
-          kolId: r.kol.id,
-          kolTicker: r.kol.ticker,
-          kolName: r.kol.name,
-          tokenAmount: r.kol.totalTokenAmount,
-          success: r.success,
-          signature: r.success ? r.signature : null,
-          error: r.error || null
-        })),
+        transferResults: transferResults.map(r => {
+          const rarity = r.kol.rarity || determineRarity(r.kol.rank!);
+          return {
+            kolId: r.kol.id,
+            kolTicker: r.kol.ticker,
+            kolName: r.kol.name,
+            tokenAmount: r.kol.totalTokenAmount,
+            success: r.success,
+            signature: r.success ? r.signature : null,
+            error: r.error || null,
+            rarity: rarity,
+            rarityLabel: RARITY_CONFIG[rarity].label,
+            rarityColor: RARITY_CONFIG[rarity].color
+          };
+        }),
         consolidatedKols: updatedKols,
         executionMode: 'Direct Vault-to-User Transfers (Backend Signed)',
         network: 'devnet'
