@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowDown, Users, ExternalLink } from "lucide-react";
 import { useSolanaWallets } from "@privy-io/react-auth";
 import MeteoraSwapModal from "@/components/swap/MeteoraSwapModal";
+import { useActiveCompetition } from "@/app/hooks/useActiveCompetition";
 
 interface TraderPageProps {
   params: { kol: string };
@@ -51,6 +52,7 @@ export default function TraderPage({ params }: TraderPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [isSwapModalOpen, setIsSwapModalOpen] = useState(false);
   const {wallets} = useSolanaWallets()
+  const { competition, isActive } = useActiveCompetition();
 
   const embeddedWallet = wallets.find((w) => w.walletClientType === "privy");
   const userPrivyWalletAddress = embeddedWallet?.address;
@@ -87,7 +89,15 @@ export default function TraderPage({ params }: TraderPageProps) {
         console.log(`✅ [KOLPage] Data fetched successfully`);
 
         setKOLData(data.data.kolData);
-        setUserShares(data.data.userShares);
+
+        // Only update userShares if it's a valid non-zero value, or if we're on the first load
+        const newShares = data.data.userShares;
+        if (newShares !== "0" || userShares === "0") {
+          setUserShares(newShares);
+        } else {
+          console.warn(`⚠️ [KOLPage] Received 0 shares but current value is ${userShares}, keeping current value`);
+        }
+
         setError(null);
         setLoading(false);
 
@@ -119,48 +129,14 @@ export default function TraderPage({ params }: TraderPageProps) {
 
   const currentData = getCurrentData();
 
-  // Refresh function to re-fetch all data after swap
-  const refreshKOLData = async () => {
-    console.log("🔄 [KOLPage] Refreshing all data after swap...");
-    // Wait for blockchain state to update
-    await new Promise(resolve => setTimeout(resolve, 3000));
-
-    try {
-      setLoading(true);
-      const awaitedParams = await params;
-
-      const response = await fetch('/api/getKOLPageData', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          kolName: awaitedParams.kol,
-          userWalletAddress: userPrivyWalletAddress
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setKOLData(data.data.kolData);
-        setUserShares(data.data.userShares);
-        console.log(`✅ [KOLPage] Data refreshed: ${data.data.userShares} shares`);
-      }
-    } catch (err) {
-      console.error("Error refreshing KOL data:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleBuyClick = () => {
     console.log("Buy button clicked - opening Meteora swap modal");
     setIsSwapModalOpen(true);
   };
 
-  const handleSwapSuccess = async () => {
-    console.log("Swap successful - refreshing all KOL data");
-    await refreshKOLData();
+  const handleSwapSuccess = () => {
+    console.log("✅ Swap successful - user can manually refresh the page to see updated shares");
+    // Don't refresh automatically to avoid request clashes
   };
 
   if (loading) {
@@ -378,6 +354,8 @@ export default function TraderPage({ params }: TraderPageProps) {
           poolAddress={currentData.poolAddress}
           onSwapSuccess={handleSwapSuccess}
           currentUserShares={userShares}
+          traderId={currentData.id}
+          activeCompetitionId={isActive ? competition?.id : null}
         />
       )}
     </main>

@@ -16,6 +16,7 @@ import MultiPackRevealSystem from "../components/packs/MultiPackRevealSystem";
 import UserProfilePicture from "../components/profile/UserProfilePicture";
 import { CompetitionBanner } from "../components/competition/CompetitionBanner";
 import { CompetitionBannerSkeleton } from "../components/competition/CompetitionBannerSkeleton";
+import { CompetitionResults } from "../components/competition/CompetitionResults";
 import { Button } from "../components/ui/button";
 
 import { useWallet } from "./hooks/useWallet";
@@ -59,6 +60,20 @@ export default function Home() {
     loading: competitionLoading,
     isActive: isCompetitionActive
   } = useActiveCompetition();
+
+  // Debug competition state
+  useEffect(() => {
+    console.log('🎯 [Page] Competition state:', {
+      competition: competition ? {
+        id: competition.id,
+        status: competition.status,
+        startDate: competition.startDate.toISOString(),
+        endDate: competition.endDate.toISOString()
+      } : null,
+      loading: competitionLoading,
+      isActive: isCompetitionActive
+    });
+  }, [competition, competitionLoading, isCompetitionActive]);
 
   // Track when we've successfully loaded data for the first time
   useEffect(() => {
@@ -222,14 +237,19 @@ export default function Home() {
         <h1 className="text-4xl font-semibold text-neutral-100">Kolscan</h1>
       </header>
 
-      {/* Competition Banner - Below Kolscan heading */}
+      {/* Competition Banner/Results - Below Kolscan heading */}
       {competitionLoading ? (
         <CompetitionBannerSkeleton />
-      ) : isCompetitionActive && competition ? (
-        <CompetitionBanner
-          endTime={competition.endDate}
-          competitionId={competition.id}
-        />
+      ) : competition ? (
+        // Show results if FINALIZED, otherwise show banner if ACTIVE
+        competition.status === 'FINALIZED' ? (
+          <CompetitionResults competitionId={competition.id} />
+        ) : competition.status === 'ACTIVE' ? (
+          <CompetitionBanner
+            endTime={competition.endDate}
+            competitionId={competition.id}
+          />
+        ) : null
       ) : null}
 
       <PackSaleBannerNew
@@ -294,8 +314,8 @@ export default function Home() {
         <Leaderboard
           title={getPeriodTitle()}
           entries={leaderboardData || []}
-          loading={leaderboardLoading || !leaderboardData || leaderboardData.length === 0} // Always show skeleton when loading or no data
-          showActions={isCompetitionActive} // Show Buy/Sell buttons when competition is active
+          loading={leaderboardLoading || !leaderboardData || leaderboardData.length === 0}
+          showActions={isCompetitionActive}
         />
       </div>
     </main>

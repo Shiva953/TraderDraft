@@ -9,7 +9,8 @@
     "dev:next": "bunx next dev",
     "build:next": "bunx next build",
     "dev-nolog": "bunx next dev -p 8080",
-    "build-nolog": "bunx next build"
+    "build-nolog": "bunx next build",
+    "cron": "node scripts/test-competition-cron.js"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.1",

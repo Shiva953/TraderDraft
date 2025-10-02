@@ -232,6 +232,38 @@ export default function MeteoraSwapModal({
       }
 
       console.log("✅ Swap confirmed:", signature);
+
+      // If there's an active competition, register the KOL purchase
+      let isFirstCompetitionEntry = false;
+      if (activeCompetitionId && traderId && kolAmount && parseFloat(kolAmount) > 0) {
+        try {
+          console.log("🏆 [Competition] Registering KOL purchase in competition...");
+          const buyKOLResponse = await fetch(`/api/competitions/${activeCompetitionId}/buyKOLToken`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userPrivyWalletAddress: userWallet,
+              traderId,
+              tokenAmount: parseFloat(kolAmount),
+              purchasePrice: parseFloat(solAmount),
+              transactionHash: signature
+            }),
+          });
+
+          if (buyKOLResponse.ok) {
+            const buyKOLData = await buyKOLResponse.json();
+            console.log("✅ [Competition] KOL purchase registered:", buyKOLData);
+            isFirstCompetitionEntry = buyKOLData.data?.competitionJoined || false;
+          } else {
+            console.warn("⚠️ [Competition] Failed to register KOL purchase:", await buyKOLResponse.text());
+          }
+        } catch (competitionError) {
+          console.error("❌ [Competition] Error registering KOL purchase:", competitionError);
+        }
+      }
+
       toast.success(
         <div>
           <div className="font-bold">Swap Successful!</div>
@@ -248,6 +280,13 @@ export default function MeteoraSwapModal({
         </div>,
         { id: loadingToast, duration: 5000 }
       );
+
+      // Show competition entry toast if first entry
+      if (isFirstCompetitionEntry) {
+        setTimeout(() => {
+          toast.success("🏆 Welcome to the Arena! You're now competing for Tournament Points!", { duration: 6000 });
+        }, 1500);
+      }
 
       // Update UI and close modal
       onSwapSuccess();

@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { ExternalLink, Package, Coins, ChevronRight, Copy } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { ExternalLink, Package, Coins, ChevronRight, Copy, Trophy } from 'lucide-react'
 import TokenHoldingsModal from './TokenHoldingsModal'
 import type { UserPacksData, TokenHolding } from '@/types'
 
@@ -16,9 +16,9 @@ interface UserProfileDropDownMenuProps {
   error: string | null
 }
 
-export default function UserProfileDropDownMenu({ 
-  isOpen, 
-  onClose, 
+export default function UserProfileDropDownMenu({
+  isOpen,
+  onClose,
   userPrivyWalletAddress,
   userPacks,
   tokenHoldings,
@@ -28,6 +28,29 @@ export default function UserProfileDropDownMenu({
 }: UserProfileDropDownMenuProps) {
   const [showTokenModal, setShowTokenModal] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [totalTP, setTotalTP] = useState<number>(0)
+  const [tpLoading, setTpLoading] = useState(false)
+
+  useEffect(() => {
+    if (isOpen && userPrivyWalletAddress) {
+      fetchTotalTP();
+    }
+  }, [isOpen, userPrivyWalletAddress]);
+
+  const fetchTotalTP = async () => {
+    setTpLoading(true);
+    try {
+      const response = await fetch(`/api/getUserTotalTP?userWallet=${encodeURIComponent(userPrivyWalletAddress)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setTotalTP(data.totalTP || 0);
+      }
+    } catch (err) {
+      console.error('Error fetching total TP:', err);
+    } finally {
+      setTpLoading(false);
+    }
+  };
 
   const formatAddress = (address: string) => {
     return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`
@@ -93,6 +116,25 @@ export default function UserProfileDropDownMenu({
               Error: {error}
             </div>
           )}
+
+          {/* Tournament Points */}
+          <div className="rounded-lg bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-500/30 p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <Trophy className="h-5 w-5 text-yellow-500" />
+              <h3 className="font-semibold text-white">Tournament Points</h3>
+            </div>
+            {tpLoading ? (
+              <div className="flex items-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b border-yellow-500"></div>
+                <span className="text-sm text-neutral-400">Loading...</span>
+              </div>
+            ) : (
+              <div className="text-center">
+                <span className="text-3xl font-bold text-yellow-500">{totalTP.toFixed(2)}</span>
+                <span className="text-sm text-neutral-400 ml-2">TP</span>
+              </div>
+            )}
+          </div>
 
           {/* Pack Holdings */}
           <div className="rounded-lg bg-neutral-800/50 p-4">

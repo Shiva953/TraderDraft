@@ -148,21 +148,19 @@
 //   }
 // }
 
-// FOR TESTING(COMPETITION LASTS 1 HOUR)
+// FOR TESTING(COMPETITION LASTS 10 MINUTES)
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from "@/lib/prisma";
-
-
 
 export async function POST(request: NextRequest) {
   try {
     const now = new Date();
 
-    // FOR TESTING: Create 1-hour competition
+    // FOR TESTING: Create 10-minute competition
     // FOR PRODUCTION: Use getNextMonday logic
     const startDate = new Date(now);
     const endDate = new Date(now);
-    endDate.setHours(endDate.getHours() + 1); // 1 hour for testing
+    endDate.setMinutes(endDate.getMinutes() + 10); // 10 minutes for testing
     
     // Check if a competition already exists that's active
     const existingCompetition = await prisma.competition.findFirst({
@@ -201,6 +199,7 @@ export async function POST(request: NextRequest) {
     console.log(`New competition created: ${competition.id}`, {
       startDate: competition.startDate.toISOString(),
       endDate: competition.endDate.toISOString(),
+      duration: '10 minutes',
       tpPool: competition.tpPool.toString()
     });
 
@@ -227,38 +226,38 @@ export async function POST(request: NextRequest) {
 // GET endpoint to check current active competition
 export async function GET(request: NextRequest) {
   try {
-    const currentCompetition = await prisma.competition.findFirst({
+    const now = new Date();
+    
+    // First, try to find an ACTIVE competition (even if expired - needs finalization)
+    const activeCompetition = await prisma.competition.findFirst({
       where: {
         status: 'ACTIVE',
-        startDate: {
-          lte: new Date()
-        },
-        endDate: {
-          gte: new Date()
-        }
       },
       orderBy: {
         startDate: 'desc'
       }
     });
 
-    if (!currentCompetition) {
+    // If we found an ACTIVE competition, return it regardless of end time
+    // The cron job will handle finalization if it's past the end time
+    if (activeCompetition) {
       return NextResponse.json({
         success: true,
-        competition: null,
-        message: 'No active competition found'
+        competition: {
+          id: activeCompetition.id,
+          startDate: activeCompetition.startDate.toISOString(),
+          endDate: activeCompetition.endDate.toISOString(),
+          status: activeCompetition.status,
+          tpPool: activeCompetition.tpPool.toString()
+        }
       });
     }
 
+    // No active competition found
     return NextResponse.json({
       success: true,
-      competition: {
-        id: currentCompetition.id,
-        startDate: currentCompetition.startDate.toISOString(),
-        endDate: currentCompetition.endDate.toISOString(),
-        status: currentCompetition.status,
-        tpPool: currentCompetition.tpPool.toString()
-      }
+      competition: null,
+      message: 'No active competition found'
     });
 
   } catch (error) {
