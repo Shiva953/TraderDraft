@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowDown, Users, ExternalLink } from "lucide-react";
 import { useSolanaWallets } from "@privy-io/react-auth";
+import MeteoraSwapModal from "@/components/swap/MeteoraSwapModal";
 
 interface TraderPageProps {
   params: { kol: string };
@@ -45,108 +46,70 @@ interface TokenHolding {
 
 export default function TraderPage({ params }: TraderPageProps) {
   const [kolData, setKOLData] = useState<KOLData | null>(null);
-  const [userHoldings, setUserHoldings] = useState<TokenHolding[]>([]);
   const [userShares, setUserShares] = useState<string>("0");
   const [loading, setLoading] = useState(true);
-  const [holdingsLoading, setHoldingsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isJupiterReady, setIsJupiterReady] = useState(false);
+  const [isSwapModalOpen, setIsSwapModalOpen] = useState(false);
   const {wallets} = useSolanaWallets()
 
   const embeddedWallet = wallets.find((w) => w.walletClientType === "privy");
-  const userPrivyWalletAddress = embeddedWallet ? embeddedWallet.address : '9JxBhWbrwkqX2heLq1mA3YXWKsbkCH8rE5gaVxzH7Foo' 
+  const userPrivyWalletAddress = embeddedWallet?.address;
 
-  // Fetch KOL data
+  // Single unified fetch for ALL KOL page data with retry logic
   useEffect(() => {
-    const fetchKOLData = async () => {
+    const fetchAllKOLPageData = async (retryCount = 0) => {
+      const MAX_RETRIES = 5;
+      const RETRY_DELAY = 2000;
+
       try {
         setLoading(true);
         const awaitedParams = await params;
-        const response = await fetch('/api/getIndividualKOLData', {
+
+        console.log(`🔄 [KOLPage] Fetching all data (attempt ${retryCount + 1}/${MAX_RETRIES + 1})`);
+
+        const response = await fetch('/api/getKOLPageData', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: awaitedParams.kol }),
+          body: JSON.stringify({
+            kolName: awaitedParams.kol,
+            userWalletAddress: userPrivyWalletAddress
+          }),
         });
 
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to fetch KOL data');
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          throw new Error(errorData.error || `HTTP ${response.status}: Failed to fetch KOL data`);
         }
 
         const data = await response.json();
-        setKOLData(data.data);
-      } catch (err) {
-        console.error('Error fetching KOL data:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch KOL data');
-      } finally {
+        console.log(`✅ [KOLPage] Data fetched successfully`);
+
+        setKOLData(data.data.kolData);
+        setUserShares(data.data.userShares);
+        setError(null);
         setLoading(false);
-      }
-    };
 
-    fetchKOLData();
-  }, [params]);
-
-  // Fetch user's KOL token holdings
-  useEffect(() => {
-    const fetchUserHoldings = async () => {
-      if (!userPrivyWalletAddress || userPrivyWalletAddress === "YOUR_USER_WALLET_ADDRESS") {
-        console.warn("User wallet address not set");
-        return;
-      }
-
-      try {
-        setHoldingsLoading(true);
-        const response = await fetch('/api/getUserKOLTokenHoldings', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ userPrivyWalletAddress }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to fetch user holdings');
-        }
-
-        const data = await response.json();
-        setUserHoldings(data.data.holdings);
       } catch (err) {
-        console.error('Error fetching user holdings:', err);
-      } finally {
-        setHoldingsLoading(false);
+        console.error(`❌ [KOLPage] Error fetching data (attempt ${retryCount + 1}/${MAX_RETRIES + 1}):`, err);
+
+        // Retry logic
+        if (retryCount < MAX_RETRIES) {
+          console.log(`🔄 [KOLPage] Retrying in ${RETRY_DELAY}ms...`);
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+          return fetchAllKOLPageData(retryCount + 1);
+        } else {
+          console.error(`❌ [KOLPage] Max retries reached`);
+          setError(err instanceof Error ? err.message : 'Failed to fetch KOL data');
+          setLoading(false);
+        }
       }
     };
 
-    fetchUserHoldings();
-  }, [userPrivyWalletAddress]);
+    fetchAllKOLPageData();
+  }, [params, userPrivyWalletAddress]);
 
-  // Calculate user shares for current KOL
-  useEffect(() => {
-    const currentData = getCurrentData();
-    if (!currentData?.tokenMintAddress || !userHoldings.length) {
-      setUserShares("0");
-      return;
-    }
-
-    // Find the holding that matches this KOL's token
-    const kolHolding = userHoldings.find(
-      holding => holding.mintAddress === currentData.tokenMintAddress
-    );
-
-    if (kolHolding) {
-      // Convert from smallest unit (assuming 6 decimals for most tokens)
-      // You may need to adjust this based on the actual token decimals
-      const decimals = 6; // Most SPL tokens use 6 decimals
-      const balance = parseInt(kolHolding.balance);
-      const formattedBalance = (balance / Math.pow(10, decimals)).toLocaleString();
-      setUserShares(formattedBalance);
-    } else {
-      setUserShares("0");
-    }
-  }, [userHoldings, kolData]);
 
   // Get the most recent data (prefer daily, then weekly, then monthly)
   const getCurrentData = () => {
@@ -156,135 +119,108 @@ export default function TraderPage({ params }: TraderPageProps) {
 
   const currentData = getCurrentData();
 
-  // Dynamic Jupiter Terminal loading
-  useEffect(() => {
-    const loadJupiterTerminal = async () => {
-      if (!currentData?.tokenMintAddress) return;
-
-      try {
-        console.log("Loading Jupiter Terminal dynamically...");
-        
-        // Load the Jupiter Terminal script dynamically
-        const script = document.createElement('script');
-        script.src = 'https://terminal.jup.ag/main-v2.js';
-        script.onload = async () => {
-          console.log("Jupiter script loaded, initializing...");
-          
-          // Wait for Jupiter to be available on window
-          if (window.Jupiter) {
-            await window.Jupiter.init({
-              displayMode: "modal",
-              integratedTargetId: "jupiter-terminal",
-              endpoint: "https://api.devnet.solana.com",
-              formProps: {
-                initialInputMint: "So11111111111111111111111111111111111111112", // SOL
-                initialOutputMint: currentData.tokenMintAddress,
-                initialAmount: "1000000", // 1 SOL in lamports
-              },
-              enableWalletPassthrough: true,
-              onSuccess: ({ txid }: { txid: any }) => {
-                console.log("Swap successful:", txid);
-                // Refresh user holdings after successful swap
-                if (userPrivyWalletAddress !== "YOUR_USER_WALLET_ADDRESS") {
-                  fetchUserHoldings();
-                }
-              },
-              onSwapError: ({ error }: { error: any }) => {
-                console.error("Swap error:", error);
-              },
-            });
-            
-            setIsJupiterReady(true);
-            console.log("Jupiter Terminal initialized successfully");
-          }
-        };
-        
-        script.onerror = () => {
-          console.error("Failed to load Jupiter Terminal script");
-        };
-        
-        document.head.appendChild(script);
-
-        // Cleanup function
-        return () => {
-          if (script.parentNode) {
-            script.parentNode.removeChild(script);
-          }
-        };
-      } catch (error) {
-        console.error("Error setting up Jupiter Terminal:", error);
-      }
-    };
-
-    loadJupiterTerminal();
-  }, [currentData?.tokenMintAddress]);
-
-  // Helper function to refresh holdings (reusable)
-  const fetchUserHoldings = async () => {
-    if (!userPrivyWalletAddress || userPrivyWalletAddress === "YOUR_USER_WALLET_ADDRESS") {
-      return;
-    }
+  // Refresh function to re-fetch all data after swap
+  const refreshKOLData = async () => {
+    console.log("🔄 [KOLPage] Refreshing all data after swap...");
+    // Wait for blockchain state to update
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
     try {
-      setHoldingsLoading(true);
-      const response = await fetch('/api/getUserKOLTokenHoldings', {
+      setLoading(true);
+      const awaitedParams = await params;
+
+      const response = await fetch('/api/getKOLPageData', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ userPrivyWalletAddress }),
+        body: JSON.stringify({
+          kolName: awaitedParams.kol,
+          userWalletAddress: userPrivyWalletAddress
+        }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch user holdings');
+      if (response.ok) {
+        const data = await response.json();
+        setKOLData(data.data.kolData);
+        setUserShares(data.data.userShares);
+        console.log(`✅ [KOLPage] Data refreshed: ${data.data.userShares} shares`);
       }
-
-      const data = await response.json();
-      setUserHoldings(data.data.holdings);
     } catch (err) {
-      console.error('Error fetching user holdings:', err);
+      console.error("Error refreshing KOL data:", err);
     } finally {
-      setHoldingsLoading(false);
+      setLoading(false);
     }
   };
 
   const handleBuyClick = () => {
-    console.log("Buy button clicked");
-    if (isJupiterReady && window.Jupiter) {
-      console.log("Opening Jupiter Terminal for buy...");
-      window.Jupiter.open();
-    } else {
-      console.warn("Jupiter Terminal not ready yet");
-    }
+    console.log("Buy button clicked - opening Meteora swap modal");
+    setIsSwapModalOpen(true);
   };
 
-  const handleSellClick = () => {
-    console.log("Sell button clicked");
-    if (isJupiterReady && window.Jupiter && currentData?.tokenMintAddress) {
-      console.log("Opening Jupiter Terminal for sell...");
-      // For sell, we need to reconfigure to swap FROM token TO SOL
-      window.Jupiter.init({
-        displayMode: "modal",
-        formProps: {
-          initialInputMint: currentData.tokenMintAddress, // Token
-          initialOutputMint: "So11111111111111111111111111111111111111112", // SOL
-        },
-      }).then(() => {
-        window.Jupiter.open();
-      });
-    } else {
-      console.warn("Jupiter Terminal not ready yet");
-    }
+  const handleSwapSuccess = async () => {
+    console.log("Swap successful - refreshing all KOL data");
+    await refreshKOLData();
   };
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-black">
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-            <p className="text-neutral-400">Loading trader data...</p>
+      <main className="min-h-screen bg-black text-white">
+        <div className="flex">
+          {/* Left Panel Skeleton */}
+          <div className="w-1/2 p-8 flex flex-col justify-between">
+            <div className="mb-12">
+              {/* Back button skeleton */}
+              <div className="w-6 h-6 bg-gray-700 rounded mb-8 animate-pulse"></div>
+
+              {/* Name skeleton */}
+              <div className="mb-8">
+                <div className="h-16 bg-gray-700 rounded w-3/4 mb-4 animate-pulse"></div>
+                <div className="h-4 bg-gray-700 rounded w-1/2 mb-2 animate-pulse"></div>
+              </div>
+
+              {/* Price skeleton */}
+              <div className="mb-8">
+                <div className="flex items-center space-x-4 mb-2">
+                  <div className="w-6 h-6 bg-gray-700 rounded-full animate-pulse"></div>
+                  <div className="h-12 bg-gray-700 rounded w-48 animate-pulse"></div>
+                  <div className="h-6 bg-gray-700 rounded w-20 animate-pulse"></div>
+                </div>
+              </div>
+
+              {/* Action buttons skeleton */}
+              <div className="flex space-x-4">
+                <div className="h-12 bg-gray-700 rounded-full w-32 animate-pulse"></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Panel Skeleton */}
+          <div className="w-1/2 p-8 space-y-6">
+            {/* Profile card skeleton */}
+            <div className="bg-gradient-to-br from-slate-700 to-slate-800 rounded-2xl p-8 h-80 animate-pulse">
+              <div className="flex items-center justify-center h-full">
+                <div className="w-64 h-64 rounded-3xl bg-gray-600"></div>
+              </div>
+            </div>
+
+            {/* Stats cards skeleton */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-gradient-to-br from-slate-700 to-slate-800 rounded-2xl p-6 animate-pulse">
+                <div className="h-4 bg-gray-600 rounded w-20 mb-2"></div>
+                <div className="h-8 bg-gray-600 rounded w-16"></div>
+              </div>
+              <div className="bg-gradient-to-br from-slate-700 to-slate-800 rounded-2xl p-6 animate-pulse">
+                <div className="h-4 bg-gray-600 rounded w-32 mb-2"></div>
+                <div className="h-6 bg-gray-600 rounded w-24"></div>
+              </div>
+            </div>
+
+            {/* Your Shares skeleton */}
+            <div className="bg-gradient-to-br from-slate-700 to-slate-800 rounded-2xl p-6 animate-pulse">
+              <div className="h-4 bg-gray-600 rounded w-24 mb-2"></div>
+              <div className="h-8 bg-gray-600 rounded w-20"></div>
+            </div>
           </div>
         </div>
       </main>
@@ -349,52 +285,14 @@ export default function TraderPage({ params }: TraderPageProps) {
 
             {/* Action Buttons */}
             <div className="flex space-x-4">
-              <button 
+              <button
                 onClick={handleBuyClick}
-                disabled={!isJupiterReady}
+                disabled={!currentData?.poolAddress || !currentData?.tokenMintAddress}
                 className="cursor-pointer bg-green-500 text-white px-8 py-3 rounded-full font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-green-600 transition-colors"
               >
-                {isJupiterReady ? 'Buy' : 'Loading Swap...'}
-              </button>
-              <button 
-                onClick={handleSellClick}
-                disabled={!isJupiterReady}
-                className="cursor-pointer bg-red-500 text-white px-8 py-3 rounded-full font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-red-600 transition-colors"
-              >
-                {isJupiterReady ? 'Sell' : 'Loading Swap...'}
+                Buy
               </button>
             </div>
-
-            {/* Status indicator */}
-            <div className="mt-4">
-              <div className="flex items-center space-x-2 text-sm">
-                <div className={`w-2 h-2 rounded-full ${isJupiterReady ? 'bg-green-400' : 'bg-yellow-400 animate-pulse'}`}></div>
-                <span className="text-gray-400">
-                  Swap: {isJupiterReady ? 'Ready' : 'Loading...'}
-                </span>
-              </div>
-            </div>
-
-            {/* Holdings status indicator */}
-            {holdingsLoading && (
-              <div className="mt-2">
-                <div className="flex items-center space-x-2 text-sm">
-                  <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></div>
-                  <span className="text-gray-400">Loading holdings...</span>
-                </div>
-              </div>
-            )}
-
-            {/* Debug info - remove in production */}
-            {process.env.NODE_ENV === 'development' && (
-              <div className="mt-4 text-xs text-gray-500 space-y-1">
-                <p>Jupiter Ready: {isJupiterReady ? 'Yes' : 'No'}</p>
-                <p>Token: {currentData.tokenMintAddress}</p>
-                <p>Jupiter Object: {typeof window !== 'undefined' && window.Jupiter ? 'Available' : 'Not Available'}</p>
-                <p>User Holdings: {userHoldings.length} tokens</p>
-                <p>Current KOL Holding: {userShares}</p>
-              </div>
-            )}
           </div>
         </div>
 
@@ -457,32 +355,31 @@ export default function TraderPage({ params }: TraderPageProps) {
             <div className="flex items-center space-x-2">
               <Users className="text-white/60" size={20} />
               <span className="text-white text-2xl font-bold">
-                {holdingsLoading ? (
-                  <div className="animate-pulse bg-gray-600 rounded w-20 h-8"></div>
-                ) : (
-                  userShares
-                )}
+                {userShares}
               </span>
-              {userShares !== "0" && !holdingsLoading && (
+              {userShares !== "0" && (
                 <span className="text-green-400 text-sm">tokens</span>
               )}
             </div>
-            {userShares === "0" && !holdingsLoading && (
+            {userShares === "0" && (
               <p className="text-white/50 text-xs mt-1">No holdings found</p>
             )}
           </div>
         </div>
       </div>
 
-      {/* Hidden container for Jupiter Terminal */}
-      <div id="jupiter-terminal" style={{ display: 'none' }} />
+      {/* Meteora Swap Modal */}
+      {currentData && (
+        <MeteoraSwapModal
+          isOpen={isSwapModalOpen}
+          onClose={() => setIsSwapModalOpen(false)}
+          kolName={currentData.name}
+          kolTokenMint={currentData.tokenMintAddress}
+          poolAddress={currentData.poolAddress}
+          onSwapSuccess={handleSwapSuccess}
+          currentUserShares={userShares}
+        />
+      )}
     </main>
   );
-}
-
-// Extend the Window interface to include Jupiter
-declare global {
-  interface Window {
-    Jupiter: any;
-  }
 }

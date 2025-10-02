@@ -298,11 +298,6 @@ export default function Home() {
           showActions={isCompetitionActive} // Show Buy/Sell buttons when competition is active
         />
       </div>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Trending items={trendingData} />
-        <Swap />
-      </div>
     </main>
   );
 }
