@@ -3,11 +3,21 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useSolanaWallets } from "@privy-io/react-auth/solana";
-import { X } from 'lucide-react';
+import { X, Minus, Plus } from 'lucide-react';
 import { MultiPackRevealResponse } from "@/types/pack";
 import { motion, AnimatePresence } from "framer-motion";
 import { MultiPackDisplay, MultiPackOpeningLoader } from '../packs/MultiPackDisplay';
 import { ConsolidatedKOLGrid } from '../packs/MultiPackKOLGrid';
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
 
 interface PackOpeningModalProps {
   isOpen: boolean;
@@ -58,6 +68,8 @@ export function PackOpeningModal({ isOpen, onClose, userTP: initialTP }: PackOpe
   const [packData, setPackData] = useState<MultiPackRevealResponse["data"] | null>(null);
   const [numberOfPacks, setNumberOfPacks] = useState(0);
   const [userTP, setUserTP] = useState(initialTP);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [customQuantity, setCustomQuantity] = useState(1);
   const { wallets } = useSolanaWallets();
 
   const embeddedWallet = wallets.find((w) => w.walletClientType === "privy");
@@ -110,22 +122,35 @@ export function PackOpeningModal({ isOpen, onClose, userTP: initialTP }: PackOpe
     const maxPacks = getMaxPacks(packType);
     if (maxPacks > 0) {
       setSelectedPack(packType);
+      setCustomQuantity(Math.min(1, maxPacks));
+      // Don't open drawer here - let the button do it
     }
+  };
+
+  const handleQuantityChange = (change: number) => {
+    if (!selectedPack) return;
+    const maxPacks = getMaxPacks(selectedPack);
+    const newQuantity = Math.max(1, Math.min(maxPacks, customQuantity + change));
+    setCustomQuantity(newQuantity);
   };
 
   const handleOpenPacks = async () => {
     if (!selectedPack || !userWallet) return;
 
-    const maxPacks = getMaxPacks(selectedPack);
-    if (maxPacks < 1) {
+    const packsToOpen = customQuantity;
+    if (packsToOpen < 1) {
       console.error('Not enough TP to open packs');
       return;
     }
 
     setIsProcessing(true);
 
+    // Small delay to show loading state in button before closing drawer
+    await new Promise(resolve => setTimeout(resolve, 300));
+    setIsDrawerOpen(false);
+
     try {
-      console.log(`🎁 Opening ${maxPacks} ${selectedPack} pack(s)...`);
+      console.log(`🎁 Opening ${packsToOpen} ${selectedPack} pack(s)...`);
 
       const response = await fetch('/api/pack/openPacksWithTP', {
         method: 'POST',
@@ -133,7 +158,7 @@ export function PackOpeningModal({ isOpen, onClose, userTP: initialTP }: PackOpe
         body: JSON.stringify({
           userWallet,
           packType: selectedPack,
-          numberOfPacks: maxPacks
+          numberOfPacks: packsToOpen
         })
       });
 
@@ -145,7 +170,7 @@ export function PackOpeningModal({ isOpen, onClose, userTP: initialTP }: PackOpe
         // Refresh TP to show updated balance
         await fetchLatestTP();
 
-        setNumberOfPacks(maxPacks);
+        setNumberOfPacks(packsToOpen);
         setCurrentStep('pack');
       } else {
         console.error('❌ Failed to open packs:', result.error);
@@ -226,6 +251,8 @@ export function PackOpeningModal({ isOpen, onClose, userTP: initialTP }: PackOpe
     setSelectedPack(null);
     setNumberOfPacks(0);
     setPackData(null);
+    setIsDrawerOpen(false);
+    setCustomQuantity(1);
     // Refresh TP when closing modal in case user wants to open more packs
     if (userWallet) {
       fetchLatestTP();
@@ -418,23 +445,88 @@ export function PackOpeningModal({ isOpen, onClose, userTP: initialTP }: PackOpe
               })}
             </div>
 
-            {/* Action Button */}
+            {/* Drawer for Quantity Selection */}
+            <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
+              <DrawerContent className="bg-white !z-[10000]">
+                <DrawerHeader className="text-center">
+                  <DrawerTitle className="text-2xl font-bold text-neutral-900">
+                    {selectedPack && PACK_TYPES[selectedPack].name}
+                  </DrawerTitle>
+                  <DrawerDescription className="text-neutral-600">
+                    Select the number of packs to open
+                  </DrawerDescription>
+                </DrawerHeader>
+
+                <div className="px-6 py-8">
+                  <div className="flex items-center justify-center gap-6">
+                    <Button
+                      onClick={() => handleQuantityChange(-1)}
+                      disabled={customQuantity <= 1}
+                      size="lg"
+                      variant="outline"
+                      className="h-14 w-14 rounded-full border-2 border-neutral-300 hover:border-neutral-900"
+                    >
+                      <Minus className="h-6 w-6" />
+                    </Button>
+
+                    <div className="text-center min-w-[120px]">
+                      <div className="text-5xl font-bold text-neutral-900">{customQuantity}</div>
+                      <div className="text-sm text-neutral-500 mt-1">
+                        {selectedPack && `${customQuantity * PACK_TYPES[selectedPack].price} TP`}
+                      </div>
+                    </div>
+
+                    <Button
+                      onClick={() => handleQuantityChange(1)}
+                      disabled={selectedPack ? customQuantity >= getMaxPacks(selectedPack) : true}
+                      size="lg"
+                      variant="outline"
+                      className="h-14 w-14 rounded-full border-2 border-neutral-300 hover:border-neutral-900"
+                    >
+                      <Plus className="h-6 w-6" />
+                    </Button>
+                  </div>
+
+                  <div className="mt-6 text-center text-sm text-neutral-500">
+                    Maximum: {selectedPack && getMaxPacks(selectedPack)} packs
+                  </div>
+                </div>
+
+                <DrawerFooter className="px-6 pb-8 flex flex-col items-center gap-3">
+                  <Button
+                    onClick={handleOpenPacks}
+                    disabled={isProcessing}
+                    size="lg"
+                    className="cursor-pointer max-w-md w-full h-14 text-lg tracking-tight bg-black text-white hover:bg-neutral-800 rounded-full"
+                  >
+                    {isProcessing ? (
+                      <span className="flex items-center gap-2">
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Opening...
+                      </span>
+                    ) : (
+                      `Open ${customQuantity} Pack${customQuantity > 1 ? 's' : ''}`
+                    )}
+                  </Button>
+                  <DrawerClose asChild>
+                    <Button variant="outline" size="lg" className="max-w-md w-full">
+                      Cancel
+                    </Button>
+                  </DrawerClose>
+                </DrawerFooter>
+              </DrawerContent>
+            </Drawer>
+
+            {/* Action Button - Click to Open Drawer */}
             <div className="max-w-2xl mx-auto px-4 pb-16">
               {selectedPack ? (
                 <Button
-                  onClick={handleOpenPacks}
+                  onClick={() => setIsDrawerOpen(true)}
                   disabled={isProcessing}
                   size="lg"
                   className="cursor-pointer w-full h-14 text-lg tracking-tight bg-black text-white hover:bg-neutral-800 rounded-full transition-all duration-200"
                 >
-                  {isProcessing ? (
-                    <span className="flex items-center gap-2">
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Opening...
-                    </span>
-                  ) : (
-                    `Open ${getMaxPacks(selectedPack)} ${PACK_TYPES[selectedPack].name}${getMaxPacks(selectedPack) > 1 ? 's' : ''}`
-                  )}
+                  Select amount of {PACK_TYPES[selectedPack].name}s...
                 </Button>
               ) : (
                 <Button
@@ -448,6 +540,25 @@ export function PackOpeningModal({ isOpen, onClose, userTP: initialTP }: PackOpe
             </div>
             </div>
           </div>
+
+          {/* Loading Overlay - Show while processing after drawer closes */}
+          {isProcessing && !isDrawerOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[10001] bg-white/95 flex items-center justify-center"
+            >
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-2 mb-4">
+                  <div className="w-3 h-3 bg-black rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <div className="w-3 h-3 bg-black rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <div className="w-3 h-3 bg-black rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
+                <p className="text-neutral-600 font-medium">Preparing your packs...</p>
+              </div>
+            </motion.div>
+          )}
         </motion.div>
       )}
     </AnimatePresence>

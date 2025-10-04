@@ -70,7 +70,7 @@ export function Navigation() {
             {/* Left side - Action buttons */}
             <div className="flex items-center gap-3">
               <Button
-                onClick={() => {/* TODO: Open buy packs with TP modal */}}
+                onClick={() => setShowPackOpeningModal(true)}
                 className="bg-white text-black font-semibold hover:bg-neutral-200 cursor-pointer"
               >
                 Buy Packs With TP
