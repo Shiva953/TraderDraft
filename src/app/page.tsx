@@ -18,6 +18,7 @@ import { CompetitionBanner } from "../components/competition/CompetitionBanner";
 import { CompetitionBannerSkeleton } from "../components/competition/CompetitionBannerSkeleton";
 import { CompetitionResults } from "../components/competition/CompetitionResults";
 import { Button } from "../components/ui/button";
+import { PackOpeningModal } from "../components/competition/PackOpeningModal";
 
 import { useWallet } from "./hooks/useWallet";
 import { useUserPacks } from "./hooks/useUserPacks";
@@ -27,7 +28,9 @@ import { useActiveCompetition } from "./hooks/useActiveCompetition";
 export default function Home() {
   const [showPackReveal, setShowPackReveal] = useState(false);
   const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
-  
+  const [showPackOpeningModal, setShowPackOpeningModal] = useState(false);
+  const [userTP, setUserTP] = useState(0);
+
   const { login } = useLogin();
   const { logout } = useLogout();
   const { triggerManualUpdate, isTriggering } = useDevBackgroundJobs();
@@ -103,8 +106,28 @@ export default function Home() {
   ];
 
   const handleOpenMultiPackReveal = useCallback(() => {
-    setShowPackReveal(true);
+    setShowPackOpeningModal(true);
   }, []);
+
+  // Fetch user TP when wallet is connected
+  useEffect(() => {
+    if (fullWalletAddress) {
+      fetchUserTP();
+    }
+  }, [fullWalletAddress]);
+
+  const fetchUserTP = async () => {
+    if (!fullWalletAddress) return;
+    try {
+      const response = await fetch(`/api/getUserTotalTP?userWallet=${encodeURIComponent(fullWalletAddress)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setUserTP(data.totalTP || 0);
+      }
+    } catch (err) {
+      console.error('Error fetching total TP:', err);
+    }
+  };
 
   const {
     packs: userPacks,
@@ -323,6 +346,13 @@ export default function Home() {
           showActions={isCompetitionActive}
         />
       </div>
+
+      {/* Pack Opening Modal */}
+      <PackOpeningModal
+        isOpen={showPackOpeningModal}
+        onClose={() => setShowPackOpeningModal(false)}
+        userTP={userTP}
+      />
     </main>
   );
 }

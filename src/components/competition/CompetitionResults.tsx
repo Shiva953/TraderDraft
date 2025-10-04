@@ -178,8 +178,8 @@ export function CompetitionResults({
         <div className="flex flex-col gap-6 p-8 md:p-12">
           {/* Main Header */}
           <div className="text-center">
-            <h2 className="text-5xl md:text-6xl font-bold text-white tracking-tight mb-2">
-              RESULTS ARE LIVE!
+            <h2 className="text-5xl md:text-6xl font-bold text-white mb-2">
+              Results are Live
             </h2>
 
             {/* Competition Duration */}
@@ -416,33 +416,33 @@ export function CompetitionResults({
             {/* Animated TP Display */}
             {userResult ? (
               <>
-                <h2 className="text-white text-2xl font-bold tracking-wider mb-8 animate-fade-in">
-                  YOU GAINED
+                <h2 className="text-white text-xl mb-8 animate-fade-in">
+                  You Earned
                 </h2>
-                <div className="text-emerald-400 text-8xl font-bold mb-2 animate-scale-in tracking-tighter">
+                <div className="text-emerald-400 text-8xl font-bold mb-2 animate-scale-in">
                   {parseFloat(userResult.tournamentPoints).toFixed(0)}
                 </div>
-                <p className="text-white text-xl tracking-widest mb-12 animate-fade-in-delay">
-                  TOURNAMENT POINTS!
+                <p className="text-white text-2xl mb-12 animate-fade-in-delay">
+                  Tournament Points
                 </p>
                 <Button
                   onClick={() => setShowTPModal(false)}
                   size="lg"
-                  className="bg-pink-500 hover:bg-pink-600 text-white font-semibold px-12 py-6 rounded-full text-lg"
+                  className="cursor-pointer bg-[#EF7DB4] hover:bg-[#CA6897] text-white px-12 py-6 rounded-full text-lg"
                 >
                   See Leaderboard
                 </Button>
               </>
             ) : (
               <>
-                <h2 className="text-white text-2xl font-bold tracking-wider mb-8">
-                  YOU GAINED
+                <h2 className="text-white text-xl mb-8">
+                  You Earned
                 </h2>
                 <div className="text-neutral-500 text-8xl font-bold mb-2 tracking-tighter">
                   0
                 </div>
-                <p className="text-neutral-400 text-xl tracking-widest mb-12">
-                  TOURNAMENT POINTS
+                <p className="text-neutral-400 text-2xl mb-12">
+                Tournament Points
                 </p>
                 <p className="text-neutral-500 text-sm">You didn't participate in this competition</p>
               </>

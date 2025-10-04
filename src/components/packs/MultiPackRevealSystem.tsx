@@ -4,9 +4,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { useSolanaWallets } from "@privy-io/react-auth/solana"
 import { MultiPackRevealBanner } from "./MultiPackRevealBanner"
 import { MultiPackDisplay, MultiPackOpeningLoader } from "./MultiPackDisplay"
-import { StatsSummary } from "./StatsSummary"
 import { ConsolidatedKOLGrid } from "./MultiPackKOLGrid"
-import { ClaimAllTokensButton } from "./ClaimAllKOLPacksTokens"
 
 // Main Multi-Pack Reveal System - Updated for Backend Token Claims
 export const MultiPackRevealSystem = () => {
@@ -50,22 +48,53 @@ export const MultiPackRevealSystem = () => {
   
     const handleOpenPack = async () => {
       setCurrentStep("loading")
-  
+
       try {
+        // Step 1: Reveal all packs
         const response = await fetch("/api/pack/revealAllPacks", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ numberOfPacks: packCount }),
         })
-  
+
         if (response.ok) {
           const result: MultiPackRevealResponse = await response.json()
           if (result.success) {
             setPackData(result.data)
-            
+
             // Reset user pack holdings to 0 after successful reveal
             await resetUserPackHoldings()
-            
+
+            // Step 2: Automatically claim all KOL tokens
+            if (!wallets || wallets.length === 0) {
+              throw new Error("No wallet found for claiming tokens")
+            }
+
+            const embeddedWallet = wallets.find((w) => w.walletClientType === "privy")
+            if (!embeddedWallet) {
+              throw new Error("No embedded wallet found for claiming tokens")
+            }
+
+            // Call backend API to claim all tokens
+            const claimResponse = await fetch("/api/pack/claimAllKOLTokens", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                userPrivyWalletAddress: embeddedWallet.address,
+                consolidatedKols: result.data.consolidatedKols,
+              }),
+            })
+
+            const claimData = await claimResponse.json()
+
+            if (!claimResponse.ok || !claimData.success) {
+              console.error("Failed to claim tokens:", claimData.error)
+              throw new Error(claimData.error || "Failed to claim tokens")
+            }
+
+            console.log("✅ Tokens claimed successfully:", claimData.data)
+
+            // Show the revealed cards after claiming is complete
             setTimeout(() => {
               setCurrentStep("revealed")
             }, 3000)
@@ -109,23 +138,7 @@ export const MultiPackRevealSystem = () => {
         console.error("Error resetting pack holdings:", error)
       }
     }
-  
-    // Updated pack claim handler - now uses backend-handled token transfers
-    const handlePackClaim = async () => {
-      console.log("Token claim initiated - backend will handle transfers directly!")
-      
-      if (!packData || !wallets || wallets.length === 0) {
-        console.error("Missing pack data or wallet for claiming")
-        return
-      }
 
-      const embeddedWallet = wallets.find((w) => w.walletClientType === "privy")
-      if (!embeddedWallet) {
-        console.error("No embedded wallet found")
-        return
-      }
-    }
-  
     return (
       <div className="min-h-screen bg-black overflow-hidden">
         <AnimatePresence mode="wait">
@@ -177,12 +190,8 @@ export const MultiPackRevealSystem = () => {
               className="min-h-screen"
             >
               <div className="w-full max-w-7xl mx-auto p-6">
-                <StatsSummary stats={packData?.stats!} />
+                {/* <StatsSummary stats={packData?.stats!} /> */}
                 <ConsolidatedKOLGrid kols={packData?.consolidatedKols || []} />
-                {/* Updated ClaimAllTokensButton now handles backend transfers */}
-                <ClaimAllTokensButton packData={packData} onClaim={handlePackClaim} />
-                
-                {/* Info banner about new claiming system */}
               </div>
             </motion.div>
           )}

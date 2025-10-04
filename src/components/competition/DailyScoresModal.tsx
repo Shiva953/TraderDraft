@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -159,15 +158,15 @@ export function DailyScoresModal({ open, onOpenChange, competitionId }: DailySco
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl bg-neutral-900 border-neutral-800 text-neutral-100 max-h-[85vh] flex flex-col overflow-hidden">
+      <DialogContent className="max-w-5xl bg-gray-900/95 backdrop-blur-xl border border-gray-700/50 text-white max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-2xl font-bold text-white">
-              Live Daily Scores
+            <DialogTitle className="text-2xl font-light tracking-tight text-white">
+              live scores
             </DialogTitle>
             {lastUpdated && (
-              <div className="text-xs text-neutral-500">
-                Last snapshot: {lastUpdated.toLocaleTimeString([], {
+              <div className="text-xs text-gray-400 font-light">
+                last update: {lastUpdated.toLocaleTimeString([], {
                   hour: '2-digit',
                   minute: '2-digit',
                   hour12: true
@@ -177,44 +176,42 @@ export function DailyScoresModal({ open, onOpenChange, competitionId }: DailySco
           </div>
         </DialogHeader>
 
-        <Separator className="bg-neutral-800" />
+        <div className="border-t border-gray-700/50 my-4" />
 
         {loading ? (
           <div className="space-y-3 py-6">
-            <Skeleton className="h-10 w-full bg-neutral-800" />
-            <Skeleton className="h-16 w-full bg-neutral-800" />
-            <Skeleton className="h-16 w-full bg-neutral-800" />
-            <Skeleton className="h-16 w-full bg-neutral-800" />
+            <Skeleton className="h-10 w-full bg-gray-800/50" />
+            <Skeleton className="h-16 w-full bg-gray-800/50" />
+            <Skeleton className="h-16 w-full bg-gray-800/50" />
+            <Skeleton className="h-16 w-full bg-gray-800/50" />
             {error && (
-              <div className="text-center text-sm text-neutral-400">
-                Retrying...
+              <div className="text-center text-sm text-gray-400 font-light">
+                retrying...
               </div>
             )}
           </div>
         ) : error ? (
           <Alert variant="destructive" className="bg-red-900/20 border-red-800">
-            <AlertDescription className="text-red-400">
-              <strong>Error:</strong> {error}
+            <AlertDescription className="text-red-400 font-light">
+              {error}
             </AlertDescription>
           </Alert>
         ) : userScores.length === 0 ? (
           <div className="text-center py-12 space-y-3">
-            <p className="text-neutral-400">No participants yet.</p>
-            <p className="text-sm text-neutral-500">Buy KOL tokens to join the competition!</p>
+            <p className="text-gray-300 font-light">no participants yet</p>
+            <p className="text-sm text-gray-400 font-light">buy KOL tokens to join the competition</p>
           </div>
         ) : (
           <ScrollArea className="flex-1 overflow-y-auto">
             <div className="space-y-4 pr-4">
-              {/* Header */}
-              <div className="grid grid-cols-[50px_minmax(100px,1fr)_80px_70px_40px] gap-2 px-3 pb-3 text-xs uppercase tracking-wider text-neutral-400 border-b border-neutral-800 sticky top-0 bg-neutral-900 z-10">
-                <div className="text-center">Rank</div>
-                <div className="truncate">Wallet</div>
-                <div className="text-right">Score</div>
-                <div className="text-right">KOLs</div>
+              <div className="grid grid-cols-[50px_minmax(120px,1fr)_90px_70px_40px] gap-3 px-4 pb-3 text-xs tracking-wide text-gray-400 border-b border-gray-700/50 sticky top-0 bg-gray-900/95 backdrop-blur-xl z-10 font-light">
+                <div className="text-center">rank</div>
+                <div className="truncate">wallet</div>
+                <div className="text-right">score</div>
+                <div className="text-right">holdings</div>
                 <div></div>
               </div>
 
-              {/* Scores List */}
               <div className="space-y-2 pt-2">
                 {userScores.map((userScore, index) => {
                   const isExpanded = expandedUsers.has(userScore.userId);
@@ -223,78 +220,71 @@ export function DailyScoresModal({ open, onOpenChange, competitionId }: DailySco
 
                   return (
                     <div key={userScore.userId} className="space-y-2">
-                      {/* User Row */}
                       <div
-                        className="grid grid-cols-[50px_minmax(100px,1fr)_80px_70px_40px] gap-2 items-center px-3 py-3 rounded-lg bg-neutral-800/50 hover:bg-neutral-800 transition-colors cursor-pointer"
+                        className="grid grid-cols-[50px_minmax(120px,1fr)_90px_70px_40px] gap-3 items-center px-4 py-3 rounded-lg bg-gray-800/40 hover:bg-gray-800/60 transition-all cursor-pointer"
                         onClick={() => toggleUserExpanded(userScore.userId)}
                       >
-                        {/* Rank */}
                         <div className="flex items-center justify-center">
                           <Badge
                             variant="outline"
-                            className={`h-7 w-7 flex items-center justify-center text-xs font-bold ${
+                            className={`h-7 w-7 flex items-center justify-center text-xs font-medium ${
                               rank === 1
                                 ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50'
                                 : rank === 2
                                 ? 'bg-gray-400/20 text-gray-300 border-gray-400/50'
                                 : rank === 3
                                 ? 'bg-orange-600/20 text-orange-400 border-orange-600/50'
-                                : 'bg-neutral-700 text-neutral-300 border-neutral-600'
+                                : 'bg-gray-700/50 text-gray-300 border-gray-600/50'
                             }`}
                           >
                             {rank}
                           </Badge>
                         </div>
 
-                        {/* Wallet Address */}
-                        <div className="font-mono text-sm text-neutral-200 truncate">
+                        <div className="font-mono text-sm text-gray-200 truncate font-light">
                           {displayAddress}
                         </div>
 
-                        {/* Daily Score */}
-                        <div className="text-right font-semibold text-sm truncate">
+                        <div className="text-right font-medium text-sm truncate">
                           {userScore.lastUpdated ? (
                             <span className="text-emerald-400">{userScore.totalDailyScore.toFixed(2)}</span>
                           ) : (
-                            <span className="text-neutral-500" title="Waiting for next snapshot">
+                            <span className="text-gray-500" title="waiting for next snapshot">
                               {userScore.totalDailyScore.toFixed(2)}
                             </span>
                           )}
                         </div>
 
-                        {/* Holdings Count */}
-                        <div className="text-right text-neutral-300 text-sm">
+                        <div className="text-right text-gray-300 text-sm font-light">
                           {userScore.holdingsCount}
                         </div>
 
-                        {/* Expand/Collapse Icon */}
                         <div className="flex justify-center">
                           {isExpanded ? (
-                            <ChevronUp className="w-4 h-4 text-neutral-400 flex-shrink-0" />
+                            <ChevronUp className="w-4 h-4 text-gray-400 flex-shrink-0" />
                           ) : (
-                            <ChevronDown className="w-4 h-4 text-neutral-400 flex-shrink-0" />
+                            <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
                           )}
                         </div>
                       </div>
 
-                      {/* Expanded Holdings */}
                       {isExpanded && (
-                        <div className="ml-6 mr-2 space-y-1">
+                        <div className="ml-8 mr-2 space-y-1.5">
                           {userScore.holdings.map((holding) => (
                             <div
                               key={holding.holdingId}
-                              className="grid grid-cols-[minmax(100px,1fr)_90px_80px] gap-2 px-3 py-2 rounded bg-neutral-900/50 text-sm"
+                              className="grid grid-cols-[minmax(120px,1fr)_100px_90px] gap-3 px-4 py-2.5 rounded-lg bg-gray-900/50 text-sm"
                             >
                               <div className="flex items-center gap-2 min-w-0">
-                                <span className="text-neutral-300 truncate">{holding.traderName}</span>
-                                <Badge variant="secondary" className="text-xs flex-shrink-0">
+                                <span className="text-gray-200 truncate font-light">{holding.traderName}</span>
+                                <Badge variant="secondary" className="text-xs flex-shrink-0 font-light bg-gray-700/50">
                                   {holding.traderTicker}
                                 </Badge>
                               </div>
-                              <div className="text-right text-neutral-400 text-xs truncate">
-                                {parseFloat(holding.tokenAmount).toFixed(2)}
+                              <div className="text-right text-gray-400 text-xs truncate font-light">
+                                {parseFloat(holding.tokenAmount).toFixed(2)} tokens
                               </div>
-                              <div className="text-right font-semibold text-emerald-400 text-sm truncate">
+                              <div className="text-right font-medium text-emerald-400 text-sm truncate">
                                 {parseFloat(holding.dailyScore).toFixed(2)}
                               </div>
                             </div>
@@ -309,11 +299,11 @@ export function DailyScoresModal({ open, onOpenChange, competitionId }: DailySco
           </ScrollArea>
         )}
 
-        <Separator className="bg-neutral-800" />
+        <div className="border-t border-gray-700/50 mt-4" />
 
-        <div className="text-xs text-neutral-500 text-center py-2 space-y-1">
-          <p>Scores update every snapshot (test: every 2min, prod: daily at 14:00 UTC).</p>
-          <p className="text-neutral-600">Gray scores are pending next snapshot. Keep trading to improve your rank!</p>
+        <div className="text-xs text-gray-400 text-center py-2 space-y-1 font-light">
+          <p>scores update daily at snapshot time</p>
+          <p className="text-gray-500">gray scores are pending next update</p>
         </div>
       </DialogContent>
     </Dialog>

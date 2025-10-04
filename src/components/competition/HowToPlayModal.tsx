@@ -2,7 +2,6 @@
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { Card } from '@/components/ui/card';
 
 interface HowToPlayModalProps {
@@ -13,105 +12,97 @@ interface HowToPlayModalProps {
 export function HowToPlayModal({ open, onOpenChange }: HowToPlayModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl bg-neutral-900 border-neutral-800 text-neutral-100 max-h-[85vh]">
+      <DialogContent className="max-w-3xl bg-gray-900/95 backdrop-blur-xl border border-gray-700/50 text-white max-h-[90vh] overflow-hidden">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-white">
-            How to Play - Bi-Weekly Competition
+          <DialogTitle className="text-2xl font-light tracking-tight text-white">
+            how to play
           </DialogTitle>
         </DialogHeader>
 
-        <Separator className="bg-neutral-800" />
-
-        <ScrollArea className="h-[60vh] pr-4">
-          <div className="space-y-6 text-sm">
-          {/* Competition Overview */}
+        <ScrollArea className="h-[70vh] pr-4 -mr-2">
+          <div className="space-y-8 text-sm">
           <section>
-            <h3 className="text-lg font-semibold text-pink-400 mb-2">Competition Overview</h3>
-            <p className="text-neutral-300 leading-relaxed">
-              Compete against other traders by building the best portfolio of KOL (Key Opinion Leader) tokens.
+            <h3 className="text-base font-medium text-gray-200 mb-3">competition overview</h3>
+            <p className="text-gray-300 leading-relaxed font-light">
+              Compete against other traders by building the best portfolio of KOL (key opinion leader) tokens.
               The competition runs for 2 weeks, with daily score updates based on your KOL holdings' performance.
             </p>
           </section>
 
-          {/* How to Participate */}
           <section>
-            <h3 className="text-lg font-semibold text-pink-400 mb-2">How to Participate</h3>
-            <ol className="list-decimal list-inside space-y-2 text-neutral-300">
-              <li>Buy packs to collect KOL tokens</li>
-              <li>Reveal your packs to see which KOL tokens you've received</li>
-              <li>Buy or sell KOL tokens during the competition window</li>
-              <li>Your portfolio is scored daily based on KOL performance</li>
-              <li>Top performers win Tournament Points (TP) at the end</li>
+            <h3 className="text-base font-medium text-gray-200 mb-3">how to participate</h3>
+            <ol className="list-decimal list-inside space-y-2 text-gray-300 font-light">
+              <li>buy packs to collect KOL tokens</li>
+              <li>reveal your packs to see which KOL tokens you've received</li>
+              <li>buy or sell KOL tokens during the competition window</li>
+              <li>your portfolio is scored daily based on KOL performance</li>
+              <li>top performers win tournament points at the end</li>
             </ol>
           </section>
 
-          {/* Scoring System */}
           <section>
-            <h3 className="text-lg font-semibold text-pink-400 mb-2">Scoring System</h3>
-            <div className="space-y-3 text-neutral-300">
+            <h3 className="text-base font-medium text-gray-200 mb-3">scoring system</h3>
+            <div className="space-y-4 text-gray-300 font-light">
               <div>
-                <h4 className="font-semibold text-white mb-1">Daily Window Score</h4>
-                <p>Each day, your KOL holdings are scored based on:</p>
-                <ul className="list-disc list-inside ml-4 mt-1 space-y-1">
+                <h4 className="font-medium text-white mb-2">daily window score</h4>
+                <p className="mb-2">each day, your KOL holdings are scored based on:</p>
+                <ul className="list-disc list-inside ml-4 space-y-1.5">
                   <li>PnL performance of each KOL trader</li>
-                  <li>Rarity multipliers (Legendary &gt; Epic &gt; Rare &gt; Common)</li>
-                  <li>Number of tokens held</li>
+                  <li>rarity multipliers (legendary &gt; epic &gt; rare &gt; common)</li>
+                  <li>number of tokens held</li>
                 </ul>
               </div>
               <div>
-                <h4 className="font-semibold text-white mb-1">Tournament Points (TP)</h4>
+                <h4 className="font-medium text-white mb-2">tournament points</h4>
                 <p>
-                  At the end of the competition, your accumulated daily scores determine your Tournament Points.
-                  TP is distributed from a prize pool based on final leaderboard rankings.
+                  at the end of the competition, your accumulated daily scores determine your tournament points.
+                  points are distributed from a prize pool based on final leaderboard rankings.
                 </p>
               </div>
             </div>
           </section>
 
-          {/* Rarity System */}
           <section>
-            <h3 className="text-lg font-semibold text-pink-400 mb-2">Rarity Tiers</h3>
-            <div className="grid grid-cols-2 gap-3 text-neutral-300">
-              <Card className="bg-neutral-800/50 p-3 border-yellow-500/30">
-                <div className="font-semibold text-yellow-400">🏆 LEGENDARY</div>
-                <div className="text-xs mt-1">Rank 1-3 • Highest multiplier</div>
+            <h3 className="text-base font-medium text-gray-200 mb-3">rarity tiers</h3>
+            <div className="grid grid-cols-2 gap-3 text-gray-300">
+              <Card className="bg-gray-800/50 p-4 border-yellow-500/30 rounded-lg">
+                <div className="font-medium text-yellow-400">legendary</div>
+                <div className="text-xs mt-1 text-gray-400">rank 1-3 · highest multiplier</div>
               </Card>
-              <Card className="bg-neutral-800/50 p-3 border-purple-500/30">
-                <div className="font-semibold text-purple-400">💎 EPIC</div>
-                <div className="text-xs mt-1">Rank 4-10 • High multiplier</div>
+              <Card className="bg-gray-800/50 p-4 border-purple-500/30 rounded-lg">
+                <div className="font-medium text-purple-400">epic</div>
+                <div className="text-xs mt-1 text-gray-400">rank 4-10 · high multiplier</div>
               </Card>
-              <Card className="bg-neutral-800/50 p-3 border-blue-500/30">
-                <div className="font-semibold text-blue-400">⭐ RARE</div>
-                <div className="text-xs mt-1">Rank 11-25 • Medium multiplier</div>
+              <Card className="bg-gray-800/50 p-4 border-blue-500/30 rounded-lg">
+                <div className="font-medium text-blue-400">rare</div>
+                <div className="text-xs mt-1 text-gray-400">rank 11-25 · medium multiplier</div>
               </Card>
-              <Card className="bg-neutral-800/50 p-3 border-gray-500/30">
-                <div className="font-semibold text-gray-400">◆ COMMON</div>
-                <div className="text-xs mt-1">Rank 26-50 • Base multiplier</div>
+              <Card className="bg-gray-800/50 p-4 border-gray-500/30 rounded-lg">
+                <div className="font-medium text-gray-400">common</div>
+                <div className="text-xs mt-1 text-gray-500">rank 26-50 · base multiplier</div>
               </Card>
             </div>
           </section>
 
-          {/* Trading Tips */}
           <section>
-            <h3 className="text-lg font-semibold text-pink-400 mb-2">Strategy Tips</h3>
-            <ul className="list-disc list-inside space-y-2 text-neutral-300">
-              <li>Higher rarity KOLs give better scores but are harder to obtain</li>
-              <li>Monitor daily leaderboard to track KOL performance</li>
-              <li>Buy KOLs that are trending upward in PnL</li>
-              <li>Diversify your portfolio to reduce risk</li>
-              <li>Check "View Live Scores" daily to see your ranking</li>
+            <h3 className="text-base font-medium text-gray-200 mb-3">strategy tips</h3>
+            <ul className="list-disc list-inside space-y-2 text-gray-300 font-light">
+              <li>higher rarity KOLs give better scores but are harder to obtain</li>
+              <li>monitor daily leaderboard to track KOL performance</li>
+              <li>buy KOLs that are trending upward in PnL</li>
+              <li>diversify your portfolio to reduce risk</li>
+              <li>check live scores daily to see your ranking</li>
             </ul>
           </section>
 
-          {/* Rules */}
           <section>
-            <h3 className="text-lg font-semibold text-pink-400 mb-2">Important Rules</h3>
-            <ul className="list-disc list-inside space-y-2 text-neutral-300">
-              <li>You must hold KOL tokens to participate</li>
-              <li>Scores are calculated at the end of each day</li>
-              <li>Trading is allowed throughout the competition</li>
-              <li>Final standings determine TP distribution</li>
-              <li>Competition ends automatically after 2 weeks</li>
+            <h3 className="text-base font-medium text-gray-200 mb-3">important rules</h3>
+            <ul className="list-disc list-inside space-y-2 text-gray-300 font-light">
+              <li>you must hold KOL tokens to participate</li>
+              <li>scores are calculated at the end of each day</li>
+              <li>trading is allowed throughout the competition</li>
+              <li>final standings determine tournament point distribution</li>
+              <li>competition ends automatically after 2 weeks</li>
             </ul>
           </section>
           </div>
