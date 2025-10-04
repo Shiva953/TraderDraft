@@ -48,7 +48,6 @@ export function CompetitionResults({
 }: CompetitionResultsProps) {
   const [results, setResults] = useState<CompetitionResult[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isRefetching, setIsRefetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showTPModal, setShowTPModal] = useState(false);
   const [showRevealModal, setShowRevealModal] = useState(false);
@@ -59,6 +58,7 @@ export function CompetitionResults({
   const userWallet = embeddedWallet?.address;
 
   useEffect(() => {
+    // Fetch results when competition ID changes (only happens on page load now)
     fetchResults();
   }, [competitionId]);
 
@@ -66,12 +66,7 @@ export function CompetitionResults({
     const MAX_RETRIES = 3;
     const RETRY_DELAY = 2000;
 
-    // If we already have results, this is a refetch - don't show loading skeleton
-    if (results.length > 0) {
-      setIsRefetching(true);
-    } else {
-      setLoading(true);
-    }
+    setLoading(true);
     setError(null);
 
     try {
@@ -107,7 +102,6 @@ export function CompetitionResults({
       }
 
       setLoading(false);
-      setIsRefetching(false);
       setError(null);
     } catch (err) {
       console.error(`❌ [CompetitionResults] Error (attempt ${retryCount + 1}):`, err);
@@ -121,7 +115,6 @@ export function CompetitionResults({
         console.error('❌ [CompetitionResults] Max retries reached');
         setError(err instanceof Error ? err.message : 'Failed to load results');
         setLoading(false);
-        setIsRefetching(false);
       }
     }
   };
@@ -182,11 +175,6 @@ export function CompetitionResults({
   return (
     <>
       <Card className="relative overflow-hidden border-neutral-800 bg-gradient-to-br from-teal-500/10 via-neutral-900/40 to-cyan-500/10 backdrop-blur-sm">
-        {/* Subtle refetching indicator */}
-        {isRefetching && (
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-emerald-500 to-transparent animate-pulse z-10" />
-        )}
-
         <div className="flex flex-col gap-6 p-8 md:p-12">
           {/* Main Header */}
           <div className="text-center">

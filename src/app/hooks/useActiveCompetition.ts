@@ -113,18 +113,11 @@ export function useActiveCompetition(options: UseActiveCompetitionOptions = {}) 
       return;
     }
 
-    // Initial fetch
+    // Initial fetch ONLY - no polling!
     fetchActiveCompetition();
 
-    // Poll every 30 seconds to catch status changes (ACTIVE -> FINALIZED)
-    const pollInterval = setInterval(() => {
-      console.log('🔄 [useActiveCompetition] Polling for competition updates...');
-      fetchActiveCompetition();
-    }, 30000); // 30 seconds
-
-    return () => {
-      clearInterval(pollInterval);
-    };
+    // NO POLLING! Competition status doesn't change that frequently.
+    // If user needs fresh data, they can refresh the page.
   }, [fetchActiveCompetition, enabled]);
 
   return {
