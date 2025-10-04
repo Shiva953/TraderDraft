@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Trophy, Medal, Award } from 'lucide-react';
 import { useSolanaWallets } from "@privy-io/react-auth/solana";
 import { PackOpeningModal } from './PackOpeningModal';
+import { useRouter } from 'next/navigation';
 
 // Date formatting utility
 const formatCompetitionDate = (date: Date) => {
@@ -53,6 +54,7 @@ export function CompetitionResults({
   const [showRevealModal, setShowRevealModal] = useState(false);
   const [showPackModal, setShowPackModal] = useState(false);
   const { wallets } = useSolanaWallets();
+  const router = useRouter();
 
   const embeddedWallet = wallets.find((w) => w.walletClientType === "privy");
   const userWallet = embeddedWallet?.address;
@@ -404,6 +406,19 @@ export function CompetitionResults({
                   );
                 })}
               </div>
+
+              {/* View Leaderboard Button */}
+              <Button
+                onClick={() => {
+                  setShowRevealModal(false);
+                  router.push('/leaderboard');
+                }}
+                size="lg"
+                variant="outline"
+                className="w-full mt-4 border-white/40 text-white hover:bg-white/10 font-semibold cursor-pointer"
+              >
+                View Leaderboard
+              </Button>
             </div>
           </div>
         </DialogContent>
@@ -426,7 +441,10 @@ export function CompetitionResults({
                   Tournament Points
                 </p>
                 <Button
-                  onClick={() => setShowTPModal(false)}
+                  onClick={() => {
+                    setShowTPModal(false);
+                    router.push('/leaderboard');
+                  }}
                   size="lg"
                   className="cursor-pointer bg-[#EF7DB4] hover:bg-[#CA6897] text-white px-12 py-6 rounded-full text-lg"
                 >

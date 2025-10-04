@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { ExternalLink, Package, Coins, ChevronRight, Copy, Trophy } from 'lucide-react'
 import TokenHoldingsModal from './TokenHoldingsModal'
+import ViewYourPacksModal from '@/components/packSale/ViewYourPacksModal'
 import type { UserPacksData, TokenHolding } from '@/types'
 
 interface UserProfileDropDownMenuProps {
@@ -27,6 +28,7 @@ export default function UserProfileDropDownMenu({
   error
 }: UserProfileDropDownMenuProps) {
   const [showTokenModal, setShowTokenModal] = useState(false)
+  const [showPacksModal, setShowPacksModal] = useState(false)
   const [copied, setCopied] = useState(false)
   const [totalTP, setTotalTP] = useState<number>(0)
   const [tpLoading, setTpLoading] = useState(false)
@@ -138,36 +140,35 @@ export default function UserProfileDropDownMenu({
 
           {/* Pack Holdings */}
           <div className="rounded-lg bg-neutral-800/50 p-4">
-            <div className="flex items-center gap-3 mb-3">
-              <Package className="h-5 w-5 text-pink-500" />
-              <h3 className="font-semibold text-white">Pack Holdings</h3>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <Package className="h-5 w-5 text-pink-500" />
+                <h3 className="font-semibold text-white">Pack Holdings</h3>
+              </div>
+              {userPacks && userPacks.packHoldings > 0 && (
+                <span className="px-2 py-1 bg-pink-500/20 text-pink-400 text-xs rounded-full">
+                  {userPacks.packHoldings}
+                </span>
+              )}
             </div>
+
             {loading ? (
               <div className="flex items-center gap-2">
                 <div className="animate-spin rounded-full h-4 w-4 border-b border-white"></div>
                 <span className="text-sm text-neutral-400">Loading...</span>
               </div>
-            ) : userPacks ? (
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-neutral-400">Total Packs</span>
-                  <span className="font-semibold text-white">{userPacks.packHoldings}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-neutral-400">Unclaimed</span>
-                  <span className="font-semibold text-pink-500">{userPacks.unclaimedPacks}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-neutral-400">Claimed</span>
-                  <span className="font-semibold text-green-500">{userPacks.claimedPacks}</span>
-                </div>
-                <div className="flex justify-between items-center pt-2 border-t border-neutral-700">
-                  <span className="text-sm text-neutral-400">Market Value</span>
-                  <span className="font-semibold text-white">{userPacks.totalValueOfPackHoldings} SOL</span>
-                </div>
-              </div>
             ) : (
-              <p className="text-sm text-neutral-400">No pack data available</p>
+              <button
+                onClick={() => setShowPacksModal(true)}
+                className="w-full flex items-center justify-between p-3 rounded-lg bg-neutral-700/50 hover:bg-neutral-700 transition-colors duration-200 group"
+              >
+                <span className="text-sm text-neutral-300 group-hover:text-white">
+                  {userPacks && userPacks.packHoldings > 0
+                    ? `View ${userPacks.packHoldings} pack${userPacks.packHoldings !== 1 ? 's' : ''}`
+                    : 'View pack holdings'}
+                </span>
+                <ChevronRight className="h-4 w-4 text-neutral-400 group-hover:text-white" />
+              </button>
             )}
           </div>
 
@@ -219,6 +220,12 @@ export default function UserProfileDropDownMenu({
         isOpen={showTokenModal}
         onClose={() => setShowTokenModal(false)}
         tokenHoldings={tokenHoldings}
+      />
+
+      {/* View Your Packs Modal */}
+      <ViewYourPacksModal
+        isOpen={showPacksModal}
+        onClose={() => setShowPacksModal(false)}
       />
     </>
   )

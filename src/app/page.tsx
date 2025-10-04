@@ -209,55 +209,8 @@ export default function Home() {
   }
 
   return (
-    <main className="mx-auto max-w-5xl space-y-6 p-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button
-            onClick={() => {/* TODO: Open buy packs with TP modal */}}
-            className="bg-white text-black font-semibold cursor-pointer"
-          >
-            Buy Packs With TP
-          </Button>
-          <Button
-            onClick={handleOpenMultiPackReveal}
-            variant="outline"
-            className="border-neutral-700 hover:bg-neutral-800 text-white font-semibold cursor-pointer"
-          >
-            Open Your Packs
-          </Button>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <UserProfilePicture
-            walletAddress={walletAddress}
-            userPrivyWalletAddress={fullWalletAddress}
-            userPacks={userPacksData}
-            tokenHoldings={tokenHoldings}
-            tokenHoldingsCount={tokenHoldingsCount}
-            userDataLoading={userDataLoading}
-            userDataError={userDataError}
-          />
-          <Button
-            onClick={logout}
-            variant="outline"
-            className="rounded-full border-white/20 hover:border-white/40 hover:bg-white/5"
-          >
-            Log Out
-          </Button>
-          {process.env.NODE_ENV === 'development' && (
-            <Button
-              onClick={triggerManualUpdate}
-              disabled={isTriggering}
-              variant="outline"
-              className="rounded-full border-orange-500/20 text-orange-300 hover:border-orange-500/40 hover:bg-orange-500/5 disabled:opacity-50"
-            >
-              {isTriggering ? 'Updating...' : 'Trigger Update'}
-            </Button>
-          )}
-        </div>
-      </div>
-
-      <header className="text-center">
+    <main className="mx-auto max-w-7xl space-y-6 p-4">
+      <header className="text-center mt-12">
         <h1 className="text-4xl font-semibold text-neutral-100">Kolscan</h1>
       </header>
 
@@ -280,79 +233,76 @@ export default function Home() {
         />
       ) : null}
 
-      <PackSaleBannerNew
-        onViewLeaderboard={handleScrollToLeaderboard}
-        onSkipToReveal={handleOpenMultiPackReveal}
-      />
-
-      <UserPacks />
-
-      <div id="home-leaderboard" className="rounded-2xl border border-neutral-800 p-4">
-        <div className="mb-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-neutral-400">Period:</span>
-              <select
-                value={currentPeriod}
-                onChange={(e) => changePeriod(e.target.value as 'daily' | 'weekly' | 'monthly')}
-                className="rounded bg-neutral-800 border border-neutral-600 text-white text-sm px-2 py-1"
-                disabled={leaderboardLoading}
-              >
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-              </select>
-            </div>
-            <label className="flex items-center gap-2 text-sm text-neutral-400">
-              <input
-                type="checkbox"
-                checked={autoRefresh}
-                onChange={(e) => setAutoRefresh(e.target.checked)}
-                className="rounded bg-neutral-800 border-neutral-600"
-                disabled={leaderboardLoading}
-              />
-              Auto-refresh (1min)
-            </label>
+      {/* KOL Leaderboard - Only show during active competition */}
+      {isCompetitionActive && (
+        <div className="space-y-4">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-white">Trade KOLs and Earn TP</h2>
+            <p className="text-neutral-400 text-sm mt-1">Top traders of the week</p>
           </div>
-          <div className="flex items-center gap-3">
-            {lastUpdated && (
-              <span className="text-xs text-neutral-500">
-                Updated: {lastUpdated.toLocaleTimeString()}
-              </span>
-            )}
-            <Button
-              onClick={handleRefresh}
-              disabled={leaderboardLoading}
-              size="sm"
-              variant="secondary"
-              className="bg-neutral-700 hover:bg-neutral-600 text-neutral-300"
-            >
-              {leaderboardLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-3 w-3 border-b border-neutral-300 mr-1"></div>
-                  Refreshing...
-                </>
-              ) : (
-                '↻ Refresh'
-              )}
-            </Button>
+
+          <div id="home-leaderboard" className="rounded-2xl border border-neutral-800 p-4">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-neutral-400">Period:</span>
+                  <select
+                    value={currentPeriod}
+                    onChange={(e) => changePeriod(e.target.value as 'daily' | 'weekly' | 'monthly')}
+                    className="rounded bg-neutral-800 border border-neutral-600 text-white text-sm px-2 py-1"
+                    disabled={leaderboardLoading}
+                  >
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
+                </div>
+                <label className="flex items-center gap-2 text-sm text-neutral-400">
+                  <input
+                    type="checkbox"
+                    checked={autoRefresh}
+                    onChange={(e) => setAutoRefresh(e.target.checked)}
+                    className="rounded bg-neutral-800 border-neutral-600"
+                    disabled={leaderboardLoading}
+                  />
+                  Auto-refresh (1min)
+                </label>
+              </div>
+              <div className="flex items-center gap-3">
+                {lastUpdated && (
+                  <span className="text-xs text-neutral-500">
+                    Updated: {lastUpdated.toLocaleTimeString()}
+                  </span>
+                )}
+                <Button
+                  onClick={handleRefresh}
+                  disabled={leaderboardLoading}
+                  size="sm"
+                  variant="secondary"
+                  className="bg-neutral-700 hover:bg-neutral-600 text-neutral-300"
+                >
+                  {leaderboardLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-3 w-3 border-b border-neutral-300 mr-1"></div>
+                      Refreshing...
+                    </>
+                  ) : (
+                    '↻ Refresh'
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            <Leaderboard
+              title={getPeriodTitle()}
+              entries={leaderboardData || []}
+              loading={leaderboardLoading || !leaderboardData || leaderboardData.length === 0}
+              showActions={isCompetitionActive}
+            />
           </div>
         </div>
+      )}
 
-        <Leaderboard
-          title={getPeriodTitle()}
-          entries={leaderboardData || []}
-          loading={leaderboardLoading || !leaderboardData || leaderboardData.length === 0}
-          showActions={isCompetitionActive}
-        />
-      </div>
-
-      {/* Pack Opening Modal */}
-      <PackOpeningModal
-        isOpen={showPackOpeningModal}
-        onClose={() => setShowPackOpeningModal(false)}
-        userTP={userTP}
-      />
     </main>
   );
 }

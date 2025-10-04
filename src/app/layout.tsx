@@ -3,7 +3,8 @@ import Providers from "@/components/privy/PrivyAuthProvider";
 import { Toaster } from "sonner";
 // import { CronInitializer } from "@/components/CronInitializer";
 import {PrivyProvider} from '@privy-io/react-auth';
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Roboto_Mono } from "next/font/google";
+import { ClientLayout } from "@/components/layout/ClientLayout";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,6 +15,12 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+const robotoMono = Roboto_Mono({
+  variable: "--font-roboto-mono",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -30,12 +37,14 @@ export default function RootLayout({
   return (
     <html lang="en" http-equiv="Content-Security-Policy">
       <body
-        className={`${geistSans.className}`}
+        className={`${geistSans.className} ${geistMono.variable} ${robotoMono.variable} bg-neutral-950`}
       >
         <Providers appId={appId}>
         {/* <CronInitializer /> */}
-        {children}
-        <Toaster 
+        <ClientLayout>
+          {children}
+        </ClientLayout>
+        <Toaster
             position="top-right"
             expand={true}
             richColors

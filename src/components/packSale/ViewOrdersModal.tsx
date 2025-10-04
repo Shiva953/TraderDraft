@@ -36,7 +36,7 @@ export default function ViewOrdersModal({ isOpen, onClose }: ViewOrdersModalProp
 
       <div className="relative w-full max-w-3xl rounded-2xl bg-gray-200 p-6 shadow-2xl font-mono">
         <div className="mb-6 text-center">
-          <h2 className="text-xl font-light text-gray-600 uppercase tracking-wide">Your Orders</h2>
+          <h2 className="text-xl font-light text-gray-600 tracking-tight">Your Orders</h2>
           {!loading && orders.length > 0 && (
             <div className="mt-2 text-sm text-gray-500">
               {totalPacks} total packs • {totalValue.toFixed(2)} SOL spent
@@ -119,7 +119,7 @@ export default function ViewOrdersModal({ isOpen, onClose }: ViewOrdersModalProp
                             className="w-8 h-8 rounded-lg object-cover"
                           />
                         </div>
-                        <span className="text-2xl font-light text-black">{order.totalValue.toFixed(2)} SOL</span>
+                        <span className="text-2xl font-light text-black">{Number(order.totalValue).toFixed(2)} SOL</span>
                       </div>
 
                       <div className="flex items-center gap-3">

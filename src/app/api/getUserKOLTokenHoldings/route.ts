@@ -32,7 +32,8 @@ export async function POST(request: Request) {
         name: true,
         ticker: true,
         tokenMintAddress: true,
-        poolAddress: true
+        poolAddress: true,
+        avatarUrl: true
       }
     });
 
@@ -100,7 +101,8 @@ export async function POST(request: Request) {
                   name: kol.name,
                   balance: balance,
                   mintAddress: kol.tokenMintAddress!,
-                  poolAddress: kol.poolAddress || undefined
+                  poolAddress: kol.poolAddress || undefined,
+                  avatarUrl: kol.avatarUrl || undefined
                 });
               }
             } catch (parseError) {

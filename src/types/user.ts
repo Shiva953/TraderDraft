@@ -26,6 +26,7 @@ export interface TokenHolding {
   tokenPrice?: string;
   priceChange24h?: string;
   priceChange24hPercent?: number;
+  avatarUrl?: string;
 }
 
 /**
