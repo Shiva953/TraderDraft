@@ -51,11 +51,37 @@ export default function TraderPage({ params }: TraderPageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSwapModalOpen, setIsSwapModalOpen] = useState(false);
+  const [activeCompetitionId, setActiveCompetitionId] = useState<string | null>(null);
   const {wallets} = useSolanaWallets()
-  const { competition, isActive } = useActiveCompetition();
+  // DISABLE competition hook on KOL page to prevent API clash with swap requests
+  const { competition, isActive } = useActiveCompetition({ enabled: false });
 
   const embeddedWallet = wallets.find((w) => w.walletClientType === "privy");
   const userPrivyWalletAddress = embeddedWallet?.address;
+
+  // Fetch active competition ID separately (lightweight, no polling)
+  useEffect(() => {
+    const fetchActiveCompetition = async () => {
+      try {
+        const response = await fetch('/api/competitions/start', { method: 'GET' });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.competition && data.competition.status === 'ACTIVE') {
+            setActiveCompetitionId(data.competition.id);
+            console.log(`🏆 [KOLPage] Active competition: ${data.competition.id}`);
+          } else {
+            setActiveCompetitionId(null);
+            console.log('ℹ️ [KOLPage] No active competition');
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ [KOLPage] Could not fetch competition:', error);
+        setActiveCompetitionId(null);
+      }
+    };
+
+    fetchActiveCompetition();
+  }, []); // Only run once on mount
 
   // Single unified fetch for ALL KOL page data with retry logic
   useEffect(() => {
@@ -355,7 +381,7 @@ export default function TraderPage({ params }: TraderPageProps) {
           onSwapSuccess={handleSwapSuccess}
           currentUserShares={userShares}
           traderId={currentData.id}
-          activeCompetitionId={isActive ? competition?.id : null}
+          activeCompetitionId={activeCompetitionId}
         />
       )}
     </main>

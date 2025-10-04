@@ -104,11 +104,15 @@ export function DailyScoresModal({ open, onOpenChange, competitionId }: DailySco
       }
 
       if (data.success && data.userScores) {
+        console.log(`📊 [DailyScores] Received ${data.userScores.length} user scores:`, data.userScores);
+
         // Sort by total daily score descending
         const sortedScores = data.userScores.sort((a: UserDailyScore, b: UserDailyScore) =>
           b.totalDailyScore - a.totalDailyScore
         );
         setUserScores(sortedScores);
+
+        console.log(`📊 [DailyScores] Displaying ${sortedScores.length} sorted scores`);
 
         // Find the most recent lastUpdated timestamp from all users
         const mostRecentUpdate = sortedScores.reduce((latest: Date | null, score: UserDailyScore) => {
@@ -194,8 +198,9 @@ export function DailyScoresModal({ open, onOpenChange, competitionId }: DailySco
             </AlertDescription>
           </Alert>
         ) : userScores.length === 0 ? (
-          <div className="text-center py-12 text-neutral-400">
-            No scores available yet. Start trading to appear on the leaderboard!
+          <div className="text-center py-12 space-y-3">
+            <p className="text-neutral-400">No participants yet.</p>
+            <p className="text-sm text-neutral-500">Buy KOL tokens to join the competition!</p>
           </div>
         ) : (
           <ScrollArea className="flex-1 overflow-y-auto">
@@ -247,8 +252,14 @@ export function DailyScoresModal({ open, onOpenChange, competitionId }: DailySco
                         </div>
 
                         {/* Daily Score */}
-                        <div className="text-right font-semibold text-emerald-400 text-sm truncate">
-                          {userScore.totalDailyScore.toFixed(2)}
+                        <div className="text-right font-semibold text-sm truncate">
+                          {userScore.lastUpdated ? (
+                            <span className="text-emerald-400">{userScore.totalDailyScore.toFixed(2)}</span>
+                          ) : (
+                            <span className="text-neutral-500" title="Waiting for next snapshot">
+                              {userScore.totalDailyScore.toFixed(2)}
+                            </span>
+                          )}
                         </div>
 
                         {/* Holdings Count */}
@@ -300,8 +311,9 @@ export function DailyScoresModal({ open, onOpenChange, competitionId }: DailySco
 
         <Separator className="bg-neutral-800" />
 
-        <div className="text-xs text-neutral-500 text-center py-2">
-          Scores update daily at 14:00 UTC. Keep trading to improve your rank!
+        <div className="text-xs text-neutral-500 text-center py-2 space-y-1">
+          <p>Scores update every snapshot (test: every 2min, prod: daily at 14:00 UTC).</p>
+          <p className="text-neutral-600">Gray scores are pending next snapshot. Keep trading to improve your rank!</p>
         </div>
       </DialogContent>
     </Dialog>

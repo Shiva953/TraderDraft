@@ -57,6 +57,7 @@ export default function Home() {
 
   const {
     competition,
+    lastFinalized,
     loading: competitionLoading,
     isActive: isCompetitionActive
   } = useActiveCompetition();
@@ -240,16 +241,20 @@ export default function Home() {
       {/* Competition Banner/Results - Below Kolscan heading */}
       {competitionLoading ? (
         <CompetitionBannerSkeleton />
-      ) : competition ? (
-        // Show results if FINALIZED, otherwise show banner if ACTIVE
-        competition.status === 'FINALIZED' ? (
-          <CompetitionResults competitionId={competition.id} />
-        ) : competition.status === 'ACTIVE' ? (
-          <CompetitionBanner
-            endTime={competition.endDate}
-            competitionId={competition.id}
-          />
-        ) : null
+      ) : competition?.status === 'ACTIVE' ? (
+        // Active competition - show banner
+        <CompetitionBanner
+          endTime={competition.endDate}
+          competitionId={competition.id}
+        />
+      ) : lastFinalized ? (
+        // No active competition but have last finalized - show results
+        <CompetitionResults
+          competitionId={lastFinalized.id}
+          nextCompetitionStart={null}
+          competitionStartDate={lastFinalized.startDate}
+          competitionEndDate={lastFinalized.endDate}
+        />
       ) : null}
 
       <PackSaleBannerNew

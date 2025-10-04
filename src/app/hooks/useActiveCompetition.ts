@@ -10,12 +10,23 @@ interface Competition {
   tpPool: number;
 }
 
-export function useActiveCompetition() {
+interface UseActiveCompetitionOptions {
+  enabled?: boolean; // Allow disabling the hook
+}
+
+export function useActiveCompetition(options: UseActiveCompetitionOptions = {}) {
+  const { enabled = true } = options;
   const [competition, setCompetition] = useState<Competition | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [lastFinalized, setLastFinalized] = useState<Competition | null>(null);
+  const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
 
   const fetchActiveCompetition = useCallback(async (retryCount = 0) => {
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
+
     const MAX_RETRIES = 3;
     const RETRY_DELAY = 2000; // 2 seconds
 
@@ -44,13 +55,36 @@ export function useActiveCompetition() {
           status: data.competition.status,
           tpPool: parseInt(data.competition.tpPool)
         };
-        
+
         setCompetition(newCompetition);
         console.log(`✅ [useActiveCompetition] Competition status: ${newCompetition.status}, ID: ${newCompetition.id}`);
       } else {
-        // No active competition - this is a valid state
+        // No active competition - check for last finalized
         setCompetition(null);
         console.log('ℹ️ [useActiveCompetition] No active competition found');
+      }
+
+      // Fetch last finalized competition separately
+      try {
+        const finalizedResponse = await fetch('/api/competitions/last-finalized');
+        if (finalizedResponse.ok) {
+          const finalizedData = await finalizedResponse.json();
+          if (finalizedData.success && finalizedData.competition) {
+            const lastFinalizedComp = {
+              id: finalizedData.competition.id,
+              startDate: new Date(finalizedData.competition.startDate),
+              endDate: new Date(finalizedData.competition.endDate),
+              status: finalizedData.competition.status,
+              tpPool: parseInt(finalizedData.competition.tpPool)
+            };
+            setLastFinalized(lastFinalizedComp);
+            console.log(`ℹ️ [useActiveCompetition] Last finalized: ${lastFinalizedComp.id}`);
+          } else {
+            setLastFinalized(null);
+          }
+        }
+      } catch (err) {
+        console.warn('Could not fetch last finalized competition:', err);
       }
 
       setLoading(false);
@@ -59,7 +93,7 @@ export function useActiveCompetition() {
       console.error(`❌ [useActiveCompetition] Error (attempt ${retryCount + 1}/${MAX_RETRIES + 1}):`, err);
 
       // Retry logic
-      if (retryCount < MAX_RETRIES) {
+      if (retryCount < MAX_RETRIES && enabled) {
         console.log(`🔄 [useActiveCompetition] Retrying in ${RETRY_DELAY}ms...`);
         await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
         return fetchActiveCompetition(retryCount + 1);
@@ -67,12 +101,18 @@ export function useActiveCompetition() {
         console.error(`❌ [useActiveCompetition] Max retries reached`);
         setError(err instanceof Error ? err.message : 'Failed to fetch competition');
         setCompetition(null);
+        setLastFinalized(null);
         setLoading(false);
       }
     }
-  }, []);
+  }, [enabled]);
 
   useEffect(() => {
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
+
     // Initial fetch
     fetchActiveCompetition();
 
@@ -85,10 +125,11 @@ export function useActiveCompetition() {
     return () => {
       clearInterval(pollInterval);
     };
-  }, [fetchActiveCompetition]);
+  }, [fetchActiveCompetition, enabled]);
 
   return {
     competition,
+    lastFinalized,
     loading,
     error,
     isActive: competition?.status === 'ACTIVE',

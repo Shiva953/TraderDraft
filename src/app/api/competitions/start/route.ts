@@ -156,35 +156,37 @@ export async function POST(request: NextRequest) {
   try {
     const now = new Date();
 
+    console.log(`🟡 [START] Attempting to start competition at ${now.toISOString()}`);
+
+    // STRICT CHECK: Ensure NO ACTIVE competitions exist
+    const activeCompetition = await prisma.competition.findFirst({
+      where: {
+        status: 'ACTIVE'
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    if (activeCompetition) {
+      console.warn(`❌ [START] Cannot start - Active competition already exists: ${activeCompetition.id} (status: ${activeCompetition.status})`);
+      return NextResponse.json(
+        {
+          error: 'Active competition already exists',
+          competitionId: activeCompetition.id,
+          startDate: activeCompetition.startDate,
+          endDate: activeCompetition.endDate,
+          status: activeCompetition.status
+        },
+        { status: 409 }
+      );
+    }
+
     // FOR TESTING: Create 10-minute competition
     // FOR PRODUCTION: Use getNextMonday logic
     const startDate = new Date(now);
     const endDate = new Date(now);
     endDate.setMinutes(endDate.getMinutes() + 10); // 10 minutes for testing
-    
-    // Check if a competition already exists that's active
-    const existingCompetition = await prisma.competition.findFirst({
-      where: {
-        status: {
-          in: ['ACTIVE', 'ENDED']
-        },
-        endDate: {
-          gte: now // Still running
-        }
-      }
-    });
-
-    if (existingCompetition) {
-      return NextResponse.json(
-        { 
-          error: 'Active competition already exists',
-          competitionId: existingCompetition.id,
-          startDate: existingCompetition.startDate,
-          endDate: existingCompetition.endDate
-        },
-        { status: 409 }
-      );
-    }
 
     // Create new competition
     const competition = await prisma.competition.create({
@@ -196,9 +198,10 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    console.log(`New competition created: ${competition.id}`, {
+    console.log(`✅ [START] New competition created: ${competition.id}`, {
       startDate: competition.startDate.toISOString(),
       endDate: competition.endDate.toISOString(),
+      status: competition.status,
       duration: '10 minutes',
       tpPool: competition.tpPool.toString()
     });
@@ -215,7 +218,7 @@ export async function POST(request: NextRequest) {
     }, { status: 201 });
 
   } catch (error) {
-    console.error('Error creating competition:', error);
+    console.error('❌ [START] Error creating competition:', error);
     return NextResponse.json(
       { error: 'Failed to create competition' },
       { status: 500 }

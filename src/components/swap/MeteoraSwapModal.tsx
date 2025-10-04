@@ -235,9 +235,26 @@ export default function MeteoraSwapModal({
 
       // If there's an active competition, register the KOL purchase
       let isFirstCompetitionEntry = false;
+      console.log("🏆 [Competition] Check conditions:", {
+        activeCompetitionId,
+        traderId,
+        kolAmount,
+        parsedKolAmount: parseFloat(kolAmount),
+        shouldRegister: !!(activeCompetitionId && traderId && kolAmount && parseFloat(kolAmount) > 0)
+      });
+
       if (activeCompetitionId && traderId && kolAmount && parseFloat(kolAmount) > 0) {
         try {
           console.log("🏆 [Competition] Registering KOL purchase in competition...");
+          console.log("🏆 [Competition] Request URL:", `/api/competitions/${activeCompetitionId}/buyKOLToken`);
+          console.log("🏆 [Competition] Request body:", {
+            userPrivyWalletAddress: userWallet,
+            traderId,
+            tokenAmount: parseFloat(kolAmount),
+            purchasePrice: parseFloat(solAmount),
+            transactionHash: signature
+          });
+
           const buyKOLResponse = await fetch(`/api/competitions/${activeCompetitionId}/buyKOLToken`, {
             method: 'POST',
             headers: {

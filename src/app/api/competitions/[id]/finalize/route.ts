@@ -20,7 +20,22 @@ export async function POST(
     const competitionId = (await params).id;
     const now = new Date();
 
-    console.log(`[FINALIZE] Starting finalization for competition ${competitionId} at ${now.toISOString()}`);
+    console.log(`🟡 [FINALIZE] Starting finalization for competition ${competitionId} at ${now.toISOString()}`);
+
+    // STRICT CHECK: Ensure last finalized competition exists (if any)
+    const lastFinalizedCompetition = await prisma.competition.findFirst({
+      where: {
+        status: 'FINALIZED',
+        id: { not: competitionId }
+      },
+      orderBy: {
+        endDate: 'desc'
+      }
+    });
+
+    if (lastFinalizedCompetition) {
+      console.log(`ℹ️  [FINALIZE] Last finalized competition: ${lastFinalizedCompetition.id} (ended: ${lastFinalizedCompetition.endDate.toISOString()})`);
+    }
 
     const competition = await prisma.competition.findUnique({
       where: { id: competitionId },
@@ -34,36 +49,32 @@ export async function POST(
     });
 
     if (!competition) {
-      console.error(`[FINALIZE] Competition not found: ${competitionId}`);
+      console.error(`❌ [FINALIZE] Competition not found: ${competitionId}`);
       return NextResponse.json(
         { error: 'Competition not found' },
         { status: 404 }
       );
     }
 
-    if (competition.status === 'FINALIZED') {
-      console.warn(`[FINALIZE] Competition ${competitionId} is already finalized`);
+    // STRICT CHECK: Competition must be ACTIVE before finalizing
+    if (competition.status !== 'ACTIVE') {
+      console.error(`❌ [FINALIZE] Competition ${competitionId} is not ACTIVE (status: ${competition.status}). Cannot finalize.`);
       return NextResponse.json(
-        { error: 'Competition is already finalized' },
+        { error: `Competition status is ${competition.status}, must be ACTIVE to finalize` },
         { status: 400 }
       );
     }
 
-    if (now < competition.endDate && competition.status === 'ACTIVE') {
-      console.warn(`[FINALIZE] Competition window has not ended yet for ${competitionId}. Now: ${now.toISOString()}, End: ${competition.endDate.toISOString()}`);
+    // STRICT CHECK: Competition must have ended
+    if (now < competition.endDate) {
+      console.warn(`❌ [FINALIZE] Competition window has not ended yet for ${competitionId}. Now: ${now.toISOString()}, End: ${competition.endDate.toISOString()}`);
       return NextResponse.json(
         { error: 'Competition window has not ended yet' },
         { status: 400 }
       );
     }
 
-    if (competition.status === 'ACTIVE') {
-      console.log(`[FINALIZE] Marking competition ${competitionId} as ENDED`);
-      await prisma.competition.update({
-        where: { id: competitionId },
-        data: { status: 'ENDED' }
-      });
-    }
+    console.log(`🟢 [FINALIZE] Competition ${competitionId} is eligible for finalization (status: ACTIVE, ended: ${competition.endDate.toISOString()})`);
 
     const competitionEntries = await prisma.competitionEntry.findMany({
       where: { competitionId },
@@ -79,12 +90,26 @@ export async function POST(
     });
 
     if (competitionEntries.length === 0) {
-      console.warn(`[FINALIZE] No participants found in competition ${competitionId}`);
+      console.warn(`🟡 [FINALIZE] No participants found in competition ${competitionId}, marking as finalized`);
+
+      // Mark competition as finalized even with no participants
+      await prisma.competition.update({
+        where: { id: competitionId },
+        data: { status: 'FINALIZED' }
+      });
+
       return NextResponse.json({
         success: true,
-        message: 'No participants found in this competition',
-        competitionId,
-        finalizedAt: now.toISOString()
+        message: 'Competition finalized with no participants',
+        finalization: {
+          competitionId,
+          finalizedAt: now.toISOString(),
+          participants: 0,
+          tpPool: parseFloat(competition.tpPool.toString()),
+          totalWindowScore: 0,
+          maxWindowScore: 0
+        },
+        leaderboard: []
       });
     }
 
@@ -250,11 +275,11 @@ export async function POST(
       data: { status: 'FINALIZED' }
     });
 
-    console.log(`[FINALIZE] Competition ${competitionId} finalized successfully:`);
-    console.log(`[FINALIZE] Participants: ${finalizationResults.length}`);
-    console.log(`[FINALIZE] Total TP distributed: ${finalizationResults.reduce((sum, r) => sum + r.tournamentPoints, 0)}`);
+    console.log(`✅ [FINALIZE] Competition ${competitionId} finalized successfully:`);
+    console.log(`   Participants: ${finalizationResults.length}`);
+    console.log(`   Total TP distributed: ${finalizationResults.reduce((sum, r) => sum + r.tournamentPoints, 0)}`);
     if (finalizationResults.length > 0) {
-      console.log(`[FINALIZE] Winner:`, finalizationResults[0]);
+      console.log(`   Winner:`, finalizationResults[0]);
     }
 
     return NextResponse.json({
@@ -294,6 +319,8 @@ export async function GET(
   try {
     const competitionId = (await params).id;
 
+    console.log(`🔵 [FINALIZE][GET] Fetching results for competition ${competitionId}`);
+
     const competition = await prisma.competition.findUnique({
       where: { id: competitionId },
       select: {
@@ -308,12 +335,14 @@ export async function GET(
     });
 
     if (!competition) {
-      console.error(`[FINALIZE][GET] Competition not found: ${competitionId}`);
+      console.error(`❌ [FINALIZE][GET] Competition not found: ${competitionId}`);
       return NextResponse.json(
         { error: 'Competition not found' },
         { status: 404 }
       );
     }
+
+    console.log(`🟢 [FINALIZE][GET] Competition found: ${competitionId}, status: ${competition.status}`);
 
     const results = await prisma.competitionEntry.findMany({
       where: { competitionId },
@@ -329,6 +358,8 @@ export async function GET(
         leaderboardPoints: 'desc'
       }
     });
+
+    console.log(`🟢 [FINALIZE][GET] Found ${results.length} results`);
 
     console.debug(`[FINALIZE][GET] Returning finalized results for competition ${competitionId}:`);
     results.forEach((entry, idx) => {
@@ -360,9 +391,13 @@ export async function GET(
     });
 
   } catch (error) {
-    console.error('[FINALIZE][GET] Error fetching competition results:', error);
+    console.error('❌ [FINALIZE][GET] Error fetching competition results:', error);
+    console.error('❌ [FINALIZE][GET] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return NextResponse.json(
-      { error: 'Failed to fetch competition results' },
+      {
+        error: 'Failed to fetch competition results',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }
