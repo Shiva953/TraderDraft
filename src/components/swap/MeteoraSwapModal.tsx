@@ -324,148 +324,139 @@ export default function MeteoraSwapModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md sm:max-w-lg">
+      <DialogContent className="max-w-md p-6">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold text-center">
+          <DialogTitle className="text-lg font-semibold">
             Buy {kolName} Shares
           </DialogTitle>
         </DialogHeader>
-
-        {/* Body */}
-        <div className="space-y-4">
+  
+        <div className="space-y-3 mt-4">
           {/* You Pay Section */}
-          <Card className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-muted-foreground">You Pay</span>
-              <div className="flex gap-2">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">You Pay</span>
+              <div className="flex gap-1.5">
                 <Button
                   size="sm"
-                  variant="outline"
+                  variant="ghost"
                   onClick={() => setPercentage(25)}
                   disabled={isSwapping}
-                  className="h-7 px-2.5 text-xs"
+                  className="h-6 px-2 text-xs"
                 >
                   25%
                 </Button>
                 <Button
                   size="sm"
-                  variant="outline"
+                  variant="ghost"
                   onClick={() => setPercentage(50)}
                   disabled={isSwapping}
-                  className="h-7 px-2.5 text-xs"
+                  className="h-6 px-2 text-xs"
                 >
                   50%
                 </Button>
                 <Button
                   size="sm"
-                  variant="outline"
+                  variant="ghost"
                   onClick={() => setPercentage(100)}
                   disabled={isSwapping}
-                  className="h-7 px-2.5 text-xs"
+                  className="h-6 px-2 text-xs"
                 >
                   MAX
                 </Button>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
               <Input
                 type="number"
                 value={solAmount}
                 onChange={(e) => setSolAmount(e.target.value)}
-                className="flex-1 border-none h-auto outline-none bg-transparent placeholder:text-muted-foreground disabled:opacity-50 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                className="flex-1 border-none h-auto p-0 text-2xl font-semibold bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
                 placeholder="0.1"
                 step="any"
                 min="0"
                 disabled={isSwapping}
-                inputMode="decimal"
-                pattern="[0-9]*"
-                style={{
-                  MozAppearance: 'textfield'
-                }}
               />
               <div className="flex items-center gap-2 shrink-0">
-                <div className="w-9 h-9 bg-muted rounded-full flex items-center justify-center">
-                  <span className="text-lg font-bold">◎</span>
+                <div className="w-7 h-7 bg-muted rounded-full flex items-center justify-center">
+                  <span className="text-sm">◎</span>
                 </div>
-                <span className="font-semibold whitespace-nowrap">SOL</span>
+                <span className="text-sm font-medium">SOL</span>
               </div>
             </div>
-            <div className="text-sm text-muted-foreground mt-3">
+            <div className="text-xs text-muted-foreground px-1">
               Balance: {userBalance} SOL
             </div>
-          </Card>
-
+          </div>
+  
           {/* Swap Icon */}
-          <div className="flex justify-center">
-            <div className="bg-muted p-3 rounded-full">
-              <ArrowUpDown className="text-muted-foreground" size={20} />
+          <div className="flex justify-center -my-1">
+            <div className="bg-muted/50 p-2 rounded-full">
+              <ArrowUpDown className="text-muted-foreground" size={16} />
             </div>
           </div>
-
+  
           {/* You Receive Section */}
-          <Card className="p-4">
-            <span className="text-muted-foreground text-sm">YOU RECEIVE</span>
-            <div className="flex items-center justify-between gap-2 mt-2">
-              <div className="text-5xl font-bold overflow-hidden text-ellipsis min-w-0 break-all">
-                {isLoadingQuote ? (
-                  <div className="animate-pulse bg-muted rounded h-12 w-32"></div>
-                ) : (
-                  <span className="block overflow-hidden text-ellipsis">{Number(kolAmount).toFixed(2).toString()}</span>
-                )}
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <div className="w-9 h-9 bg-muted rounded-full flex items-center justify-center">
-                  <span className="text-xs font-bold">95</span>
+          <div className="space-y-2">
+            <span className="text-xs text-muted-foreground px-1">You Receive</span>
+            <div className="p-3 rounded-lg border bg-card">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-2xl font-semibold overflow-hidden">
+                  {isLoadingQuote ? (
+                    <div className="animate-pulse bg-muted rounded h-8 w-24"></div>
+                  ) : (
+                    <span>{Number(kolAmount).toFixed(2)}</span>
+                  )}
                 </div>
-                <span className="font-medium whitespace-nowrap text-sm">{kolName.toUpperCase()}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="w-7 h-7 bg-muted rounded-full flex items-center justify-center">
+                    <span className="text-xs font-bold">KOL</span>
+                  </div>
+                  <span className="text-sm font-medium">{kolName.toUpperCase()}</span>
+                </div>
               </div>
             </div>
-            <div className="text-muted-foreground text-sm mt-2 truncate">
-              YOUR SHARES: {currentUserShares} {kolName.toUpperCase()}
+            <div className="text-xs text-muted-foreground px-1">
+              Your shares: {currentUserShares}
             </div>
-          </Card>
-
+          </div>
+  
           {/* Fee Information */}
           {quote && (
-            <Card className="p-3 space-y-1 text-sm">
-              <div className="flex justify-between text-muted-foreground items-center">
-                <span>Price Impact</span>
-                <Badge
-                  variant="secondary"
-                  className="shrink-0"
-                >
+            <div className="p-2.5 rounded-lg bg-muted/30 space-y-1 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Price Impact</span>
+                <span className="font-medium">
                   {typeof quote.priceImpact === 'number'
                     ? quote.priceImpact.toFixed(4)
                     : parseFloat(quote.priceImpact).toFixed(4)}%
-                </Badge>
+                </span>
               </div>
-              <div className="flex justify-between text-muted-foreground">
-                <span>Network Fee</span>
-                <span className="truncate ml-2">~0.000005 SOL</span>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Network Fee</span>
+                <span className="font-medium">~0.000005 SOL</span>
               </div>
-            </Card>
+            </div>
           )}
-
+  
           {/* Swap Button */}
           <Button
             onClick={handleSwap}
             disabled={isSwapping || isLoadingQuote || !solAmount || parseFloat(solAmount) <= 0 || !userWallet}
-            className="cursor-pointer w-full py-6 rounded-full text-md"
+            className="cursor-pointer w-full mt-2"
             size="lg"
           >
             {isSwapping ? "Swapping..." : isLoadingQuote ? "Loading..." : "Buy Now"}
           </Button>
-
+  
           {/* Exchange Rate */}
           {quote && (
             <div className="text-xs text-muted-foreground text-center">
-              <span className="truncate">
-                1 {kolName.toUpperCase()} ≈ {(parseFloat(solAmount) / parseFloat(kolAmount)).toFixed(6)} SOL
-              </span>
+              1 {kolName.toUpperCase()} ≈ {(parseFloat(solAmount) / parseFloat(kolAmount)).toFixed(6)} SOL
             </div>
           )}
         </div>
       </DialogContent>
     </Dialog>
-  );
+  );  
 }

@@ -124,15 +124,6 @@ export function Navigation() {
                 userDataError={userDataError}
                 onLogout={logout}
               />
-              {process.env.NODE_ENV === 'development' && (
-                <Button
-                  onClick={() => {/* Trigger update if needed */}}
-                  variant="outline"
-                  className="rounded-full border-orange-500/20 text-orange-300 hover:border-orange-500/40 hover:bg-orange-500/5"
-                >
-                  Trigger Update
-                </Button>
-              )}
             </div>
           </div>
         </div>

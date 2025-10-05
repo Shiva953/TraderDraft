@@ -1,10 +1,15 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowDown, Users, ExternalLink } from "lucide-react";
+import { ArrowLeft, ArrowDown, Users, ExternalLink, TrendingUp, TrendingDown, Wallet } from "lucide-react";
 import { useSolanaWallets } from "@privy-io/react-auth";
 import MeteoraSwapModal from "@/components/swap/MeteoraSwapModal";
 import { useActiveCompetition } from "@/app/hooks/useActiveCompetition";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface TraderPageProps {
   params: { kol: string };
@@ -52,12 +57,22 @@ export default function TraderPage({ params }: TraderPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [isSwapModalOpen, setIsSwapModalOpen] = useState(false);
   const [activeCompetitionId, setActiveCompetitionId] = useState<string | null>(null);
+  const [resolvedKolName, setResolvedKolName] = useState<string | null>(null);
   const {wallets} = useSolanaWallets()
   // DISABLE competition hook on KOL page to prevent API clash with swap requests
   const { competition, isActive } = useActiveCompetition({ enabled: false });
 
   const embeddedWallet = wallets.find((w) => w.walletClientType === "privy");
   const userPrivyWalletAddress = embeddedWallet?.address;
+
+  // Resolve params once on mount (Next.js 15 async params fix)
+  useEffect(() => {
+    const resolveParams = async () => {
+      const resolved = await params;
+      setResolvedKolName(resolved.kol);
+    };
+    resolveParams();
+  }, []); // Only run once - empty dependency array
 
   // Fetch active competition ID separately (lightweight, no polling)
   useEffect(() => {
@@ -85,13 +100,14 @@ export default function TraderPage({ params }: TraderPageProps) {
 
   // Single unified fetch for ALL KOL page data with retry logic
   useEffect(() => {
+    if (!resolvedKolName) return; // Wait for kolName to be resolved
+
     const fetchAllKOLPageData = async (retryCount = 0) => {
       const MAX_RETRIES = 5;
       const RETRY_DELAY = 2000;
 
       try {
         setLoading(true);
-        const awaitedParams = await params;
 
         console.log(`🔄 [KOLPage] Fetching all data (attempt ${retryCount + 1}/${MAX_RETRIES + 1})`);
 
@@ -101,7 +117,7 @@ export default function TraderPage({ params }: TraderPageProps) {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            kolName: awaitedParams.kol,
+            kolName: resolvedKolName,
             userWalletAddress: userPrivyWalletAddress
           }),
         });
@@ -144,7 +160,7 @@ export default function TraderPage({ params }: TraderPageProps) {
     };
 
     fetchAllKOLPageData();
-  }, [params, userPrivyWalletAddress]);
+  }, [resolvedKolName, userPrivyWalletAddress]); // Use resolved kolName instead of params promise
 
 
   // Get the most recent data (prefer daily, then weekly, then monthly)
@@ -154,6 +170,9 @@ export default function TraderPage({ params }: TraderPageProps) {
   };
 
   const currentData = getCurrentData();
+
+  const priceChangePositive = (currentData?.priceChange24hPercent || 0) >= 0;
+  const isProfitable = currentData?.pnl?.toLowerCase().includes('+') || parseFloat(currentData?.pnl || '0') > 0;
 
   const handleBuyClick = () => {
     console.log("Buy button clicked - opening Meteora swap modal");
@@ -167,61 +186,18 @@ export default function TraderPage({ params }: TraderPageProps) {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-black text-white">
-        <div className="flex">
-          {/* Left Panel Skeleton */}
-          <div className="w-1/2 p-8 flex flex-col justify-between">
-            <div className="mb-12">
-              {/* Back button skeleton */}
-              <div className="w-6 h-6 bg-gray-700 rounded mb-8 animate-pulse"></div>
-
-              {/* Name skeleton */}
-              <div className="mb-8">
-                <div className="h-16 bg-gray-700 rounded w-3/4 mb-4 animate-pulse"></div>
-                <div className="h-4 bg-gray-700 rounded w-1/2 mb-2 animate-pulse"></div>
-              </div>
-
-              {/* Price skeleton */}
-              <div className="mb-8">
-                <div className="flex items-center space-x-4 mb-2">
-                  <div className="w-6 h-6 bg-gray-700 rounded-full animate-pulse"></div>
-                  <div className="h-12 bg-gray-700 rounded w-48 animate-pulse"></div>
-                  <div className="h-6 bg-gray-700 rounded w-20 animate-pulse"></div>
-                </div>
-              </div>
-
-              {/* Action buttons skeleton */}
-              <div className="flex space-x-4">
-                <div className="h-12 bg-gray-700 rounded-full w-32 animate-pulse"></div>
-              </div>
+      <main className="min-h-screen bg-background">
+        <div className="container mx-auto p-6 md:p-8 max-w-7xl">
+          <Skeleton className="h-10 w-10 mb-6" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+            <div className="space-y-6">
+              <Skeleton className="h-16 w-3/4" />
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-12 w-32" />
             </div>
-          </div>
-
-          {/* Right Panel Skeleton */}
-          <div className="w-1/2 p-8 space-y-6">
-            {/* Profile card skeleton */}
-            <div className="bg-gradient-to-br from-slate-700 to-slate-800 rounded-2xl p-8 h-80 animate-pulse">
-              <div className="flex items-center justify-center h-full">
-                <div className="w-64 h-64 rounded-3xl bg-gray-600"></div>
-              </div>
-            </div>
-
-            {/* Stats cards skeleton */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-gradient-to-br from-slate-700 to-slate-800 rounded-2xl p-6 animate-pulse">
-                <div className="h-4 bg-gray-600 rounded w-20 mb-2"></div>
-                <div className="h-8 bg-gray-600 rounded w-16"></div>
-              </div>
-              <div className="bg-gradient-to-br from-slate-700 to-slate-800 rounded-2xl p-6 animate-pulse">
-                <div className="h-4 bg-gray-600 rounded w-32 mb-2"></div>
-                <div className="h-6 bg-gray-600 rounded w-24"></div>
-              </div>
-            </div>
-
-            {/* Your Shares skeleton */}
-            <div className="bg-gradient-to-br from-slate-700 to-slate-800 rounded-2xl p-6 animate-pulse">
-              <div className="h-4 bg-gray-600 rounded w-24 mb-2"></div>
-              <div className="h-8 bg-gray-600 rounded w-20"></div>
+            <div className="space-y-6">
+              <Skeleton className="h-80 w-full" />
+              <Skeleton className="h-32 w-full" />
             </div>
           </div>
         </div>
@@ -231,158 +207,180 @@ export default function TraderPage({ params }: TraderPageProps) {
 
   if (error || !currentData) {
     return (
-      <main className="min-h-screen bg-black">
-        <div className="text-center pt-20">
-          <h1 className="text-3xl font-bold mb-4 text-red-400">Error</h1>
-          <p className="text-neutral-400">{error || 'No data found for this trader'}</p>
-        </div>
+      <main className="min-h-screen bg-background flex items-center justify-center p-6">
+        <Card className="max-w-md w-full">
+          <CardHeader>
+            <CardTitle className="text-destructive">Error</CardTitle>
+            <CardDescription>{error || 'No data found for this trader'}</CardDescription>
+          </CardHeader>
+        </Card>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-black text-white">
-      <div className="flex">
-        {/* Left Panel */}
-        <div className="w-1/2 p-8 flex flex-col justify-between">
-          {/* Header with back arrow */}
-          <div className="mb-12">
-            <button 
-              onClick={() => window.history.back()}
-              className="text-white mb-8 hover:text-gray-300 transition-colors"
-            >
-              <ArrowLeft size={24} />
-            </button>
-            
-            {/* Trader Name and Details */}
-            <div className="mb-8">
-              <h1 className="text-6xl font-bold mb-4">{currentData.name}</h1>
-              <a 
+    <main className="min-h-screen bg-background">
+      <div className="container mx-auto p-6 md:p-8 max-w-7xl">
+        {/* Back Button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => window.history.back()}
+          className="mb-6 hover:bg-muted"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+          {/* Left Panel - Info & Actions */}
+          <div className="space-y-6">
+            {/* Name & Address */}
+            <div className="space-y-3">
+              <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
+                {currentData.name}
+              </h1>
+              <a
                 href={`https://solscan.io/account/${currentData.tokenMintAddress}?cluster=devnet`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center space-x-2 text-sm text-gray-400 hover:text-gray-300 transition-colors mb-2"
+                className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors group"
               >
-                <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
-                <span>{currentData.tokenMintAddress?.slice(0, 8)}...{currentData.tokenMintAddress?.slice(-6)}</span>
-                <ExternalLink size={14} />
+                <div className="w-3 h-3 rounded-full bg-primary" />
+                <code className="font-mono">
+                  {currentData.tokenMintAddress?.slice(0, 8)}...{currentData.tokenMintAddress?.slice(-6)}
+                </code>
+                <ExternalLink className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
               </a>
             </div>
 
-            {/* Price and Change */}
-            <div className="mb-8">
-              <div className="flex items-center space-x-4 mb-2">
-                <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
-                  <span className="text-xs">≡</span>
+            {/* Price Card */}
+            <Card>
+              <CardContent className="pt-6">
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Current Price</p>
+                  <div className="flex items-baseline gap-3 flex-wrap">
+                    <span className="text-4xl md:text-5xl font-bold">
+                      {currentData.tokenPrice || '0.000062'}
+                    </span>
+                    <Badge
+                      variant={priceChangePositive ? "default" : "destructive"}
+                      className="text-sm gap-1 px-2.5 py-1"
+                    >
+                      {priceChangePositive ? (
+                        <TrendingUp className="h-3.5 w-3.5" />
+                      ) : (
+                        <TrendingDown className="h-3.5 w-3.5" />
+                      )}
+                      {Math.abs(currentData.priceChange24hPercent || 0).toFixed(2)}%
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">24h change</p>
                 </div>
-                <span className="text-5xl font-bold">
-                  {'0.000062'}
-                </span>
-                <span className={`text-lg flex items-center ${(currentData.priceChange24hPercent || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  <ArrowDown className={`inline mr-1 ${(currentData.priceChange24hPercent || 0) >= 0 ? 'rotate-180' : ''}`} size={20} />
-                  {Math.abs(currentData.priceChange24hPercent || 0).toFixed(2)}%
-                </span>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
 
-            {/* Action Buttons */}
-            <div className="flex space-x-4">
-              <button
-                onClick={handleBuyClick}
-                disabled={!currentData?.poolAddress || !currentData?.tokenMintAddress}
-                className="cursor-pointer bg-green-500 text-white px-8 py-3 rounded-full font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-green-600 transition-colors"
-              >
-                Buy
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Panel - Profile and Stats */}
-        <div className="w-1/2 p-8 space-y-6">
-          {/* Profile Image Card */}
-          <div className="bg-gradient-to-br from-slate-700 to-slate-800 rounded-2xl p-8 flex items-center justify-center relative h-80">
-            <div className="w-64 h-64 rounded-3xl overflow-hidden shadow-2xl">
-              <img 
-                src={currentData.avatarUrl || "/default-avatar.jpg"} 
-                alt={currentData.name}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256' viewBox='0 0 256 256'%3E%3Crect width='256' height='256' fill='%23374151'/%3E%3Ctext x='128' y='128' text-anchor='middle' dy='0.3em' fill='%239CA3AF' font-size='64'%3E%F0%9F%91%A4%3C/text%3E%3C/svg%3E";
-                }}
-              />
-            </div>
-            
-            {/* PnL in top right of profile card */}
-            <div className="absolute top-6 right-6 text-right">
-              <div className="mb-1">
-                <span className="text-white/70 text-xs">PnL</span>
-              </div>
-              <div className={`text-xl font-bold ${currentData.pnl.startsWith('+') ? 'text-green-400' : 'text-red-400'}`}>
-                {currentData.pnl.toUpperCase()}
-              </div>
-            </div>
+            {/* Buy Button */}
+            <Button
+              onClick={handleBuyClick}
+              disabled={!currentData?.poolAddress || !currentData?.tokenMintAddress}
+              size="lg"
+              className="cursor-pointer w-full md:w-auto px-8 gap-2"
+            >
+              <Wallet className="h-4 w-4" />
+              Buy Shares
+            </Button>
           </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-2 gap-4">
-            {/* Winrate Card */}
-            <div className="bg-gradient-to-br from-slate-700 to-slate-800 rounded-2xl p-6">
-              <div className="mb-2">
-                <span className="text-white/70 text-sm">Win Rate</span>
-              </div>
-              <div className="text-white text-2xl font-bold">
-                {currentData.winRate?.toFixed(1)}%
-              </div>
+          {/* Right Panel - Profile & Stats */}
+          <div className="space-y-6">
+            {/* Profile Card */}
+            <Card className="overflow-hidden">
+              <CardContent className="p-0">
+                <div className="relative aspect-square bg-gradient-to-br from-primary/10 to-accent/10">
+                  <Avatar className="w-full h-full rounded-none">
+                    <AvatarImage
+                      src={currentData.avatarUrl}
+                      alt={currentData.name}
+                      className="object-cover"
+                    />
+                    <AvatarFallback className="rounded-none text-6xl">
+                      {currentData.name.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+
+                  {/* PnL Badge Overlay */}
+                  <div className="absolute top-4 right-4">
+                    <Card className="shadow-lg">
+                      <CardContent className="p-3">
+                        <p className="text-xs text-muted-foreground mb-1">PnL</p>
+                        <p className={`text-lg font-bold ${isProfitable ? 'text-success' : 'text-destructive'}`}>
+                          {currentData.pnl.toUpperCase()}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 gap-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardDescription>Win Rate</CardDescription>
+                  <CardTitle className="text-3xl">
+                    {currentData.winRate?.toFixed(1)}%
+                  </CardTitle>
+                </CardHeader>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardDescription className="flex items-center gap-1.5">
+                    <Users className="h-3.5 w-3.5" />
+                    Supply
+                  </CardDescription>
+                  <CardTitle className="text-lg">
+                    <span className="text-3xl font-bold">599.8k</span>
+                    <span className="text-sm text-muted-foreground ml-1">/1B</span>
+                  </CardTitle>
+                </CardHeader>
+              </Card>
             </div>
 
-            {/* Supply Card */}
-            <div className="bg-gradient-to-br from-slate-700 to-slate-800 rounded-2xl p-6">
-              <div className="mb-2">
-                <span className="text-white/70 text-sm">Active / Circ. Supply</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Users className="text-white/60" size={16} />
-                <span className="text-white text-lg font-bold">599.8k</span>
-                <span className="text-white/60">/1B</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Your Shares Card */}
-          <div className="bg-gradient-to-br from-slate-700 to-slate-800 rounded-2xl p-6">
-            <div className="mb-2">
-              <span className="text-white/70 text-sm">Your Shares</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Users className="text-white/60" size={20} />
-              <span className="text-white text-2xl font-bold">
-                {userShares}
-              </span>
-              {userShares !== "0" && (
-                <span className="text-green-400 text-sm">tokens</span>
-              )}
-            </div>
-            {userShares === "0" && (
-              <p className="text-white/50 text-xs mt-1">No holdings found</p>
-            )}
+            {/* Your Shares Card */}
+            <Card className="border-primary/20 bg-card/50 backdrop-blur">
+              <CardHeader>
+                <CardDescription>Your Shares</CardDescription>
+                <CardTitle className="flex items-center gap-2 text-3xl">
+                  <Users className="h-6 w-6 text-muted-foreground" />
+                  {userShares}
+                  {userShares !== "0" && (
+                    <span className="text-sm font-normal text-success ml-1">tokens</span>
+                  )}
+                </CardTitle>
+                {userShares === "0" && (
+                  <CardDescription className="text-xs">No holdings found</CardDescription>
+                )}
+              </CardHeader>
+            </Card>
           </div>
         </div>
       </div>
 
       {/* Meteora Swap Modal */}
-      {currentData && (
+      {currentData?.poolAddress && currentData?.tokenMintAddress && (
         <MeteoraSwapModal
-          isOpen={isSwapModalOpen}
-          onClose={() => setIsSwapModalOpen(false)}
-          kolName={currentData.name}
-          kolTokenMint={currentData.tokenMintAddress}
-          poolAddress={currentData.poolAddress}
-          onSwapSuccess={handleSwapSuccess}
-          currentUserShares={userShares}
-          traderId={currentData.id}
-          activeCompetitionId={activeCompetitionId}
-        />
+        isOpen={isSwapModalOpen}
+        onClose={() => setIsSwapModalOpen(false)}
+        kolName={currentData.name}
+        kolTokenMint={currentData.tokenMintAddress}
+        poolAddress={currentData.poolAddress}
+        onSwapSuccess={handleSwapSuccess}
+        currentUserShares={userShares}
+        traderId={currentData.id}
+        activeCompetitionId={activeCompetitionId}
+      />
       )}
     </main>
   );
