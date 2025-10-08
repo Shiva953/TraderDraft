@@ -1,36 +1,138 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# KolScan - Solana Trading Competition Platform
+
+A Next.js-based platform for tracking top Solana traders (KOLs), creating tokenized representations, and running competitive trading windows.
+
+## Tech Stack
+
+- **Framework:** Next.js 15 (App Router)
+- **Database:** PostgreSQL with Prisma ORM
+- **Blockchain:** Solana (Web3.js + Anchor)
+- **Auth:** Privy (Wallet + Social Login)
+- **Package Manager:** Bun
+
+## Prerequisites
+
+- [Bun](https://bun.sh) installed
+- PostgreSQL database (local or hosted)
+- Privy account with app credentials
+- Solana wallet keypair for admin operations
 
 ## Getting Started
 
-First, run the development server:
+### 1. Environment Setup
+
+Copy `.env.example` to `.env` and fill in your credentials:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Required environment variables:
+- `DATABASE_URL` - PostgreSQL connection string
+- `NEXT_PUBLIC_PRIVY_APP_ID` - Privy app ID
+- `PRIVY_APP_SECRET` - Privy app secret
+- `ADMIN_KEYPAIR` - Solana admin wallet keypair array
+- `NEXT_PUBLIC_APP_URL` - App URL (auto-set by Vercel in production)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 2. Install Dependencies
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+bun install
+```
+
+### 3. Database Setup
+
+```bash
+# Generate Prisma client
+bunx prisma generate
+
+# Push schema to database
+bunx prisma db push
+```
+
+### 4. Run Development Server
+
+```bash
+bun run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) to view the app.
+
+## Build Commands
+
+```bash
+# Full build (includes Prisma generation and DB push)
+bun run build
+
+# Development server without logs
+bun run dev-nolog
+
+# Build for production (Next.js only)
+bun run build-nolog
+```
+
+## Deployment on Vercel
+
+This project is configured for deployment on Vercel with the following optimizations:
+
+### Automatic Configuration
+
+- TypeScript and ESLint errors are ignored during builds (configured in `next.config.ts`)
+- Prisma client generation happens automatically via `vercel-build` script
+- Bun is used as the package manager
+
+### Vercel Environment Variables
+
+Add these environment variables in your Vercel project settings:
+
+1. `DATABASE_URL` - Your production PostgreSQL connection string
+2. `NEXT_PUBLIC_PRIVY_APP_ID` - Privy app ID
+3. `PRIVY_APP_SECRET` - Privy app secret
+4. `ADMIN_KEYPAIR` - Admin Solana keypair (JSON array format)
+5. `UPSTASH_REDIS_REST_URL` - Upstash Redis URL (if using)
+6. `UPSTASH_REDIS_REST_TOKEN` - Upstash Redis token (if using)
+7. `NEXT_PUBLIC_CRON_SECRET` - Secret for cron endpoints (optional but recommended)
+
+**Note:** `NEXT_PUBLIC_APP_URL` will be automatically set by Vercel to your deployment URL.
+
+### Deploy Steps
+
+1. Push your code to GitHub
+2. Import the repository in Vercel
+3. Set the **Install Command** to: `bun install`
+4. Set the **Build Command** to: `bun run vercel-build`
+5. Add all required environment variables
+6. Deploy!
+
+### Post-Deployment
+
+After deployment, you may need to:
+1. Run initial data scraping via `/api/scrapeAndPushToDB`
+2. Set up cron jobs for automated scoring (see CLAUDE.md for details)
+
+### Important Notes for Production
+
+**Playwright & Web Scraping:**
+- The scraping functionality uses Playwright which requires browser binaries
+- Vercel has size and execution time limits that may affect scraping operations
+- Consider moving heavy scraping tasks to:
+  - Vercel Cron Jobs (for scheduled tasks)
+  - External service (like AWS Lambda, Railway, or Render)
+  - Background job queue system
+- Alternative: Use Vercel's `maxDuration` config for serverless functions if on Pro plan
+
+## Project Structure
+
+See [CLAUDE.md](./CLAUDE.md) for detailed project documentation including:
+- Architecture overview
+- API routes structure
+- Database schema
+- Development notes
+- Testing guidelines
 
 ## Learn More
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [Next.js Documentation](https://nextjs.org/docs)
+- [Privy Documentation](https://docs.privy.io)
+- [Solana Documentation](https://docs.solana.com)
+- [Prisma Documentation](https://www.prisma.io/docs)

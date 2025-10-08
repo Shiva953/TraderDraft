@@ -1,17 +1,15 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ArrowLeft, ArrowUpDown } from "lucide-react";
+import { ArrowUpDown } from "lucide-react";
 import { Connection, Transaction, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { useSolanaWallets } from "@privy-io/react-auth/solana";
 import { toast } from "sonner";
 import BN from "bn.js";
 import { Buffer } from "buffer";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { useWallet } from "@/app/hooks/useWallet";
 
 interface MeteoraSwapModalProps {
   isOpen: boolean;
@@ -39,9 +37,7 @@ export default function MeteoraSwapModal({
   traderId,
   activeCompetitionId
 }: MeteoraSwapModalProps) {
-  const { wallets } = useSolanaWallets();
-  const embeddedWallet = wallets.find((w) => w.walletClientType === "privy");
-  const userWallet = embeddedWallet?.address;
+  const { fullAddress: userWallet, isConnected, signTransaction } = useWallet();
 
   const [solAmount, setSolAmount] = useState("0.1");
   const [kolAmount, setKolAmount] = useState("0");
@@ -140,7 +136,7 @@ export default function MeteoraSwapModal({
   };
 
   const handleSwap = async () => {
-    if (!userWallet || !embeddedWallet) {
+    if (!userWallet || !isConnected) {
       toast.error("Please connect your wallet");
       return;
     }
@@ -191,21 +187,14 @@ export default function MeteoraSwapModal({
       console.log("📝 Transaction received from server, signing...");
       toast.loading("Please sign the transaction in your wallet...", { id: loadingToast });
 
-      // Refresh wallet session before signing
-      try {
-        await embeddedWallet.loginOrLink();
-      } catch (refreshError) {
-        console.warn("⚠️ Session refresh failed, continuing anyway:", refreshError);
-      }
-
       // Deserialize legacy transaction from Meteora SDK
       const txBuffer = Buffer.from(data.data.transaction, 'base64');
       const transaction = Transaction.from(txBuffer);
 
       console.log("🟡 Requesting signature from Privy wallet...");
 
-      // Sign transaction using Privy's signTransaction (NOT sendTransaction to avoid CORS)
-      const signedTx = await embeddedWallet.signTransaction(transaction);
+      // Sign transaction using the hook's method (includes getAccessToken)
+      const signedTx = await signTransaction(transaction);
 
       console.log("✅ Transaction signed, sending to network...");
       toast.loading("Sending transaction to network...", { id: loadingToast });
@@ -431,6 +420,10 @@ export default function MeteoraSwapModal({
                     ? quote.priceImpact.toFixed(4)
                     : parseFloat(quote.priceImpact).toFixed(4)}%
                 </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">LP Fee (5%)</span>
+                <span className="font-medium">{(parseFloat(kolAmount) * 0.05).toFixed(4)} {kolName.toUpperCase()}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Network Fee</span>

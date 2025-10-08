@@ -6,18 +6,19 @@ export type Period = 'daily' | 'weekly' | 'monthly';
 
 const convertApiDataToLeaderboardEntry = (data: TraderApiData[]): LeaderboardEntry[] => {
   return data.map((trader) => {
-    const traderUrl = trader.address 
-      ? `https://kolscan.io/account/${trader.address}` 
+    const traderUrl = trader.address
+      ? `https://kolscan.io/account/${trader.address}`
       : undefined;
-    const xUrl = trader.xUrl 
-      ? trader.xUrl.startsWith('http') 
-        ? trader.xUrl 
+    const xUrl = trader.xUrl
+      ? trader.xUrl.startsWith('http')
+        ? trader.xUrl
         : `https://twitter.com/${trader.xUrl.replace('@', '')}`
       : undefined;
 
     return {
       rank: trader.rank,
       handle: trader.name || `Trader ${trader.rank}`,
+      ticker: trader.ticker,
       avatarUrl: trader.avatarUrl,
       xUrl,
       traderUrl,

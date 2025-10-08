@@ -201,6 +201,7 @@ async function fetchTradersData(period: 'DAILY' | 'WEEKLY' | 'MONTHLY', limit: n
         select: {
           rank: true,
           name: true,
+          ticker: true,
           address: true,
           pnl: true,
           winRate: true,

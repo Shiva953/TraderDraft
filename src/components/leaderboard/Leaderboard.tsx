@@ -167,7 +167,7 @@ export function Leaderboard({
                 <div className="justify-self-end">
                   {showActions ? (
                     <div className="flex gap-2">
-                      <Link href={`/traders/${e.handle.toLowerCase()}`}>
+                      <Link href={`/kols/${e.ticker || e.handle.toLowerCase()}`}>
                         <Button
                           size="sm"
                           className="cursor-pointer h-7 px-3 text-xs bg-black hover:bg-neutral-900 text-white rounded-full"

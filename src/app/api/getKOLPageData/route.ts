@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
 import prisma from '@/lib/prisma';
+import { meteoraClient } from '@/lib/meteoraPriceUtils';
 
 const connection = new Connection("https://devnet.helius-rpc.com/?api-key=017f56ed-c6c1-480a-8c11-dbc09ab2358d", "confirmed");
 
@@ -10,34 +11,34 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { kolName, userWalletAddress } = body;
+    const { kolTicker, userWalletAddress } = body;
 
-    if (!kolName) {
+    if (!kolTicker) {
       return NextResponse.json({
         success: false,
-        error: "Missing required parameter: kolName"
+        error: "Missing required parameter: kolTicker"
       }, { status: 400 });
     }
 
-    console.log(`🔍 [getKOLPageData] Fetching data for KOL: ${kolName}, User: ${userWalletAddress || 'none'}`);
+    console.log(`🔍 [getKOLPageData] Fetching data for ticker: ${kolTicker}, User: ${userWalletAddress || 'none'}`);
 
-    // Fetch KOL data from all periods in parallel
+    // Fetch KOL data from all periods in parallel using ticker
     const [dailyData, weeklyData, monthlyData] = await Promise.all([
       prisma.trader.findFirst({
         where: {
-          name: { equals: kolName, mode: 'insensitive' },
+          ticker: { equals: kolTicker, mode: 'insensitive' },
           period: 'DAILY'
         }
       }),
       prisma.trader.findFirst({
         where: {
-          name: { equals: kolName, mode: 'insensitive' },
+          ticker: { equals: kolTicker, mode: 'insensitive' },
           period: 'WEEKLY'
         }
       }),
       prisma.trader.findFirst({
         where: {
-          name: { equals: kolName, mode: 'insensitive' },
+          ticker: { equals: kolTicker, mode: 'insensitive' },
           period: 'MONTHLY'
         }
       })
@@ -46,19 +47,75 @@ export async function POST(request: Request) {
     if (!dailyData && !weeklyData && !monthlyData) {
       return NextResponse.json({
         success: false,
-        error: `No data found for KOL: ${kolName}`
+        error: `No data found for ticker: ${kolTicker}`
       }, { status: 404 });
     }
 
-    console.log(`✅ [getKOLPageData] Found KOL data for ${kolName}`);
+    const kolName = (dailyData || weeklyData || monthlyData)?.name || kolTicker;
+    console.log(`✅ [getKOLPageData] Found KOL data for ${kolName} (ticker: ${kolTicker})`);
+
+    // Fetch live price data from Meteora if pool exists
+    const currentData = dailyData || weeklyData || monthlyData;
+    let priceData = null;
+
+    if (currentData?.poolAddress) {
+      try {
+        console.log(`💰 [getKOLPageData] Fetching live price for pool: ${currentData.poolAddress}`);
+        priceData = await meteoraClient.getTokenPriceData(currentData.poolAddress);
+
+        if (priceData) {
+          console.log(`✅ [getKOLPageData] Got live price: $${priceData.price.toFixed(6)}`);
+        }
+      } catch (priceError) {
+        console.warn(`⚠️ [getKOLPageData] Could not fetch price data:`, priceError);
+      }
+    }
+
+    // Helper function to format very small prices - show actual number, not scientific notation
+    const formatPrice = (price: number): string => {
+      if (price === 0) return '0';
+
+      // Always show actual number with enough decimals to see non-zero value
+      if (price < 0.0000001) {
+        return price.toFixed(10); // 10 decimals for very small
+      } else if (price < 0.00001) {
+        return price.toFixed(8); // 8 decimals for small
+      } else if (price < 0.01) {
+        return price.toFixed(6); // 6 decimals for normal
+      } else {
+        return price.toFixed(4); // 4 decimals for larger prices
+      }
+    };
+
+    // Enrich trader data with live price
+    const enrichedDaily = dailyData && priceData ? {
+      ...dailyData,
+      tokenPrice: formatPrice(priceData.price),
+      priceChange24h: formatPrice(priceData.priceChange24h),
+      priceChange24hPercent: priceData.priceChange24hPercent
+    } : dailyData;
+
+    const enrichedWeekly = weeklyData && priceData ? {
+      ...weeklyData,
+      tokenPrice: formatPrice(priceData.price),
+      priceChange24h: formatPrice(priceData.priceChange24h),
+      priceChange24hPercent: priceData.priceChange24hPercent
+    } : weeklyData;
+
+    const enrichedMonthly = monthlyData && priceData ? {
+      ...monthlyData,
+      tokenPrice: formatPrice(priceData.price),
+      priceChange24h: formatPrice(priceData.priceChange24h),
+      priceChange24hPercent: priceData.priceChange24hPercent
+    } : monthlyData;
 
     // Prepare response object
     const responseData: any = {
       kolData: {
         name: kolName,
-        daily: dailyData,
-        weekly: weeklyData,
-        monthly: monthlyData
+        daily: enrichedDaily,
+        weekly: enrichedWeekly,
+        monthly: enrichedMonthly
       },
       userShares: "0",
       userHoldings: []

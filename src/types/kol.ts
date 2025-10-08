@@ -57,6 +57,7 @@ export interface ConsolidatedKolData extends KolData {
 export interface LeaderboardEntry {
   rank: number;
   handle: string;
+  ticker?: string;
   avatarUrl?: string;
   xUrl?: string;
   traderUrl?: string;
@@ -76,6 +77,7 @@ export interface LeaderboardEntry {
 export interface TraderApiData {
   rank: number;
   name: string;
+  ticker?: string;
   address: string;
   pnl: string;
   winRate: string;

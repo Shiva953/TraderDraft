@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { getAppUrl } from '@/lib/utils';
 
 const prisma = new PrismaClient();
 
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
         console.log(`[CRON] Processing competition ${competition.id}`);
 
         // Call the daily score calculation endpoint
-        const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/competitions/${competition.id}/dailyUserScore`, {
+        const response = await fetch(`${getAppUrl()}/api/competitions/${competition.id}/dailyUserScore`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

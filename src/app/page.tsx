@@ -180,15 +180,32 @@ export default function Home() {
 
   if (!authenticated) {
     return (
-      <main className="min-h-screen bg-neutral-950 text-white flex items-center justify-center p-4">
-        <div className="w-full max-w-md space-y-6 text-center">
-          <h1 className="text-3xl font-semibold">Welcome to Kolscan</h1>
-          <button
-            onClick={() => login()}
-            className="mx-auto rounded-full px-6 py-3 text-base font-semibold text-white bg-gradient-to-r from-pink-500 to-rose-500 shadow-lg hover:scale-95 transition"
-          >
-            Login With Privy
-          </button>
+      <main className="min-h-screen bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950 text-white flex items-center justify-center p-4">
+        <div className="w-full max-w-md space-y-8 text-center">
+          {/* Logo or icon area */}
+          <div className="space-y-3">
+            <h1 className="text-5xl font-bold tracking-tight bg-gradient-to-r from-pink-400 via-rose-400 to-pink-500 bg-clip-text text-transparent animate-fade-in">
+              Kolscan
+            </h1>
+            {/* <p className="text-neutral-400 text-lg">
+              Trade KOLs, Compete for TP and let the KOL mania begin....
+            </p> */}
+          </div>
+    
+          <div className="pt-4">
+            <Button
+              onClick={() => login()}
+              size="lg"
+              className="cursor-pointer w-full sm:w-auto px-8 py-6 text-base font-semibold bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 shadow-[0_0_30px_rgba(236,72,153,0.3)] hover:shadow-[0_0_40px_rgba(236,72,153,0.5)] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+            >
+              Login With Privy
+            </Button>
+          </div>
+    
+          {/* Optional: Add a subtle footer text */}
+          <p className="text-neutral-500 text-sm pt-8">
+            Secure authentication powered by Privy
+          </p>
         </div>
       </main>
     );

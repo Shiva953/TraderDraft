@@ -1,340 +1,26 @@
-// // lib/meteoraPriceUtils.ts - Updated Version
-// interface MeteoraPoolInfo {
-//   pool_address: string;
-//   token_a_mint: string;
-//   token_b_mint: string;
-//   current_price: number;
-//   price_24h_ago?: number;
-//   volume_24h?: number;
-//   liquidity_usd?: number;
-//   price_change_24h?: number;
-//   price_change_24h_percent?: number;
-//   // Additional fields that might be present in pool info
-//   token_a_reserve?: number;
-//   token_b_reserve?: number;
-// }
-
-// interface TokenPriceData {
-//   price: number;
-//   priceChange24h: number;
-//   priceChange24hPercent: number;
-//   volume24h?: number;
-//   liquidityUsd?: number;
-// }
-
-// export class MeteoraAPIClient {
-//   // Corrected base URL - unified API for both mainnet and devnet
-//   private baseUrl = 'https://dammv2-api.devnet.meteora.ag';
-  
-//   constructor(private apiKey?: string) {}
-
-//   /**
-//    * Fetch pool information by pool address
-//    * Using the correct endpoint: GET /pools/{address}
-//    */
-//   async getPoolInfo(poolAddress: string): Promise<MeteoraPoolInfo | null> {
-//     try {
-//       const response = await fetch(`${this.baseUrl}/pools/${poolAddress}`, {
-//         method: 'GET',
-//         headers: {
-//           'Content-Type': 'application/json',
-//           ...(this.apiKey && { 'Authorization': `Bearer ${this.apiKey}` })
-//         }
-//       });
-
-//       if (!response.ok) {
-//         console.error(`Failed to fetch pool info for ${poolAddress}: ${response.status}`);
-//         return null;
-//       }
-
-//       const data = await response.json();
-//       console.log("POOL INFO: ", data);
-//       return data;
-//     } catch (error) {
-//       console.error(`Error fetching pool info for ${poolAddress}:`, error);
-//       return null;
-//     }
-//   }
-
-//   /**
-//    * Fetch pool metrics by pool address for 24h price change data
-//    * Using the correct endpoint: GET /pools/{address}/metrics
-//    * This is optional and may return 404 for new tokens
-//    */
-//   async getPoolMetrics(poolAddress: string): Promise<any> {
-//     try {
-//       const response = await fetch(`${this.baseUrl}/pools/${poolAddress}/metrics`, {
-//         method: 'GET',
-//         headers: {
-//           'Content-Type': 'application/json',
-//           ...(this.apiKey && { 'Authorization': `Bearer ${this.apiKey}` })
-//         }
-//       });
-
-//       if (!response.ok) {
-//         // Don't log 404 as error since it's expected for new tokens
-//         if (response.status === 404) {
-//           console.log(`Pool metrics not available for ${poolAddress} (likely a new token)`);
-//         } else {
-//           console.error(`Failed to fetch pool metrics for ${poolAddress}: ${response.status}`);
-//         }
-//         return null;
-//       }
-
-//       const data = await response.json();
-//       return data;
-//     } catch (error) {
-//       console.error(`Error fetching pool metrics for ${poolAddress}:`, error);
-//       return null;
-//     }
-//   }
-
-//   /**
-//    * Fetch all pools and filter by token mint address
-//    * Using the correct endpoint: GET /pools with filtering
-//    */
-//   async getPoolsByTokenMint(tokenMintAddress: string): Promise<MeteoraPoolInfo[]> {
-//     try {
-//       // First get all pools
-//       const response = await fetch(`${this.baseUrl}/pools`, {
-//         method: 'GET',
-//         headers: {
-//           'Content-Type': 'application/json',
-//           ...(this.apiKey && { 'Authorization': `Bearer ${this.apiKey}` })
-//         }
-//       });
-
-//       if (!response.ok) {
-//         console.error(`Failed to fetch pools: ${response.status}`);
-//         return [];
-//       }
-
-//       const data = await response.json();
-//       const pools = Array.isArray(data) ? data : [];
-      
-//       // Filter pools that contain the token
-//       return pools.filter((pool: any) => 
-//         pool.token_a_mint === tokenMintAddress || 
-//         pool.token_b_mint === tokenMintAddress
-//       );
-//     } catch (error) {
-//       console.error(`Error fetching pools for token ${tokenMintAddress}:`, error);
-//       return [];
-//     }
-//   }
-
-//   /**
-//    * Get token price data ONLY from pool info - NO METRICS CALLS
-//    */
-//   async getTokenPriceData(poolAddress: string): Promise<TokenPriceData | null> {
-//     try {
-//       // Get pool info (this should always work)
-//       const poolInfo = await this.getPoolInfo(poolAddress);
-      
-//       if (!poolInfo) {
-//         console.log(`No pool info available for ${poolAddress}`);
-//         return null;
-//       }
-
-//       console.log(`Pool info for ${poolAddress}:`, poolInfo);
-
-//       // Calculate current price from pool info
-//       const currentPrice = this.calculatePriceFromPool(poolInfo);
-      
-//       if (currentPrice === 0) {
-//         console.log(`Could not calculate price from pool info for ${poolAddress}`);
-//         console.log(`Pool info structure:`, Object.keys(poolInfo));
-//         return null;
-//       }
-
-//       // Get 24h change data ONLY from pool info - no metrics calls
-//       let priceChange24h = 0;
-//       let priceChange24hPercent = 0;
-
-//       if (poolInfo.price_change_24h_percent !== undefined && poolInfo.price_change_24h_percent !== null) {
-//         priceChange24hPercent = poolInfo.price_change_24h_percent;
-//         priceChange24h = currentPrice * (priceChange24hPercent / 100);
-//         console.log(`Using 24h change from pool info: ${priceChange24hPercent}%`);
-//       } else if (poolInfo.price_24h_ago !== undefined && poolInfo.price_24h_ago > 0) {
-//         // Calculate from price_24h_ago if available
-//         const price24hAgo = poolInfo.price_24h_ago;
-//         priceChange24h = currentPrice - price24hAgo;
-//         priceChange24hPercent = ((currentPrice - price24hAgo) / price24hAgo) * 100;
-//         console.log(`Calculated 24h change from price_24h_ago: ${priceChange24hPercent}%`);
-//       } else {
-//         // For new tokens, just use 0% change - NO METRICS CALL
-//         console.log(`No 24h data in pool info for ${poolAddress}, using 0% change (new token)`);
-//       }
-
-//       const result = {
-//         price: currentPrice,
-//         priceChange24h,
-//         priceChange24hPercent,
-//         volume24h: poolInfo.volume_24h,
-//         liquidityUsd: poolInfo.liquidity_usd
-//       };
-
-//       console.log(`Final result for ${poolAddress}:`, result);
-//       return result;
-//     } catch (error) {
-//       console.error(`Error getting token price data for ${poolAddress}:`, error);
-//       return null;
-//     }
-//   }
-
-//   /**
-//    * Calculate token price from pool reserves or current_price
-//    * Enhanced to handle different response structures with better debugging
-//    */
-//   private calculatePriceFromPool(poolInfo: any): number {
-//     console.log(`Calculating price from pool info:`, {
-//       current_price: poolInfo.current_price,
-//       price: poolInfo.price,
-//       token_a_reserve: poolInfo.token_a_reserve,
-//       token_b_reserve: poolInfo.token_b_reserve,
-//       // Log all keys to see what's available
-//       availableKeys: Object.keys(poolInfo)
-//     });
-
-//     // First try to use current_price if available
-//     if (poolInfo.current_price !== undefined && poolInfo.current_price !== null && poolInfo.current_price > 0) {
-//       console.log(`Using current_price: ${poolInfo.current_price}`);
-//       return Number(poolInfo.current_price);
-//     }
-    
-//     // Try price field
-//     if (poolInfo.price !== undefined && poolInfo.price !== null && poolInfo.price > 0) {
-//       console.log(`Using price: ${poolInfo.price}`);
-//       return Number(poolInfo.price);
-//     }
-
-//     // Try to calculate from reserves if available
-//     if (poolInfo.token_a_reserve && poolInfo.token_b_reserve && 
-//         poolInfo.token_a_reserve > 0 && poolInfo.token_b_reserve > 0) {
-//       const priceAtoB = Number(poolInfo.token_b_reserve) / Number(poolInfo.token_a_reserve);
-//       const priceBtoA = Number(poolInfo.token_a_reserve) / Number(poolInfo.token_b_reserve);
-      
-//       console.log(`Calculated from reserves - A to B: ${priceAtoB}, B to A: ${priceBtoA}`);
-      
-//       // For most meme tokens, we want the smaller price (token/SOL ratio)
-//       // You might need to adjust this logic based on your specific use case
-//       const calculatedPrice = Math.min(priceAtoB, priceBtoA);
-//       console.log(`Using calculated price: ${calculatedPrice}`);
-//       return calculatedPrice;
-//     }
-
-//     // Check for other possible price fields in the response
-//     const possiblePriceFields = [
-//       'token_price', 'pool_price', 'spot_price', 'last_price', 
-//       'trade_price', 'market_price', 'current_rate', 'exchange_rate'
-//     ];
-    
-//     for (const field of possiblePriceFields) {
-//       if (poolInfo[field] !== undefined && poolInfo[field] !== null && poolInfo[field] > 0) {
-//         console.log(`Found price in field ${field}: ${poolInfo[field]}`);
-//         return Number(poolInfo[field]);
-//       }
-//     }
-
-//     console.error(`Could not determine price from pool info. Available fields:`, Object.keys(poolInfo));
-//     console.error(`Pool info values:`, poolInfo);
-//     return 0;
-//   }
-
-//   /**
-//    * Batch fetch price data for multiple pools
-//    * Enhanced error handling to prevent 404s from breaking the batch
-//    */
-//   async batchGetTokenPriceData(poolAddresses: string[]): Promise<Map<string, TokenPriceData>> {
-//     const results = new Map<string, TokenPriceData>();
-//     const batchSize = 3; // Reduced batch size to be more conservative
-    
-//     console.log(`💰 [METEORA] Starting batch fetch for ${poolAddresses.length} pools`);
-
-//     for (let i = 0; i < poolAddresses.length; i += batchSize) {
-//       const batch = poolAddresses.slice(i, i + batchSize);
-//       console.log(`💰 [METEORA] Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(poolAddresses.length/batchSize)}: ${batch.length} pools`);
-      
-//       const promises = batch.map(async (poolAddress) => {
-//         try {
-//           const priceData = await this.getTokenPriceData(poolAddress);
-//           if (priceData) {
-//             results.set(poolAddress, priceData);
-//             console.log(`✅ [METEORA] Got price data for ${poolAddress}: $${priceData.price.toFixed(6)}`);
-//           } else {
-//             console.log(`⚠️ [METEORA] No price data for ${poolAddress}`);
-//           }
-//           return { poolAddress, priceData };
-//         } catch (error) {
-//           console.error(`❌ [METEORA] Error fetching price for ${poolAddress}:`, error);
-//           return { poolAddress, priceData: null };
-//         }
-//       });
-
-//       // Use Promise.allSettled to prevent one failure from breaking the batch
-//       const batchResults = await Promise.allSettled(promises);
-      
-//       // Log any rejections
-//       batchResults.forEach((result, index) => {
-//         if (result.status === 'rejected') {
-//           console.error(`❌ [METEORA] Batch promise rejected for ${batch[index]}:`, result.reason);
-//         }
-//       });
-      
-//       // Rate limiting delay between batches
-//       if (i + batchSize < poolAddresses.length) {
-//         console.log(`💤 [METEORA] Waiting 2s before next batch...`);
-//         await new Promise(resolve => setTimeout(resolve, 2000));
-//       }
-//     }
-
-//     console.log(`✅ [METEORA] Batch fetch completed: ${results.size}/${poolAddresses.length} successful`);
-//     return results;
-//   }
-// }
-
-// // Singleton instance
-// export const meteoraClient = new MeteoraAPIClient();
-
-// // Helper function to format price display
-// export function formatPrice(price: number | string | undefined): string {
-//   if (price === undefined || price === null || price === '') return '—';
-  
-//   const numPrice = typeof price === 'string' ? parseFloat(price) : price;
-  
-//   if (isNaN(numPrice) || numPrice <= 0) return '—';
-  
-//   if (numPrice < 0.001) {
-//     return numPrice.toExponential(2);
-//   }
-//   if (numPrice < 1) {
-//     return numPrice.toFixed(6);
-//   }
-//   if (numPrice < 100) {
-//     return numPrice.toFixed(4);
-//   }
-//   return numPrice.toFixed(2);
-// }
-
-// // Helper function to format percentage change
-// export function formatPriceChange(changePercent: number | undefined): string {
-//   if (changePercent === undefined || changePercent === null || isNaN(changePercent)) {
-//     return '0.00%';
-//   }
-  
-//   const prefix = changePercent >= 0 ? '+' : '';
-//   return `${prefix}${changePercent.toFixed(2)}%`;
-// }
+import BN from 'bn.js';
+import { getPriceFromSqrtPrice, CpAmm } from '@meteora-ag/cp-amm-sdk';
+import { Connection, PublicKey } from '@solana/web3.js';
 
 interface MeteoraPoolInfo {
   pool_address: string;
   token_a_mint: string;
   token_b_mint: string;
-  current_price: number;
+  sqrt_price?: string | number; // Sqrt price in Q64 format from API
+  current_price?: number;
+  pool_price?: number;
+  virtual_price?: number;
   price_24h_ago?: number;
   volume_24h?: number;
+  volume24h?: number;
   liquidity_usd?: number;
+  tvl?: number;
   price_change_24h?: number;
+  token_a_amount?: number;
+  token_b_amount?: number;
+  token_a_reserve?: number;
+  token_b_reserve?: number;
+  fee24h?: number;
 }
 
 interface TokenPriceData {
@@ -348,12 +34,62 @@ interface TokenPriceData {
 export class MeteoraAPIClient {
   // Corrected base URL - unified API for both mainnet and devnet
   private baseUrl = 'https://dammv2-api.devnet.meteora.ag';
-  
-  constructor(private apiKey?: string) {}
+
+  // Token decimals (SOL/WSOL has 9, most tokens have 6)
+  private readonly TOKEN_A_DECIMALS = 6; // KOL tokens
+  private readonly TOKEN_B_DECIMALS = 9; // SOL (WSOL)
+
+  // On-chain connection for direct pool queries
+  private connection: Connection;
+  private cpAmm: CpAmm;
+
+  constructor(private apiKey?: string) {
+    this.connection = new Connection("https://devnet.helius-rpc.com/?api-key=017f56ed-c6c1-480a-8c11-dbc09ab2358d", "confirmed");
+    this.cpAmm = new CpAmm(this.connection);
+  }
+
+  /**
+   * Fetch pool state directly from on-chain (fallback when API is down/slow)
+   */
+  async getPoolStateOnChain(poolAddress: string): Promise<MeteoraPoolInfo | null> {
+    try {
+      console.log(`🔗 [ON-CHAIN] Fetching pool state directly for ${poolAddress}`);
+      const poolPubkey = new PublicKey(poolAddress);
+      const poolState = await this.cpAmm.fetchPoolState(poolPubkey);
+
+      if (!poolState) {
+        console.error(`❌ [ON-CHAIN] Pool state not found for ${poolAddress}`);
+        return null;
+      }
+
+      console.log(`✅ [ON-CHAIN] Pool state fetched:`, {
+        sqrt_price: poolState.sqrtPrice.toString(),
+        token_a_mint: poolState.tokenAMint.toBase58(),
+        token_b_mint: poolState.tokenBMint.toBase58()
+      });
+
+      // Convert on-chain data to API format
+      return {
+        pool_address: poolAddress,
+        token_a_mint: poolState.tokenAMint.toBase58(),
+        token_b_mint: poolState.tokenBMint.toBase58(),
+        sqrt_price: poolState.sqrtPrice.toString(),
+        current_price: 0, // Will be calculated from sqrt_price
+        pool_price: 0,
+        virtual_price: 0,
+        liquidity_usd: 0,
+        tvl: 0
+      };
+    } catch (error) {
+      console.error(`❌ [ON-CHAIN] Error fetching pool state:`, error);
+      return null;
+    }
+  }
 
   /**
    * Fetch pool information by pool address
    * Using the correct endpoint: GET /pools/{address}
+   * Falls back to on-chain if API returns 404 (pool not indexed yet)
    */
   async getPoolInfo(poolAddress: string): Promise<MeteoraPoolInfo | null> {
     try {
@@ -366,16 +102,27 @@ export class MeteoraAPIClient {
       });
 
       if (!response.ok) {
+        if (response.status === 404) {
+          console.warn(`⚠️ [API] Pool ${poolAddress} not indexed yet (404), falling back to on-chain`);
+          return await this.getPoolStateOnChain(poolAddress);
+        }
         console.error(`Failed to fetch pool info for ${poolAddress}: ${response.status}`);
         return null;
       }
 
-      const data = await response.json();
-      console.log("POOL INFO: ", data);
-      return data;
+      const responseData = await response.json();
+      console.log("POOL INFO RAW: ", responseData);
+
+      // Handle the nested structure where actual pool data is in responseData.data
+      const poolData = responseData.data || responseData;
+      console.log("POOL INFO EXTRACTED: ", poolData);
+
+      return poolData;
     } catch (error) {
       console.error(`Error fetching pool info for ${poolAddress}:`, error);
-      return null;
+      // Try on-chain fallback on network errors too
+      console.warn(`⚠️ [API] Network error, trying on-chain fallback`);
+      return await this.getPoolStateOnChain(poolAddress);
     }
   }
 
@@ -441,39 +188,87 @@ export class MeteoraAPIClient {
   }
 
   /**
+   * Fetch live SOL price in USD from CoinGecko API
+   */
+  private async getSOLPriceUSD(): Promise<number> {
+    try {
+      const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
+
+      if (!response.ok) {
+        console.warn(`⚠️ [COINGECKO] Failed to fetch SOL price: ${response.status}`);
+        return 150; // Fallback to $150
+      }
+
+      const data = await response.json();
+      const solPrice = data?.solana?.usd;
+
+      if (typeof solPrice === 'number' && solPrice > 0) {
+        console.log(`✅ [COINGECKO] SOL price: $${solPrice}`);
+        return solPrice;
+      }
+
+      console.warn(`⚠️ [COINGECKO] Invalid SOL price data, using fallback`);
+      return 150; // Fallback
+    } catch (error) {
+      console.error(`❌ [COINGECKO] Error fetching SOL price:`, error);
+      return 150; // Fallback to $150
+    }
+  }
+
+  /**
    * Get token price data with 24h change
    * Combines pool info and metrics for complete price data
+   * Uses Meteora SDK's getPriceFromSqrtPrice to accurately calculate price from sqrt_price
    */
   async getTokenPriceData(poolAddress: string): Promise<TokenPriceData | null> {
     try {
-      // Fetch both pool info and metrics
-      const [poolInfo, poolMetrics] = await Promise.all([
+      // Fetch pool info, metrics, and SOL price in parallel
+      const [poolInfo, poolMetrics, solPriceUSD] = await Promise.all([
         this.getPoolInfo(poolAddress),
-        this.getPoolMetrics(poolAddress)
+        this.getPoolMetrics(poolAddress),
+        this.getSOLPriceUSD()
       ]);
-      
+
       if (!poolInfo) {
+        console.warn(`⚠️ [PRICE] No pool info returned for ${poolAddress}`);
         return null;
       }
 
-      // Calculate price from pool reserves
+      // Calculate price using Meteora SDK (prioritizes sqrt_price)
       const currentPrice = this.calculatePriceFromPool(poolInfo);
-      
+
+      if (currentPrice === 0) {
+        console.warn(`⚠️ [PRICE] Could not calculate valid price for ${poolAddress}`);
+        return null;
+      }
+
       // Get 24h data from metrics if available
       let priceChange24h = 0;
       let priceChange24hPercent = 0;
-      
+
       if (poolMetrics && poolMetrics.price_change_24h_percent !== undefined) {
         priceChange24hPercent = poolMetrics.price_change_24h_percent;
         priceChange24h = currentPrice * (priceChange24hPercent / 100);
       }
 
-      return {
-        price: currentPrice,
-        priceChange24h,
+      // Convert SOL price to USD using live Jupiter price
+      const priceInUSD = currentPrice * solPriceUSD;
+      const priceChange24hUSD = priceChange24h * solPriceUSD;
+
+      console.log(`✅ [PRICE] Final price data for ${poolAddress}:`, {
+        priceSOL: currentPrice,
+        solPriceUSD,
+        priceUSD: priceInUSD,
         priceChange24hPercent,
-        volume24h: poolMetrics?.volume_24h || poolInfo.volume_24h,
-        liquidityUsd: poolInfo.liquidity_usd
+        volume24h: poolMetrics?.volume_24h || poolInfo.volume_24h || poolInfo.volume24h
+      });
+
+      return {
+        price: priceInUSD,
+        priceChange24h: priceChange24hUSD,
+        priceChange24hPercent,
+        volume24h: poolMetrics?.volume_24h || poolInfo.volume_24h || poolInfo.volume24h,
+        liquidityUsd: poolInfo.liquidity_usd || poolInfo.tvl
       };
     } catch (error) {
       console.error(`Error getting token price data for ${poolAddress}:`, error);
@@ -482,21 +277,73 @@ export class MeteoraAPIClient {
   }
 
   /**
-   * Calculate token price from pool reserves
-   * This is a basic implementation - you might need to adjust based on actual API response structure
+   * Calculate token price from pool sqrt_price using Meteora SDK
+   * Uses getPriceFromSqrtPrice to convert Q64 format sqrt price to human-readable price
    */
   private calculatePriceFromPool(poolInfo: any): number {
-    // This depends on the actual structure of the API response
-    // You may need to calculate from token reserves: tokenB_reserve / tokenA_reserve
-    if (poolInfo.current_price !== undefined) {
+    console.log(`🔍 [PRICE] Calculating price from pool info:`, {
+      sqrt_price: poolInfo.sqrt_price,
+      current_price: poolInfo.current_price,
+      pool_price: poolInfo.pool_price,
+      virtual_price: poolInfo.virtual_price,
+      has_reserves: !!(poolInfo.token_a_reserve && poolInfo.token_b_reserve)
+    });
+
+    // Method 1: Use sqrt_price with Meteora SDK (RECOMMENDED)
+    if (poolInfo.sqrt_price !== undefined && poolInfo.sqrt_price !== null) {
+      try {
+        // Convert sqrt_price to BN (it comes as a number/string from API)
+        const sqrtPriceBN = new BN(poolInfo.sqrt_price.toString().split('.')[0]); // Remove decimals if any
+
+        console.log(`💹 [PRICE] Converting sqrt_price: ${poolInfo.sqrt_price} -> BN: ${sqrtPriceBN.toString()}`);
+
+        // Use Meteora SDK to convert sqrt price to human-readable price
+        // Note: getPriceFromSqrtPrice returns a Decimal object, not a string
+        const priceDecimal = getPriceFromSqrtPrice(
+          sqrtPriceBN,
+          this.TOKEN_A_DECIMALS, // KOL token (6 decimals)
+          this.TOKEN_B_DECIMALS  // SOL (9 decimals)
+        );
+
+        // Convert Decimal to number
+        const price = parseFloat(priceDecimal.toString());
+        console.log(`✅ [PRICE] Calculated price from sqrt_price: ${price} (${priceDecimal.toString()})`);
+
+        if (!isNaN(price) && price > 0) {
+          return price;
+        }
+      } catch (error) {
+        console.error(`❌ [PRICE] Error calculating price from sqrt_price:`, error);
+      }
+    }
+
+    // Method 2: Use current_price if available
+    if (poolInfo.current_price !== undefined && poolInfo.current_price > 0) {
+      console.log(`✅ [PRICE] Using current_price: ${poolInfo.current_price}`);
       return poolInfo.current_price;
     }
-    
-    // Fallback calculation if reserves are provided
-    if (poolInfo.token_a_reserve && poolInfo.token_b_reserve) {
-      return poolInfo.token_b_reserve / poolInfo.token_a_reserve;
+
+    // Method 3: Use pool_price if available
+    if (poolInfo.pool_price !== undefined && poolInfo.pool_price > 0) {
+      console.log(`✅ [PRICE] Using pool_price: ${poolInfo.pool_price}`);
+      return poolInfo.pool_price;
     }
-    
+
+    // Method 4: Use virtual_price if available
+    if (poolInfo.virtual_price !== undefined && poolInfo.virtual_price > 0) {
+      console.log(`✅ [PRICE] Using virtual_price: ${poolInfo.virtual_price}`);
+      return poolInfo.virtual_price;
+    }
+
+    // Method 5: Fallback calculation from reserves
+    if (poolInfo.token_a_reserve && poolInfo.token_b_reserve &&
+        poolInfo.token_a_reserve > 0 && poolInfo.token_b_reserve > 0) {
+      const price = poolInfo.token_b_reserve / poolInfo.token_a_reserve;
+      console.log(`✅ [PRICE] Calculated from reserves: ${price}`);
+      return price;
+    }
+
+    console.warn(`⚠️ [PRICE] Could not calculate price from pool info`);
     return 0;
   }
 

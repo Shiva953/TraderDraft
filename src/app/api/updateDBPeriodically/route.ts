@@ -1,6 +1,7 @@
 // api/updateDBPeriodically/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { getAppUrl } from '@/lib/utils';
 
 const prisma = new PrismaClient();
 
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
     try {
       console.log("🔄 [UPDATE-API] Triggering scrape and database update...");
       
-      const scrapeResponse = await fetch(`${process.env.BASE_URL || 'http://localhost:3000'}/api/scrapeAndPushToDB`, {
+      const scrapeResponse = await fetch(`${getAppUrl()}/api/scrapeAndPushToDB`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

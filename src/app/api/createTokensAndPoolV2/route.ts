@@ -10,7 +10,9 @@ import {
   getBaseFeeParams,
   getDynamicFeeParams,
   getSqrtPriceFromPrice,
-  PoolFeesParams
+  PoolFeesParams,
+  MIN_SQRT_PRICE,
+  MAX_SQRT_PRICE
 } from "@meteora-ag/cp-amm-sdk"
 import {
   Connection,
@@ -83,7 +85,7 @@ async function createSingleKolTokenImproved(
 
     const totalSupply = new BN(1_000_000_000).mul(new BN(10).pow(new BN(decimals)));
     const poolAmount = new BN(60_000_000).mul(new BN(10).pow(new BN(decimals))); // 6%
-    const solAmount = new BN(100_000_000); // 0.1 SOL for pool
+    const solAmount = new BN(50_000_000); 
 
     console.log(`💰 [AMOUNTS] totalSupply=${totalSupply.toString()} poolAmount=${poolAmount.toString()}`);
 
@@ -174,14 +176,16 @@ async function createSingleKolTokenImproved(
 
     // Create the instruction transaction
     // Mint authority has been transferred to global_pack_pool PDA in step 1.5
+    // Now also includes SOL transfer from global_pack_pool to admin for Meteora pool creation
     const improvedTx = await program.methods
-      .initKolVaultAndTransferV2(ticker, totalSupply)
+      .initKolVaultAndTransferV2(ticker, totalSupply, solAmount) // Added solAmount parameter
       .accountsPartial({
         globalPackPool: globalPackPoolAccount,
         admin: wallet.publicKey,
         mint: baseMintKeypair.publicKey,
         tokenVault: tokenVaultAccount,
         poolTokenAccount: poolTokenAccount, // Receives 6% directly
+        solRecipient: wallet.publicKey, // Admin receives SOL from global_pack_pool for pool creation
         configAccount: configAccount,
         systemProgram: anchor.web3.SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
@@ -192,10 +196,10 @@ async function createSingleKolTokenImproved(
       .signers([wallet])
       .rpc({ commitment: "confirmed" });
 
-    console.log(`✅ [STEP 3] Direct distribution transaction confirmed: ${improvedTx}`);
+    console.log(`✅ [STEP 3] Direct distribution + SOL transfer transaction confirmed: ${improvedTx}`);
 
-    // --- Step 4: Create Meteora pool (pool tokens are already in poolTokenAccount)
-    console.log("🚀 [STEP 4] Creating Meteora pool with pre-distributed tokens");
+    // --- Step 4: Create Meteora pool (pool tokens are already in poolTokenAccount, SOL now in admin wallet)
+    console.log("🚀 [STEP 4] Creating Meteora pool with pre-distributed tokens and SOL from global pool");
     
     const configs = await cpAmm.getAllConfigs();
     console.log(`🔍 [STEP 4] Available configs: ${configs.length}`);
@@ -205,9 +209,13 @@ async function createSingleKolTokenImproved(
     const tokenAMint = baseMintKeypair.publicKey;
     const tokenBMint = NATIVE_MINT;
 
-    const sqrtMinPrice = getSqrtPriceFromPrice("0.0001", tokenADecimal, tokenBDecimal);
-    const sqrtMaxPrice = getSqrtPriceFromPrice("0.01", tokenADecimal, tokenBDecimal);
-    console.log(`📐 [STEP 4] sqrtMinPrice=${sqrtMinPrice.toString()} sqrtMaxPrice=${sqrtMaxPrice.toString()}`);
+    // Use SDK constants for full-range pool (no concentrated liquidity limits)
+    // This allows unlimited price movement in both directions
+    const sqrtMinPrice = MIN_SQRT_PRICE;
+    const sqrtMaxPrice = MAX_SQRT_PRICE;
+    console.log(`📐 [STEP 4] Using full-range pool with SDK constants`);
+    console.log(`   sqrtMinPrice=${sqrtMinPrice.toString()}`);
+    console.log(`   sqrtMaxPrice=${sqrtMaxPrice.toString()}`);
 
     const { initSqrtPrice, liquidityDelta } = cpAmm.preparePoolCreationParams({
       tokenAAmount: poolAmount,
@@ -217,8 +225,16 @@ async function createSingleKolTokenImproved(
     });
     console.log(`💧 [STEP 4] initSqrtPrice=${initSqrtPrice.toString()} liquidityDelta=${liquidityDelta.toString()}`);
 
-    const baseFeeParams = getBaseFeeParams(500, 500, FeeSchedulerMode.Linear, 0, 0);
-    const dynamicFeeParams = getDynamicFeeParams(100);
+    // Fee configuration: 5% base fee (500 bps) + 5% partner fee (500 bps)
+    // Partner fee goes to the referralTokenAccount specified during swaps
+    const baseFeeParams = getBaseFeeParams(
+      500,  // baseFeeInBps: 5% (500 basis points)
+      500,  // partnerFeeInBps: 5% (500 basis points) - goes to fee wallet
+      FeeSchedulerMode.Linear,
+      0,    // numberOfPeriods: no fee reduction
+      0     // periodFrequency: no fee reduction
+    );
+    const dynamicFeeParams = getDynamicFeeParams(100); // Max 1% dynamic fee based on volatility
     const poolFees: PoolFeesParams = { baseFee: baseFeeParams, dynamicFee: dynamicFeeParams, padding: [] };
 
     const positionNftMint = Keypair.generate();
@@ -271,23 +287,74 @@ async function createSingleKolTokenImproved(
 export async function POST(request: Request) {
   console.log("📩 [API] POST /createTokensAndPoolImproved invoked");
   try {
-    // Get KOLs from database
-    console.log("📊 [DB] Fetching top 50 KOLs");
-    const kols = await prisma.trader.findMany({
-      where: { period: 'DAILY' },
+    // Get ALL KOLs from database (all periods)
+    console.log("📊 [DB] Fetching ALL KOLs from all periods");
+    const allKolsRaw = await prisma.trader.findMany({
       orderBy: { rank: 'asc' },
-      take: 50,
-      select: { id: true, name: true, rank: true, address: true, pnl: true, winRate: true, avatarUrl: true, xUrl: true }
+      select: { id: true, name: true, rank: true, address: true, pnl: true, winRate: true, avatarUrl: true, xUrl: true, period: true, ticker: true, tokenMintAddress: true, poolAddress: true }
     });
-    console.log(`✅ [DB] Retrieved ${kols.length} KOL records`);
+    console.log(`✅ [DB] Retrieved ${allKolsRaw.length} total KOL records`);
 
-    if (kols.length < 50) {
-      console.warn("⚠️ [DB] Not enough KOLs to proceed");
-      return NextResponse.json({
-        success: false,
-        error: `Insufficient KOL data. Found ${kols.length}/50 required KOLs.`
-      }, { status: 400 });
+    // Map to KolData format
+    type KolRecord = typeof allKolsRaw[number];
+    const allKols: KolRecord[] = allKolsRaw;
+
+    // Group KOLs by NAME to identify duplicates across periods
+    // Same name = same token/pool should be used
+    console.log("🔍 [GROUP] Grouping KOLs by name to share tokens across periods");
+    const kolGroupsByName = new Map<string, KolRecord[]>();
+
+    for (const kol of allKols) {
+      const name = kol.name.trim();
+      if (!kolGroupsByName.has(name)) {
+        kolGroupsByName.set(name, []);
+      }
+      kolGroupsByName.get(name)!.push(kol);
     }
+
+    console.log(`✅ [GROUP] Found ${kolGroupsByName.size} unique names across ${allKols.length} records`);
+
+    // Check which names already have tokens created
+    const namesWithExistingTokens = new Map<string, { mint: string; pool: string; ticker: string }>();
+
+    for (const [name, group] of kolGroupsByName.entries()) {
+      // Check if any record in this group already has a token
+      const existingToken = group.find(k => k.tokenMintAddress && k.poolAddress && k.ticker);
+      if (existingToken) {
+        namesWithExistingTokens.set(name, {
+          mint: existingToken.tokenMintAddress!,
+          pool: existingToken.poolAddress!,
+          ticker: existingToken.ticker!
+        });
+        console.log(`♻️ [REUSE] Name "${name}" already has token: ${existingToken.tokenMintAddress} (ticker: ${existingToken.ticker})`);
+      }
+    }
+
+    console.log(`♻️ [REUSE] Found ${namesWithExistingTokens.size} names with existing tokens`);
+
+    // Process ONLY unique names (one token per unique name)
+    const namesToProcess: { name: string; kol: KolRecord; allKolIds: string[]; existingToken?: { mint: string; pool: string; ticker: string } }[] = [];
+
+    for (const [name, group] of kolGroupsByName.entries()) {
+      const existingToken = namesWithExistingTokens.get(name);
+
+      namesToProcess.push({
+        name,
+        kol: group[0], // Use first KOL as representative
+        allKolIds: group.map(k => k.id),
+        existingToken
+      });
+
+      if (existingToken) {
+        console.log(`📦 [GROUP] ${name}: Will REUSE existing token (ticker: ${existingToken.ticker}) for ${group.length} records (${group.map(k => k.period).join(', ')})`);
+      } else {
+        console.log(`📦 [GROUP] ${name}: Will CREATE new token for ${group.length} records (${group.map(k => k.period).join(', ')})`);
+      }
+    }
+
+    console.log(`🎯 [PROCESS] Total unique names: ${namesToProcess.length} (${namesWithExistingTokens.size} existing, ${namesToProcess.length - namesWithExistingTokens.size} new)`);
+
+    const kols = namesToProcess.map(t => t.kol);
 
     // Setup wallet and program
     const walletKeypairInBytes = JSON.parse(process.env.ADMIN_KEYPAIR || "[]");
@@ -298,29 +365,55 @@ export async function POST(request: Request) {
     const provider = new AnchorProvider(connection, anchorWallet, { commitment: "confirmed" });
     anchor.setProvider(provider);
 
-    const programId = new PublicKey("3emMS4k8hQ6erWW55TGFKJmh1c7Aud2bbtrYFTfvQQsG");
+    const programId = new PublicKey("4nSNt5ed3cqPWRpwFf8SRvTfLyZvJRgUhwahc8jZQGG2");
     const program = new Program<Pnlpackprogram>(IDL as Pnlpackprogram, provider);
-    const [globalPackPoolAccount] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("global_pack_pool")],
-      programId
-    );
+    const globalPackPoolAccount = new PublicKey("GrT2MFauW4JzY867xE61dMiMwETBfzbh9hzU6iLeq4iQ");
+    console.log(`🔗 [ANCHOR] Program ID: ${programId.toBase58()}`);
     console.log(`🔗 [ANCHOR] GlobalPackPoolAccount: ${globalPackPoolAccount.toBase58()}`);
 
-    // Process all KOLs
-    const results: { kolId: string; kolName: string; success: boolean; mintAddress?: string; poolAddress: string; ticker?: string; error?: string }[] = [];
-    let successCount = 0, failureCount = 0;
+    // Process all unique names
+    const results: { kolId: string; kolName: string; success: boolean; mintAddress?: string; poolAddress: string; ticker?: string; reused?: boolean; error?: string }[] = [];
+    let successCount = 0, failureCount = 0, reuseCount = 0;
 
-    console.log("🔄 [PROCESS] Starting improved creation loop for 50 KOLs");
-    for (let i = 0; i < kols.length; i++) {
-      const kol = kols[i];
-      console.log(`\n➡️ [PROCESS] ${i + 1}/50 - ${kol.name}`);
-      
-      const result = await createSingleKolTokenImproved(kol, i, wallet, program, globalPackPoolAccount);
-    
-      if (!result.success) {
-        console.warn(`⚠️ [CONTINUE] Token creation failed for ${kol.name}, continuing with remaining KOLs`);
+    console.log(`🔄 [PROCESS] Starting creation/reuse loop for ${namesToProcess.length} unique names`);
+    for (let i = 0; i < namesToProcess.length; i++) {
+      const { name, kol, allKolIds, existingToken } = namesToProcess[i];
+      console.log(`\n➡️ [PROCESS] ${i + 1}/${namesToProcess.length} - Name: ${name}, KOL: ${kol.name} [${kol.period}]`);
+
+      let result: { success: boolean; mintAddress?: string; poolAddress?: string; ticker?: string; error?: string };
+
+      if (existingToken) {
+        // REUSE existing token - no need to create
+        console.log(`♻️ [REUSE] Using existing token for name "${name}" (ticker: ${existingToken.ticker})`);
+        result = {
+          success: true,
+          mintAddress: existingToken.mint,
+          poolAddress: existingToken.pool,
+          ticker: existingToken.ticker
+        };
+        reuseCount++;
+      } else {
+        // CREATE new token
+        console.log(`🆕 [CREATE] Creating new token for name "${name}"`);
+        // Map database record to KolData type
+        const kolData: KolData = {
+          id: kol.id,
+          name: kol.name,
+          rank: kol.rank,
+          address: kol.address,
+          pnl: kol.pnl,
+          winRate: kol.winRate,
+          avatarUrl: kol.avatarUrl,
+          xUrl: kol.xUrl,
+          ticker: kol.ticker ?? undefined
+        };
+        result = await createSingleKolTokenImproved(kolData, i, wallet, program, globalPackPoolAccount);
+
+        if (!result.success) {
+          console.warn(`⚠️ [CONTINUE] Token creation failed for ${kol.name}, continuing with remaining KOLs`);
+        }
       }
-    
+
       results.push({
         kolId: kol.id,
         kolName: kol.name,
@@ -328,16 +421,20 @@ export async function POST(request: Request) {
         poolAddress: result.poolAddress || '',
         mintAddress: result.mintAddress,
         ticker: result.ticker,
+        reused: !!existingToken,
         error: result.error
       });
-    
-      // Update database with rarity
+
+      // Update database with rarity - UPDATE ALL RECORDS WITH THIS NAME
       try {
         const rarity = determineRarity(kol.rank);
         const rarityWeight = getRarityWeight(rarity);
 
-        await prisma.trader.update({
-          where: { id: kol.id },
+        console.log(`📝 [DB] Updating ${allKolIds.length} records for name "${name}" (ticker: ${result.ticker})`);
+
+        // Update ALL records with the same name
+        await prisma.trader.updateMany({
+          where: { id: { in: allKolIds } },
           data: {
             tokenMintAddress: result.success ? result.mintAddress : null,
             poolAddress: result.success ? result.poolAddress : null,
@@ -347,41 +444,48 @@ export async function POST(request: Request) {
           }
         });
         console.log(result.success
-          ? `✅ [DB] Updated mint, pool, ticker, and rarity (${rarity}) for ${kol.name}`
-          : `⚠️ [DB] Stored null addresses and rarity (${rarity}) for ${kol.name} (creation failed)`
+          ? `✅ [DB] Updated ${allKolIds.length} records with mint, pool, ticker (${result.ticker}), and rarity (${rarity}) for name "${name}"${existingToken ? ' (reused)' : ' (created)'}`
+          : `⚠️ [DB] Stored null addresses and rarity (${rarity}) in ${allKolIds.length} records for name "${name}" (creation failed)`
         );
-        result.success ? successCount++ : failureCount++;
+        if (result.success) {
+          successCount++;
+        } else {
+          failureCount++;
+        }
       } catch (dbErr) {
-        console.error(`❌ [DB] Update failed for ${kol.name}:`, dbErr);
+        console.error(`❌ [DB] Update failed for name "${name}":`, dbErr);
         failureCount++;
         if (result.success) successCount--;
       }
-    
-      // Rate limiting
-      if (i < kols.length - 1) {
-        console.log(`⏳ [RATE] Waiting 3s before next token (${i + 2}/50)`);
+
+      // Rate limiting only for new token creation
+      if (!existingToken && i < namesToProcess.length - 1) {
+        console.log(`⏳ [RATE] Waiting 3s before next token creation (${i + 2}/${namesToProcess.length})`);
         await new Promise(r => setTimeout(r, 3000));
       }
     }
 
-    console.log(`\n🎉 [SUMMARY] Success=${successCount} Failure=${failureCount}`);
-    const isFullSuccess = successCount === 50;
+    console.log(`\n🎉 [SUMMARY] Success=${successCount} Failure=${failureCount} Reused=${reuseCount}`);
+    const isFullSuccess = successCount === namesToProcess.length;
 
     return NextResponse.json({
       success: isFullSuccess,
       partialSuccess: successCount > 0 && !isFullSuccess,
       message: isFullSuccess
-        ? "🎉 ALL 50 KOL tokens created with direct distribution!"
+        ? `🎉 ALL ${namesToProcess.length} unique names processed! (${reuseCount} reused, ${successCount - reuseCount} created)`
         : successCount > 0
-          ? `⚠️ Partial success: ${successCount}/50 tokens created`
+          ? `⚠️ Partial success: ${successCount}/${namesToProcess.length} tokens processed (${reuseCount} reused)`
           : "❌ All token creation attempts failed",
-      data: { 
-        totalKols: 50, 
-        successCount, 
-        failureCount, 
-        results, 
+      data: {
+        totalUniqueNames: namesToProcess.length,
+        totalKolRecords: allKols.length,
+        successCount,
+        failureCount,
+        reuseCount,
+        newTokensCreated: successCount - reuseCount,
+        results,
         readyForPackReveal: isFullSuccess,
-        approach: "direct_distribution" // Indicate which approach was used
+        approach: "name_based_deduplication"
       }
     }, { status: isFullSuccess ? 200 : 207 });
 

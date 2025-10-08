@@ -16,7 +16,7 @@
 // import { KolData, PackData, RevealAllPacksRequest, ConsolidatedKolData } from '@/types';
 
 // const DEVNET_RPC = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
-// const PROGRAM_ID = new PublicKey('3emMS4k8hQ6erWW55TGFKJmh1c7Aud2bbtrYFTfvQQsG');
+// const PROGRAM_ID = new PublicKey('4nSNt5ed3cqPWRpwFf8SRvTfLyZvJRgUhwahc8jZQGG2');
 // const ADMIN_KEY = new PublicKey('7E85TTXg5FjT5G6q14nZUSE3KAgjM2kjBs8ddAW6eBeR');
 // const TOKENS_PER_KOL = new BN(40000 * Math.pow(10, 6)); // 40K tokens with 6 decimals
 
@@ -685,7 +685,7 @@ import { determineRarity, RARITY_CONFIG } from '@/lib/rarity';
 import { Rarity } from '@prisma/client';
 
 const DEVNET_RPC = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
-const PROGRAM_ID = new PublicKey('3emMS4k8hQ6erWW55TGFKJmh1c7Aud2bbtrYFTfvQQsG');
+const PROGRAM_ID = new PublicKey('4nSNt5ed3cqPWRpwFf8SRvTfLyZvJRgUhwahc8jZQGG2');
 const ADMIN_KEY = new PublicKey('7E85TTXg5FjT5G6q14nZUSE3KAgjM2kjBs8ddAW6eBeR');
 const TOKENS_PER_KOL = new BN(40000 * Math.pow(10, 6)); // 40K tokens with 6 decimals
 
@@ -941,10 +941,7 @@ async function executeCombinedPackCreation(
   const transaction = new Transaction();
   const instructions: TransactionInstruction[] = [];
   
-  const [globalPackPool] = PublicKey.findProgramAddressSync(
-    [Buffer.from('global_pack_pool')],
-    PROGRAM_ID
-  );
+  const globalPackPool = new PublicKey("GrT2MFauW4JzY867xE61dMiMwETBfzbh9hzU6iLeq4iQ");
 
   for (const pack of packs) {
     const [packAccount] = PublicKey.findProgramAddressSync(
@@ -1021,10 +1018,7 @@ async function executePackCreationForSinglePack(
 ): Promise<string> {
   const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
 
-  const [globalPackPool] = PublicKey.findProgramAddressSync(
-    [Buffer.from('global_pack_pool')],
-    PROGRAM_ID
-  );
+  const globalPackPool = new PublicKey("GrT2MFauW4JzY867xE61dMiMwETBfzbh9hzU6iLeq4iQ");
 
   const [packAccount] = PublicKey.findProgramAddressSync(
     [Buffer.from('pack'), Buffer.from(packId)],

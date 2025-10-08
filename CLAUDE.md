@@ -58,10 +58,11 @@ Pack generation uses weighted random selection to match these distribution targe
 
 ### Solana Program Integration
 
-Custom Anchor program (`pnlpackprogram`) at address `CzhWAZRNcshcFiEgwoQAgKpXdQV1cxUNVEVsoGHzMxui` handles:
+Custom Anchor program (`pnlpackprogram`) at address `4nSNt5ed3cqPWRpwFf8SRvTfLyZvJRgUhwahc8jZQGG2` handles:
 - Pack initialization with KOL token distributions
 - Claiming tokens from packs (4 KOLs per pack)
 - On-chain pack state management
+- Global pack pool PDA: `GrT2MFauW4JzY867xE61dMiMwETBfzbh9hzU6iLeq4iQ`
 
 IDL is located at `src/lib/idl.ts`.
 

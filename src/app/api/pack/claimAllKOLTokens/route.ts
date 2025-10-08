@@ -25,7 +25,7 @@ const connection = new Connection("https://api.devnet.solana.com", { commitment:
 const prisma = new PrismaClient();
 
 const MAX_TRANSFERS_PER_TX = 5; // Conservative limit for vault-to-user transfers
-const PROGRAM_ID = new PublicKey('3emMS4k8hQ6erWW55TGFKJmh1c7Aud2bbtrYFTfvQQsG');
+const PROGRAM_ID = new PublicKey('4nSNt5ed3cqPWRpwFf8SRvTfLyZvJRgUhwahc8jZQGG2');
 
 
 export async function POST(request: Request) {
@@ -227,10 +227,7 @@ async function executeVaultToUserTransfer(
   const userPubkey = new PublicKey(userAddress);
   const mintPubkey = new PublicKey(kol.tokenMintAddress!);
   
-  const [globalPackPool] = PublicKey.findProgramAddressSync(
-    [Buffer.from('global_pack_pool')],
-    PROGRAM_ID
-  );
+  const globalPackPool = new PublicKey("GrT2MFauW4JzY867xE61dMiMwETBfzbh9hzU6iLeq4iQ");
 
   const [configAccount] = PublicKey.findProgramAddressSync(
     [Buffer.from('CONFIG_ACCOUNT')],

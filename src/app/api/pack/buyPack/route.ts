@@ -87,14 +87,9 @@ export async function POST(request: Request) {
       throw e;
     }
 
-    let globalPackPool;
-    try {
-      [globalPackPool] = PublicKey.findProgramAddressSync([Buffer.from("global_pack_pool")], program.programId);
-      console.log(`${debugPrefix} 🟡 globalPackPool PDA: ${globalPackPool.toBase58()}`);
-    } catch (e) {
-      console.error(`${debugPrefix} ❌ Error finding globalPackPool PDA:`, e);
-      throw e;
-    }
+    // Use hardcoded global pack pool address
+    const globalPackPool = new PublicKey("GrT2MFauW4JzY867xE61dMiMwETBfzbh9hzU6iLeq4iQ");
+    console.log(`${debugPrefix} 🟡 globalPackPool PDA: ${globalPackPool.toBase58()}`);
     
     // Calculate amounts
     const amountInLamports = amount * LAMPORTS_PER_SOL;

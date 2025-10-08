@@ -69,7 +69,7 @@ export default function TraderPage({ params }: TraderPageProps) {
   useEffect(() => {
     const resolveParams = async () => {
       const resolved = await params;
-      setResolvedKolName(resolved.kol);
+      setResolvedKolName(resolved.kol); // This is now the ticker
     };
     resolveParams();
   }, []); // Only run once - empty dependency array
@@ -100,7 +100,7 @@ export default function TraderPage({ params }: TraderPageProps) {
 
   // Single unified fetch for ALL KOL page data with retry logic
   useEffect(() => {
-    if (!resolvedKolName) return; // Wait for kolName to be resolved
+    if (!resolvedKolName) return; // Wait for kolTicker to be resolved
 
     const fetchAllKOLPageData = async (retryCount = 0) => {
       const MAX_RETRIES = 5;
@@ -117,7 +117,7 @@ export default function TraderPage({ params }: TraderPageProps) {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            kolName: resolvedKolName,
+            kolTicker: resolvedKolName, // This is actually the ticker from URL
             userWalletAddress: userPrivyWalletAddress
           }),
         });
@@ -240,7 +240,7 @@ export default function TraderPage({ params }: TraderPageProps) {
                 {currentData.name}
               </h1>
               <a
-                href={`https://solscan.io/account/${currentData.tokenMintAddress}?cluster=devnet`}
+                href={`https://orb.helius.dev/account/${currentData.tokenMintAddress}?cluster=devnet`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors group"
@@ -260,21 +260,25 @@ export default function TraderPage({ params }: TraderPageProps) {
                   <p className="text-sm text-muted-foreground">Current Price</p>
                   <div className="flex items-baseline gap-3 flex-wrap">
                     <span className="text-4xl md:text-5xl font-bold">
-                      {currentData.tokenPrice || '0.000062'}
+                      {currentData.tokenPrice ? `$${currentData.tokenPrice}` : '—'}
                     </span>
-                    <Badge
-                      variant={priceChangePositive ? "default" : "destructive"}
-                      className="text-sm gap-1 px-2.5 py-1"
-                    >
-                      {priceChangePositive ? (
-                        <TrendingUp className="h-3.5 w-3.5" />
-                      ) : (
-                        <TrendingDown className="h-3.5 w-3.5" />
-                      )}
-                      {Math.abs(currentData.priceChange24hPercent || 0).toFixed(2)}%
-                    </Badge>
+                    {currentData.priceChange24hPercent !== undefined && (
+                      <Badge
+                        variant={priceChangePositive ? "default" : "destructive"}
+                        className="text-sm gap-1 px-2.5 py-1"
+                      >
+                        {priceChangePositive ? (
+                          <TrendingUp className="h-3.5 w-3.5" />
+                        ) : (
+                          <TrendingDown className="h-3.5 w-3.5" />
+                        )}
+                        {Math.abs(currentData.priceChange24hPercent || 0).toFixed(2)}%
+                      </Badge>
+                    )}
                   </div>
-                  <p className="text-xs text-muted-foreground">24h change</p>
+                  <p className="text-xs text-muted-foreground">
+                    {currentData.tokenPrice ? '24h change' : 'Price data unavailable'}
+                  </p>
                 </div>
               </CardContent>
             </Card>
