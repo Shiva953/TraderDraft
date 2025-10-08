@@ -188,30 +188,67 @@ export class MeteoraAPIClient {
   }
 
   /**
-   * Fetch live SOL price in USD from CoinGecko API
+   * Fetch live SOL price in USD from Jupiter V6 API
+   * Uses SOL mint address and USDC as quote currency
    */
   private async getSOLPriceUSD(): Promise<number> {
+    try {
+      // SOL mint address (native SOL is represented as So11111111111111111111111111111111111111112)
+      const SOL_MINT = 'So11111111111111111111111111111111111111112';
+      const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'; // USDC mint
+      
+      // Jupiter V6 Price API - gets price of SOL in USDC terms
+      const response = await fetch(
+        `https://price.jup.ag/v6/price?ids=${SOL_MINT}&vsToken=${USDC_MINT}`
+      );
+
+      if (!response.ok) {
+        console.warn(`⚠️ [JUPITER] Failed to fetch SOL price: ${response.status}, falling back to CoinGecko`);
+        return await this.getSOLPriceFromCoinGecko();
+      }
+
+      const data = await response.json();
+      const solPriceData = data?.data?.[SOL_MINT];
+
+      if (solPriceData && typeof solPriceData.price === 'number' && solPriceData.price > 0) {
+        const solPrice = solPriceData.price;
+        console.log(`✅ [JUPITER] SOL price: $${solPrice.toFixed(2)}`);
+        return solPrice;
+      }
+
+      console.warn(`⚠️ [JUPITER] Invalid SOL price data, falling back to CoinGecko`);
+      return await this.getSOLPriceFromCoinGecko();
+    } catch (error) {
+      console.error(`❌ [JUPITER] Error fetching SOL price:`, error);
+      return await this.getSOLPriceFromCoinGecko();
+    }
+  }
+
+  /**
+   * Fallback: Fetch SOL price from CoinGecko API
+   */
+  private async getSOLPriceFromCoinGecko(): Promise<number> {
     try {
       const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
 
       if (!response.ok) {
         console.warn(`⚠️ [COINGECKO] Failed to fetch SOL price: ${response.status}`);
-        return 150; // Fallback to $150
+        return 150; // Final fallback
       }
 
       const data = await response.json();
       const solPrice = data?.solana?.usd;
 
       if (typeof solPrice === 'number' && solPrice > 0) {
-        console.log(`✅ [COINGECKO] SOL price: $${solPrice}`);
+        console.log(`✅ [COINGECKO] SOL price (fallback): $${solPrice}`);
         return solPrice;
       }
 
-      console.warn(`⚠️ [COINGECKO] Invalid SOL price data, using fallback`);
-      return 150; // Fallback
+      console.warn(`⚠️ [COINGECKO] Invalid SOL price data`);
+      return 150; // Final fallback
     } catch (error) {
       console.error(`❌ [COINGECKO] Error fetching SOL price:`, error);
-      return 150; // Fallback to $150
+      return 150; // Final fallback
     }
   }
 

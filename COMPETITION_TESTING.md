@@ -6,12 +6,13 @@ The daily score calculation works via scheduled snapshots (like cron jobs), NOT 
 
 ### How It Works
 
-1. **Snapshot System**: The `/api/competitions/[id]/dailyUserScore` endpoint takes a snapshot of all KOL holdings at the time it's called
-2. **Only Recent Purchases Count**: KOLs bought AFTER a snapshot are considered for the NEXT snapshot
-3. **Score Calculation**: For each snapshot, scores are calculated based on:
-   - User's token holdings
+1. **Snapshot System**: The `/api/competitions/[id]/dailyUserScore` endpoint takes a snapshot of **ALL on-chain KOL token holdings** at the time it's called
+2. **All Tokens Count**: The system fetches actual on-chain balances for all users, counting **ALL tokens held** regardless of when they were purchased (before or during the competition)
+3. **Auto-Enrollment**: Users who hold KOL tokens but haven't joined the competition are automatically enrolled during snapshots
+4. **Score Calculation**: For each snapshot, scores are calculated based on:
+   - User's **actual on-chain** token holdings
    - Trader's PnL
-   - User's share ratio vs total supply
+   - User's share ratio vs total supply held by all participants
 
 ### Production Setup (4-day window, Mon-Thu)
 - Snapshots at 14:00 UTC (2 PM) daily

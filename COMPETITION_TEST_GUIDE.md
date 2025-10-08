@@ -179,14 +179,19 @@ Let **TP_POOL** be the given TP to be distributed among participants for a given
 
 ### Daily Score Calculation (At Each Snapshot)
 
-For each snapshot, we calculate the **Daily Score** for every user.
+For each snapshot, we calculate the **Daily Score** for every user based on their **ACTUAL on-chain token holdings**.
+
+**IMPORTANT:** The system counts **ALL KOL tokens** a user holds at the time of the snapshot, regardless of when they were acquired. This means:
+- ✅ Tokens purchased before the competition starts count
+- ✅ Tokens purchased during the competition count
+- ✅ Users holding tokens are **auto-enrolled** in the competition during snapshots
 
 #### Formula:
 
 **Daily Score = Σ (Token Holding Amount × KOL PnL × Rarity Multiplier)**
 
 Where:
-- **Token Holding Amount** = Number of KOL tokens the user holds
+- **Token Holding Amount** = Number of KOL tokens the user holds **at snapshot time** (fetched from on-chain balances)
 - **KOL PnL** = KOL's current 7-day PnL percentage (e.g., 15.5% → 15.5)
 - **Rarity Multiplier** = Multiplier based on KOL's rarity tier:
   - **Legendary:** 2.0×

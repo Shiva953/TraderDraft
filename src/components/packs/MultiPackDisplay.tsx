@@ -73,24 +73,6 @@ export const MultiPackDisplay = ({ onOpenPack, packCount }: { onOpenPack: () => 
 
   // loading component
   export const MultiPackOpeningLoader = ({ packCount }: { packCount: number }) => {
-    const messages = [
-      "Opening your packs...",
-      "Revealing KOL cards...",
-      "Consolidating duplicate tokens...",
-      "Claiming tokens to your wallet...",
-      "Finalizing your collection..."
-    ]
-
-    const [currentMessage, setCurrentMessage] = useState(0)
-
-    useEffect(() => {
-      const interval = setInterval(() => {
-        setCurrentMessage((prev) => (prev + 1) % messages.length)
-      }, 800)
-
-      return () => clearInterval(interval)
-    }, [messages.length])
-
     return (
       <div className="relative min-h-screen flex items-center justify-center overflow-hidden">
         {/* Same stylish blurred background */}
@@ -115,10 +97,6 @@ export const MultiPackDisplay = ({ onOpenPack, packCount }: { onOpenPack: () => 
 
         {/* Content */}
         <div className="relative z-10 text-center text-white space-y-8">
-          <div className="space-y-4">
-            {/* <h2 className="text-3xl font-bold">Processing {packCount} Pack{packCount === 1 ? '' : 's'}</h2> */}
-            <p className="text-md tracking-tight text-gray-300">{messages[currentMessage]}</p>
-          </div>
 
           {/* Modern ripple/wave loading animation */}
           <div className="flex justify-center items-center h-24">

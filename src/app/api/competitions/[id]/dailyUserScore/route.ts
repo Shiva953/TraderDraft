@@ -1,7 +1,34 @@
+/**
+ * Daily Score Calculation Endpoint
+ * 
+ * This endpoint calculates daily scores for all users participating in a competition
+ * based on their ACTUAL on-chain KOL token holdings (not just tokens purchased during the competition).
+ * 
+ * KEY FEATURES:
+ * 1. Fetches real-time on-chain balances for ALL users (not just current participants)
+ * 2. Auto-enrolls users who hold KOL tokens but haven't joined the competition yet
+ * 3. Calculates scores based on current holdings, regardless of when tokens were acquired
+ * 4. Updates or creates KolHolding records with current balances and scores
+ * 
+ * SCORE CALCULATION:
+ * - Daily Score = PnL × (userTokenAmount / totalSupplyHeldByParticipants)
+ * - This gives users a proportional score based on their share of tokens held by all participants
+ * 
+ * USAGE:
+ * - Production: Scheduled via cron at 14:00 UTC daily
+ * - Testing: Called every 2-15 minutes during test competitions
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient, Prisma } from '@prisma/client';
+import { Connection, PublicKey, GetMultipleAccountsConfig } from '@solana/web3.js';
+import { getAssociatedTokenAddress } from '@solana/spl-token';
 
 const prisma = new PrismaClient();
+const connection = new Connection(process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com", "confirmed");
+
+// Batch size for RPC requests to avoid rate limits
+const BATCH_SIZE = 100;
 
 export async function POST(
   request: NextRequest,
@@ -39,77 +66,234 @@ export async function POST(
       );
     }
 
-    const snapshotTime = getPreviousSnapshot(now);
-    console.log(`[SNAPSHOT] Calculated snapshot time (previous 14:00 UTC): ${snapshotTime.toISOString()}`);
+    console.log(`[SNAPSHOT] Fetching all competition participants...`);
 
-    const eligibleHoldings = await prisma.kolHolding.findMany({
+    // Get all participants in this competition
+    let participants = await prisma.competitionEntry.findMany({
       where: {
-        competitionId,
-        purchasedAt: {
-          lt: now
-        }
+        competitionId
       },
       include: {
-        trader: {
-          select: { id: true, name: true, ticker: true, pnl: true }
-        },
         user: {
-          select: { id: true, userPrivyWalletAddress: true }
+          select: {
+            id: true,
+            userPrivyWalletAddress: true
+          }
         }
       }
     });
 
-    console.debug(`[SNAPSHOT] Eligible holdings count: ${eligibleHoldings.length}`);
-    if (eligibleHoldings.length === 0) {
-      console.info(`[SNAPSHOT] No eligible holdings found for this snapshot at ${now.toISOString()}`);
+    console.log(`[SNAPSHOT] Found ${participants.length} initial participants in competition`);
+
+    // Get all users in the system to check for potential token holders
+    const allUsers = await prisma.user.findMany({
+      select: {
+        id: true,
+        userPrivyWalletAddress: true
+      }
+    });
+
+    console.log(`[SNAPSHOT] Checking ${allUsers.length} total users for KOL token holdings...`);
+
+    // Get all KOLs with token mint addresses
+    const allKols = await prisma.trader.findMany({
+      where: {
+        tokenMintAddress: { not: null },
+        period: 'DAILY'
+      },
+      select: {
+        id: true,
+        name: true,
+        ticker: true,
+        pnl: true,
+        tokenMintAddress: true,
+        rarity: true,
+        rarityWeight: true
+      }
+    });
+
+    console.log(`[SNAPSHOT] Found ${allKols.length} KOLs with tokens`);
+
+    if (allKols.length === 0) {
+      console.warn(`[SNAPSHOT] No KOLs with token addresses found`);
       return NextResponse.json({
         success: true,
-        message: 'No eligible holdings found for this snapshot',
+        message: 'No KOLs with token addresses found',
         snapshotTime: now.toISOString(),
         updatedHoldings: 0
       });
     }
 
+    // Fetch actual on-chain balances for all users (to auto-enroll token holders)
+    const allUserHoldings: Array<{
+      userId: number;
+      userWallet: string;
+      traderId: string;
+      traderName: string;
+      traderPnl: string;
+      tokenAmount: number;
+      rarity: string;
+      rarityWeight: number;
+    }> = [];
+
+    const participantIds = new Set(participants.map(p => p.user.id));
+    const newlyEnrolledUsers: number[] = [];
+
+    for (const user of allUsers) {
+      const userWallet = user.userPrivyWalletAddress;
+      const userId = user.id;
+      let userHasTokens = false;
+
+      try {
+        const userPublicKey = new PublicKey(userWallet);
+        
+        // Pre-compute all ATAs for this user
+        const ataPromises = allKols.map(async (kol) => {
+          try {
+            const mintAddress = new PublicKey(kol.tokenMintAddress!);
+            const ataAddress = await getAssociatedTokenAddress(mintAddress, userPublicKey);
+            return { kol, ataAddress };
+          } catch (error) {
+            console.warn(`Invalid mint address for ${kol.ticker}: ${kol.tokenMintAddress}`);
+            return null;
+          }
+        });
+
+        const ataResults = (await Promise.all(ataPromises)).filter(Boolean) as Array<{
+          kol: typeof allKols[0];
+          ataAddress: PublicKey;
+        }>;
+
+        // Batch fetch token balances for this user
+        for (let i = 0; i < ataResults.length; i += BATCH_SIZE) {
+          const batch = ataResults.slice(i, i + BATCH_SIZE);
+          const ataAddresses = batch.map(item => item.ataAddress);
+          
+          try {
+            const accounts = await connection.getMultipleAccountsInfo(
+              ataAddresses,
+              { commitment: "confirmed" } as GetMultipleAccountsConfig
+            );
+
+            for (let j = 0; j < accounts.length; j++) {
+              const account = accounts[j];
+              const { kol } = batch[j];
+
+              if (account && account.data.length > 0) {
+                try {
+                  // Parse SPL token account data (balance is at bytes 64-72)
+                  const balanceBuffer = account.data.slice(64, 72);
+                  const balance = Buffer.from(balanceBuffer).readBigUInt64LE().toString();
+                  
+                  if (balance !== '0') {
+                    const decimals = 6;
+                    const balanceNum = BigInt(balance);
+                    const divisor = BigInt(Math.pow(10, decimals));
+                    const displayBalance = Number(balanceNum) / Number(divisor);
+
+                    userHasTokens = true;
+
+                    allUserHoldings.push({
+                      userId,
+                      userWallet,
+                      traderId: kol.id,
+                      traderName: kol.name,
+                      traderPnl: kol.pnl,
+                      tokenAmount: displayBalance,
+                      rarity: kol.rarity || 'COMMON',
+                      rarityWeight: kol.rarityWeight || 1.0
+                    });
+
+                    console.debug(`[SNAPSHOT] User ${userWallet.slice(0, 6)}... holds ${displayBalance} of ${kol.name}`);
+                  }
+                } catch (parseError) {
+                  console.warn(`Error parsing account data for ${kol.ticker}:`, parseError);
+                }
+              }
+            }
+          } catch (batchError) {
+            console.error(`Error in batch ${i}-${i + BATCH_SIZE}:`, batchError);
+          }
+        }
+
+        // Auto-enroll user if they hold tokens but aren't in the competition yet
+        if (userHasTokens && !participantIds.has(userId)) {
+          try {
+            await prisma.competitionEntry.create({
+              data: {
+                competitionId,
+                userId,
+                joinedAt: now
+              }
+            });
+            participantIds.add(userId);
+            newlyEnrolledUsers.push(userId);
+            console.log(`[SNAPSHOT] Auto-enrolled user ${userWallet.slice(0, 6)}... who holds KOL tokens`);
+          } catch (enrollError) {
+            // Ignore if already exists (race condition)
+            console.warn(`[SNAPSHOT] Could not auto-enroll user ${userWallet}:`, enrollError);
+          }
+        }
+      } catch (error) {
+        console.error(`[SNAPSHOT] Error fetching balances for user ${userWallet}:`, error);
+      }
+    }
+
+    console.log(`[SNAPSHOT] Auto-enrolled ${newlyEnrolledUsers.length} new users who hold KOL tokens`);
+
+    console.log(`[SNAPSHOT] Found ${allUserHoldings.length} total token holdings across all participants`);
+
+    if (allUserHoldings.length === 0) {
+      console.info(`[SNAPSHOT] No token holdings found for any participant`);
+      return NextResponse.json({
+        success: true,
+        message: 'No token holdings found for participants',
+        snapshotTime: now.toISOString(),
+        updatedHoldings: 0
+      });
+    }
+
+    // Group holdings by trader to calculate total supply per trader
     const traderHoldingsMap = new Map<string, {
-      holdings: typeof eligibleHoldings,
+      holdings: typeof allUserHoldings,
       totalSupply: number,
       pnl: string
     }>();
 
-    for (const holding of eligibleHoldings) {
+    for (const holding of allUserHoldings) {
       const traderId = holding.traderId;
 
       if (!traderHoldingsMap.has(traderId)) {
         traderHoldingsMap.set(traderId, {
           holdings: [],
           totalSupply: 0,
-          pnl: holding.trader.pnl
+          pnl: holding.traderPnl
         });
       }
 
       const traderData = traderHoldingsMap.get(traderId)!;
       traderData.holdings.push(holding);
-      traderData.totalSupply += parseFloat(holding.tokenAmount.toString());
+      traderData.totalSupply += holding.tokenAmount;
     }
 
     for (const [traderId, traderData] of traderHoldingsMap) {
-      console.debug(`[SNAPSHOT] Trader ${traderId} (${traderData.holdings[0]?.trader?.name || "?"}) - Total eligible supply: ${traderData.totalSupply}, PnL: ${traderData.pnl}`);
+      console.debug(`[SNAPSHOT] Trader ${traderId} (${traderData.holdings[0]?.traderName || "?"}) - Total supply held by participants: ${traderData.totalSupply}, PnL: ${traderData.pnl}`);
     }
 
     const scoreUpdates: Array<{
-      holdingId: string;
       userId: number;
       userWallet: string;
-      newDailyScore: number;
       traderId: string;
       traderName: string;
+      tokenAmount: number;
+      newDailyScore: number;
     }> = [];
 
     for (const [traderId, traderData] of traderHoldingsMap) {
       const traderPnl = parseFloat(traderData.pnl) || 0;
 
       for (const holding of traderData.holdings) {
-        const userTokenAmount = parseFloat(holding.tokenAmount.toString());
+        const userTokenAmount = holding.tokenAmount;
         const userShareRatio = traderData.totalSupply > 0
           ? userTokenAmount / traderData.totalSupply
           : 0;
@@ -117,19 +301,19 @@ export async function POST(
         const dailyScore = traderPnl * userShareRatio;
 
         console.debug(
-          `[SCORE_CALC] HoldingID=${holding.id} | UserID=${holding.userId} | TraderID=${traderId} (${holding.trader.name})\n` +
+          `[SCORE_CALC] UserID=${holding.userId} | TraderID=${traderId} (${holding.traderName})\n` +
           `  Formula: dailyScore = traderPnl * (userTokenAmount / totalSupply)\n` +
           `  Inputs: traderPnl=${traderPnl}, userTokenAmount=${userTokenAmount}, totalSupply=${traderData.totalSupply}\n` +
           `  Calculation: dailyScore = ${traderPnl} * (${userTokenAmount} / ${traderData.totalSupply}) = ${dailyScore}\n`
         );
 
         scoreUpdates.push({
-          holdingId: holding.id,
           userId: holding.userId,
-          userWallet: holding.user.userPrivyWalletAddress,
-          newDailyScore: dailyScore,
+          userWallet: holding.userWallet,
           traderId: holding.traderId,
-          traderName: holding.trader.name
+          traderName: holding.traderName,
+          tokenAmount: userTokenAmount,
+          newDailyScore: dailyScore
         });
       }
     }
@@ -137,22 +321,52 @@ export async function POST(
     console.debug(`[SCORE_UPDATES] Prepared score updates for ${scoreUpdates.length} holdings:`);
     for (const update of scoreUpdates) {
       console.debug(
-        `[SCORE_UPDATE] HoldingID=${update.holdingId} | UserID=${update.userId} | TraderID=${update.traderId} (${update.traderName}) | ` +
-        `NewDailyScore=${update.newDailyScore} | UserWallet=${update.userWallet}`
+        `[SCORE_UPDATE] UserID=${update.userId} | TraderID=${update.traderId} (${update.traderName}) | ` +
+        `TokenAmount=${update.tokenAmount} | NewDailyScore=${update.newDailyScore} | UserWallet=${update.userWallet}`
       );
     }
 
-    const updatePromises = scoreUpdates.map(update =>
-      prisma.kolHolding.update({
-        where: { id: update.holdingId },
-        data: {
-          dailyScore: update.newDailyScore,
-          lastScoreUpdate: now
+    // Update or create KolHolding records with the current on-chain balances
+    const upsertPromises = scoreUpdates.map(async (update) => {
+      // Check if a holding record exists for this user/trader/competition combination
+      const existingHolding = await prisma.kolHolding.findFirst({
+        where: {
+          userId: update.userId,
+          traderId: update.traderId,
+          competitionId
         }
-      })
-    );
+      });
 
-    await Promise.all(updatePromises);
+      if (existingHolding) {
+        // Update existing holding
+        return prisma.kolHolding.update({
+          where: { id: existingHolding.id },
+          data: {
+            tokenAmount: update.tokenAmount,
+            dailyScore: update.newDailyScore,
+            lastScoreUpdate: now,
+            purchasedAt: now // Update timestamp to reflect latest snapshot
+          }
+        });
+      } else {
+        // Create new holding record
+        return prisma.kolHolding.create({
+          data: {
+            userId: update.userId,
+            traderId: update.traderId,
+            competitionId,
+            tokenAmount: update.tokenAmount,
+            dailyScore: update.newDailyScore,
+            lastScoreUpdate: now,
+            purchasedAt: now,
+            purchasePrice: null,
+            transactionHash: null
+          }
+        });
+      }
+    });
+
+    await Promise.all(upsertPromises);
 
     const userSummaries = new Map<number, {
       userId: number;
