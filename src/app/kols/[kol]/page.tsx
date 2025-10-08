@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowDown, Users, ExternalLink, TrendingUp, TrendingDown, Wallet } from "lucide-react";
+import { ArrowLeft, ArrowDown, Users, ExternalLink, TrendingUp, TrendingDown } from "lucide-react";
 import { useSolanaWallets } from "@privy-io/react-auth";
 import MeteoraSwapModal from "@/components/swap/MeteoraSwapModal";
 import { useActiveCompetition } from "@/app/hooks/useActiveCompetition";
@@ -56,6 +56,7 @@ export default function TraderPage({ params }: TraderPageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSwapModalOpen, setIsSwapModalOpen] = useState(false);
+  const [swapMode, setSwapMode] = useState<'buy' | 'sell'>('buy');
   const [activeCompetitionId, setActiveCompetitionId] = useState<string | null>(null);
   const [resolvedKolName, setResolvedKolName] = useState<string | null>(null);
   const {wallets} = useSolanaWallets()
@@ -176,6 +177,13 @@ export default function TraderPage({ params }: TraderPageProps) {
 
   const handleBuyClick = () => {
     console.log("Buy button clicked - opening Meteora swap modal");
+    setSwapMode('buy');
+    setIsSwapModalOpen(true);
+  };
+
+  const handleSellClick = () => {
+    console.log("Sell button clicked - opening Meteora swap modal in sell mode");
+    setSwapMode('sell');
     setIsSwapModalOpen(true);
   };
 
@@ -283,16 +291,26 @@ export default function TraderPage({ params }: TraderPageProps) {
               </CardContent>
             </Card>
 
-            {/* Buy Button */}
-            <Button
-              onClick={handleBuyClick}
-              disabled={!currentData?.poolAddress || !currentData?.tokenMintAddress}
-              size="lg"
-              className="cursor-pointer w-full md:w-auto px-8 gap-2"
-            >
-              <Wallet className="h-4 w-4" />
-              Buy Shares
-            </Button>
+            {/* Buy/Sell Buttons */}
+            <div className="flex gap-3">
+              <Button
+                onClick={handleBuyClick}
+                disabled={!currentData?.poolAddress || !currentData?.tokenMintAddress}
+                size="lg"
+                className="cursor-pointer px-8"
+              >
+                Buy
+              </Button>
+              <Button
+                onClick={handleSellClick}
+                disabled={!currentData?.poolAddress || !currentData?.tokenMintAddress}
+                size="lg"
+                variant="outline"
+                className="cursor-pointer px-8"
+              >
+                Sell
+              </Button>
+            </div>
           </div>
 
           {/* Right Panel - Profile & Stats */}
@@ -384,6 +402,7 @@ export default function TraderPage({ params }: TraderPageProps) {
         currentUserShares={userShares}
         traderId={currentData.id}
         activeCompetitionId={activeCompetitionId}
+        mode={swapMode}
       />
       )}
     </main>

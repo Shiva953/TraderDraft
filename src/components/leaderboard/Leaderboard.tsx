@@ -166,23 +166,14 @@ export function Leaderboard({
                 {/* Win Rate or Actions */}
                 <div className="justify-self-end">
                   {showActions ? (
-                    <div className="flex gap-2">
-                      <Link href={`/kols/${e.ticker || e.handle.toLowerCase()}`}>
-                        <Button
-                          size="sm"
-                          className="cursor-pointer h-7 px-3 text-xs bg-black hover:bg-neutral-900 text-white rounded-full"
-                        >
-                          Buy
-                        </Button>
-                      </Link>
+                    <Link href={`/kols/${e.ticker || e.handle.toLowerCase()}`}>
                       <Button
                         size="sm"
-                        variant="outline"
-                        className="cursor-pointer h-7 px-3 text-xs bg-transparent border-neutral-600 hover:bg-neutral-800 text-neutral-300 rounded-full"
+                        className="cursor-pointer h-7 px-3 text-xs bg-black hover:bg-neutral-900 text-white rounded-full"
                       >
-                        Sell
+                        Trade
                       </Button>
-                    </div>
+                    </Link>
                   ) : (
                     <span className="text-sm text-white font-medium">
                       {e.winRate || "—"}

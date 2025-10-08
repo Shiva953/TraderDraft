@@ -9,7 +9,7 @@ import { PackOpeningModal } from '@/components/competition/PackOpeningModal';
 import { useWallet } from '@/app/hooks/useWallet';
 import { useUserPacks } from '@/app/hooks/useUserPacks';
 import { useUserData } from '@/app/hooks/useUserData';
-import { Home, Trophy, TrendingUp } from 'lucide-react';
+import { Home, Trophy } from 'lucide-react';
 
 export function Navigation() {
   const [showPackOpeningModal, setShowPackOpeningModal] = useState(false);
@@ -93,14 +93,6 @@ export function Navigation() {
               >
                 <Home className="h-4 w-4" />
                 Home
-              </Button>
-              <Button
-                onClick={() => router.push('/kols')}
-                variant="ghost"
-                className={`cursor-pointer gap-2 ${pathname === '/kols' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white hover:bg-neutral-900'}`}
-              >
-                <TrendingUp className="h-4 w-4" />
-                KOLs
               </Button>
               <Button
                 onClick={() => router.push('/leaderboard')}

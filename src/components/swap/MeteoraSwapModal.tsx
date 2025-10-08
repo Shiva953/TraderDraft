@@ -21,6 +21,7 @@ interface MeteoraSwapModalProps {
   currentUserShares?: string;
   traderId?: string;
   activeCompetitionId?: string | null;
+  mode?: 'buy' | 'sell';
 }
 
 const NATIVE_SOL_MINT = "So11111111111111111111111111111111111111112";
@@ -35,7 +36,8 @@ export default function MeteoraSwapModal({
   onSwapSuccess,
   currentUserShares = "0",
   traderId,
-  activeCompetitionId
+  activeCompetitionId,
+  mode = 'buy'
 }: MeteoraSwapModalProps) {
   const { fullAddress: userWallet, isConnected, signTransaction } = useWallet();
 
@@ -64,7 +66,7 @@ export default function MeteoraSwapModal({
     }
   }, [isOpen, userWallet]);
 
-  // Fetch quote when SOL amount changes
+  // Fetch quote when input amount changes
   useEffect(() => {
     // Only fetch quotes when modal is open
     if (!isOpen) {
@@ -72,15 +74,22 @@ export default function MeteoraSwapModal({
     }
 
     const fetchQuote = async () => {
-      if (!solAmount || parseFloat(solAmount) <= 0 || !userWallet) {
-        setKolAmount("0");
+      // Determine which amount to use based on mode
+      const inputAmount = mode === 'buy' ? solAmount : kolAmount;
+
+      if (!inputAmount || parseFloat(inputAmount) <= 0 || !userWallet) {
+        if (mode === 'buy') {
+          setKolAmount("0");
+        } else {
+          setSolAmount("0");
+        }
         return;
       }
 
       setIsLoadingQuote(true);
       try {
-        // Convert SOL amount to lamports
-        const amountInLamports = Math.floor(parseFloat(solAmount) * LAMPORTS_PER_SOL);
+        // Convert amount to smallest unit (lamports for SOL, or token decimals for KOL)
+        const amountInSmallestUnit = Math.floor(parseFloat(inputAmount) * (mode === 'buy' ? LAMPORTS_PER_SOL : Math.pow(10, 6)));
 
         const response = await fetch('/api/getMeteoraQuote', {
           method: 'POST',
@@ -89,9 +98,9 @@ export default function MeteoraSwapModal({
           },
           body: JSON.stringify({
             poolAddress,
-            inputTokenMint: NATIVE_SOL_MINT,
-            outputTokenMint: kolTokenMint,
-            amountIn: amountInLamports.toString(),
+            inputTokenMint: mode === 'buy' ? NATIVE_SOL_MINT : kolTokenMint,
+            outputTokenMint: mode === 'buy' ? kolTokenMint : NATIVE_SOL_MINT,
+            amountIn: amountInSmallestUnit.toString(),
             slippage: 0.5, // 0.5% slippage
           }),
         });
@@ -103,15 +112,26 @@ export default function MeteoraSwapModal({
         const data = await response.json();
         if (data.success) {
           setQuote(data.data.quote);
-          // Convert from smallest unit (6 decimals) to display format
+          // Convert from smallest unit to display format
           const outputAmount = new BN(data.data.quote.swapOutAmount);
-          const displayAmount = outputAmount.toNumber() / Math.pow(10, 6);
-          setKolAmount(displayAmount.toFixed(6));
+          // Use appropriate decimals based on output token (SOL = 9 decimals, KOL = 6 decimals)
+          const decimals = mode === 'buy' ? 6 : 9;
+          const displayAmount = outputAmount.toNumber() / Math.pow(10, decimals);
+
+          if (mode === 'buy') {
+            setKolAmount(displayAmount.toFixed(6));
+          } else {
+            setSolAmount(displayAmount.toFixed(6));
+          }
         }
       } catch (error) {
         console.error("Error fetching quote:", error);
         // Don't show toast on quote errors during typing
-        setKolAmount("0");
+        if (mode === 'buy') {
+          setKolAmount("0");
+        } else {
+          setSolAmount("0");
+        }
       } finally {
         setIsLoadingQuote(false);
       }
@@ -123,15 +143,24 @@ export default function MeteoraSwapModal({
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [isOpen, solAmount, poolAddress, kolTokenMint, userWallet]);
+  }, [isOpen, solAmount, kolAmount, poolAddress, kolTokenMint, userWallet, mode]);
 
   const setPercentage = (percent: number) => {
-    const balance = parseFloat(userBalance);
-    if (balance > 0) {
-      // Reserve 0.01 SOL for fees
-      const availableBalance = Math.max(0, balance - 0.01);
-      const amount = (availableBalance * percent / 100).toFixed(4);
-      setSolAmount(amount);
+    if (mode === 'buy') {
+      const balance = parseFloat(userBalance);
+      if (balance > 0) {
+        // Reserve 0.01 SOL for fees
+        const availableBalance = Math.max(0, balance - 0.01);
+        const amount = (availableBalance * percent / 100).toFixed(4);
+        setSolAmount(amount);
+      }
+    } else {
+      // Sell mode - use KOL token balance (already in display format)
+      const balance = parseFloat(currentUserShares);
+      if (balance > 0) {
+        const amount = (balance * percent / 100).toFixed(2);
+        setKolAmount(amount);
+      }
     }
   };
 
@@ -141,24 +170,37 @@ export default function MeteoraSwapModal({
       return;
     }
 
-    if (!solAmount || parseFloat(solAmount) <= 0) {
+    // Validate input based on mode
+    const inputAmount = mode === 'buy' ? solAmount : kolAmount;
+    if (!inputAmount || parseFloat(inputAmount) <= 0) {
       toast.error("Please enter a valid amount");
       return;
     }
 
-    if (parseFloat(solAmount) > parseFloat(userBalance) - 0.01) {
-      toast.error("Insufficient balance (reserve 0.01 SOL for fees)");
-      return;
+    // Check balance based on mode
+    if (mode === 'buy') {
+      if (parseFloat(solAmount) > parseFloat(userBalance) - 0.01) {
+        toast.error("Insufficient balance (reserve 0.01 SOL for fees)");
+        return;
+      }
+    } else {
+      // currentUserShares is already in display format
+      if (parseFloat(kolAmount) > parseFloat(currentUserShares)) {
+        toast.error("Insufficient KOL token balance");
+        return;
+      }
     }
 
     setIsSwapping(true);
     const loadingToast = toast.loading("Preparing swap transaction...");
 
     try {
-      // Convert SOL amount to lamports
-      const amountInLamports = Math.floor(parseFloat(solAmount) * LAMPORTS_PER_SOL);
+      // Convert amount to smallest unit based on mode
+      const amountInSmallestUnit = Math.floor(
+        parseFloat(inputAmount) * (mode === 'buy' ? LAMPORTS_PER_SOL : Math.pow(10, 6))
+      );
 
-      console.log("🔄 Requesting swap transaction...");
+      console.log(`🔄 Requesting ${mode} swap transaction...`);
       const response = await fetch('/api/swapMeteoraToken', {
         method: 'POST',
         headers: {
@@ -166,9 +208,9 @@ export default function MeteoraSwapModal({
         },
         body: JSON.stringify({
           poolAddress,
-          inputTokenMint: NATIVE_SOL_MINT,
-          outputTokenMint: kolTokenMint,
-          amountIn: amountInLamports.toString(),
+          inputTokenMint: mode === 'buy' ? NATIVE_SOL_MINT : kolTokenMint,
+          outputTokenMint: mode === 'buy' ? kolTokenMint : NATIVE_SOL_MINT,
+          amountIn: amountInSmallestUnit.toString(),
           slippage: 0.5,
           userWallet
         }),
@@ -316,7 +358,7 @@ export default function MeteoraSwapModal({
       <DialogContent className="max-w-md p-6">
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold">
-            Buy {kolName} Shares
+            {mode === 'buy' ? `Buy ${kolName} Shares` : `Sell ${kolName} Shares`}
           </DialogTitle>
         </DialogHeader>
   
@@ -358,23 +400,25 @@ export default function MeteoraSwapModal({
             <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
               <Input
                 type="number"
-                value={solAmount}
-                onChange={(e) => setSolAmount(e.target.value)}
+                value={mode === 'buy' ? solAmount : kolAmount}
+                onChange={(e) => mode === 'buy' ? setSolAmount(e.target.value) : setKolAmount(e.target.value)}
                 className="flex-1 border-none h-auto p-0 text-2xl font-semibold bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
-                placeholder="0.1"
+                placeholder={mode === 'buy' ? "0.1" : "0"}
                 step="any"
                 min="0"
                 disabled={isSwapping}
               />
               <div className="flex items-center gap-2 shrink-0">
                 <div className="w-7 h-7 bg-muted rounded-full flex items-center justify-center">
-                  <span className="text-sm">◎</span>
+                  <span className="text-sm">{mode === 'buy' ? '◎' : kolName.charAt(0)}</span>
                 </div>
-                <span className="text-sm font-medium">SOL</span>
+                <span className="text-sm font-medium">{mode === 'buy' ? 'SOL' : kolName}</span>
               </div>
             </div>
             <div className="text-xs text-muted-foreground px-1">
-              Balance: {userBalance} SOL
+              Balance: {mode === 'buy'
+                ? `${userBalance} SOL`
+                : `${parseFloat(currentUserShares).toLocaleString()} ${kolName}`}
             </div>
           </div>
   
@@ -394,19 +438,21 @@ export default function MeteoraSwapModal({
                   {isLoadingQuote ? (
                     <div className="animate-pulse bg-muted rounded h-8 w-24"></div>
                   ) : (
-                    <span>{Number(kolAmount).toFixed(2)}</span>
+                    <span>{mode === 'buy' ? Number(kolAmount).toFixed(2) : Number(solAmount).toFixed(4)}</span>
                   )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <div className="w-7 h-7 bg-muted rounded-full flex items-center justify-center">
-                    <span className="text-xs font-bold">KOL</span>
+                    <span className="text-xs font-bold">{mode === 'buy' ? 'KOL' : '◎'}</span>
                   </div>
-                  <span className="text-sm font-medium">{kolName.toUpperCase()}</span>
+                  <span className="text-sm font-medium">{mode === 'buy' ? kolName.toUpperCase() : 'SOL'}</span>
                 </div>
               </div>
             </div>
             <div className="text-xs text-muted-foreground px-1">
-              Your shares: {currentUserShares}
+              {mode === 'buy'
+                ? `Your shares: ${parseFloat(currentUserShares).toLocaleString()}`
+                : `Balance: ${userBalance} SOL`}
             </div>
           </div>
   
@@ -439,7 +485,7 @@ export default function MeteoraSwapModal({
             className="cursor-pointer w-full mt-2"
             size="lg"
           >
-            {isSwapping ? "Swapping..." : isLoadingQuote ? "Loading..." : "Buy Now"}
+            {isSwapping ? "Swapping..." : isLoadingQuote ? "Loading..." : mode === 'buy' ? "Buy Now" : "Sell Now"}
           </Button>
   
           {/* Exchange Rate */}

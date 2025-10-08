@@ -38,17 +38,28 @@ export async function POST(request: Request) {
     // Fetch pool state
     const poolState = await cpAmm.fetchPoolState(poolPubkey);
     console.log("✅ [QUOTE] Pool state fetched");
+    console.log("🔍 [QUOTE] Pool token mints:", {
+      tokenAMint: poolState.tokenAMint.toString(),
+      tokenBMint: poolState.tokenBMint.toString(),
+      inputTokenMint: inputMint.toString(),
+      outputTokenMint: outputMint.toString()
+    });
 
     // Get current slot and block time
     const currentSlot = await connection.getSlot();
     const blockTime = await connection.getBlockTime(currentSlot);
 
     // Determine token decimals based on pool configuration
-    // Token A = KOL token (6 decimals), Token B = SOL (9 decimals)
-    const tokenADecimal = 6;
-    const tokenBDecimal = 9;
+    // Check which token is SOL (9 decimals) and which is KOL (6 decimals)
+    const NATIVE_SOL_MINT = "So11111111111111111111111111111111111111112";
+    const isSolTokenA = poolState.tokenAMint.toString() === NATIVE_SOL_MINT;
 
+    const tokenADecimal = isSolTokenA ? 9 : 6;
+    const tokenBDecimal = isSolTokenA ? 6 : 9;
+
+    console.log("💱 [QUOTE] Token decimals:", { tokenADecimal, tokenBDecimal });
     console.log("💱 [QUOTE] Calculating quote...");
+
     // Get swap quote
     const quote = await cpAmm.getQuote({
       inAmount: new BN(amountIn),

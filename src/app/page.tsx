@@ -250,75 +250,77 @@ export default function Home() {
         />
       ) : null}
 
-      {/* KOL Leaderboard - Only show during active competition */}
-      {isCompetitionActive && (
-        <div className="space-y-4">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-white">Trade KOLs and Earn TP</h2>
-            <p className="text-neutral-400 text-sm mt-1">Top traders of the week</p>
-          </div>
-
-          <div id="home-leaderboard" className="rounded-2xl border border-neutral-800 p-4">
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-neutral-400">Period:</span>
-                  <select
-                    value={currentPeriod}
-                    onChange={(e) => changePeriod(e.target.value as 'daily' | 'weekly' | 'monthly')}
-                    className="rounded bg-neutral-800 border border-neutral-600 text-white text-sm px-2 py-1"
-                    disabled={leaderboardLoading}
-                  >
-                    <option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
-                  </select>
-                </div>
-                <label className="flex items-center gap-2 text-sm text-neutral-400">
-                  <input
-                    type="checkbox"
-                    checked={autoRefresh}
-                    onChange={(e) => setAutoRefresh(e.target.checked)}
-                    className="rounded bg-neutral-800 border-neutral-600"
-                    disabled={leaderboardLoading}
-                  />
-                  Auto-refresh (1min)
-                </label>
-              </div>
-              <div className="flex items-center gap-3">
-                {lastUpdated && (
-                  <span className="text-xs text-neutral-500">
-                    Updated: {lastUpdated.toLocaleTimeString()}
-                  </span>
-                )}
-                <Button
-                  onClick={handleRefresh}
-                  disabled={leaderboardLoading}
-                  size="sm"
-                  variant="secondary"
-                  className="bg-neutral-700 hover:bg-neutral-600 text-neutral-300"
-                >
-                  {leaderboardLoading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-3 w-3 border-b border-neutral-300 mr-1"></div>
-                      Refreshing...
-                    </>
-                  ) : (
-                    '↻ Refresh'
-                  )}
-                </Button>
-              </div>
-            </div>
-
-            <Leaderboard
-              title={getPeriodTitle()}
-              entries={leaderboardData || []}
-              loading={leaderboardLoading || !leaderboardData || leaderboardData.length === 0}
-              showActions={isCompetitionActive}
-            />
-          </div>
+      {/* KOL Leaderboard */}
+      <div className="space-y-4">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-white">
+            {isCompetitionActive ? 'Trade KOLs and Earn TP' : 'Top KOL Traders'}
+          </h2>
+          <p className="text-neutral-400 text-sm mt-1">
+            {isCompetitionActive ? 'Top traders of the week' : 'Discover and trade top performing traders'}
+          </p>
         </div>
-      )}
+
+        <div id="home-leaderboard" className="rounded-2xl border border-neutral-800 p-4">
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-neutral-400">Period:</span>
+                <select
+                  value={currentPeriod}
+                  onChange={(e) => changePeriod(e.target.value as 'daily' | 'weekly' | 'monthly')}
+                  className="rounded bg-neutral-800 border border-neutral-600 text-white text-sm px-2 py-1"
+                  disabled={leaderboardLoading}
+                >
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+              </div>
+              <label className="flex items-center gap-2 text-sm text-neutral-400">
+                <input
+                  type="checkbox"
+                  checked={autoRefresh}
+                  onChange={(e) => setAutoRefresh(e.target.checked)}
+                  className="rounded bg-neutral-800 border-neutral-600"
+                  disabled={leaderboardLoading}
+                />
+                Auto-refresh (1min)
+              </label>
+            </div>
+            <div className="flex items-center gap-3">
+              {lastUpdated && (
+                <span className="text-xs text-neutral-500">
+                  Updated: {lastUpdated.toLocaleTimeString()}
+                </span>
+              )}
+              <Button
+                onClick={handleRefresh}
+                disabled={leaderboardLoading}
+                size="sm"
+                variant="secondary"
+                className="bg-neutral-700 hover:bg-neutral-600 text-neutral-300"
+              >
+                {leaderboardLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-3 w-3 border-b border-neutral-300 mr-1"></div>
+                    Refreshing...
+                  </>
+                ) : (
+                  '↻ Refresh'
+                )}
+              </Button>
+            </div>
+          </div>
+
+          <Leaderboard
+            title={getPeriodTitle()}
+            entries={leaderboardData || []}
+            loading={leaderboardLoading || !leaderboardData || leaderboardData.length === 0}
+            showActions={true}
+          />
+        </div>
+      </div>
 
     </main>
   );

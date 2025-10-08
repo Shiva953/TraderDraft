@@ -145,10 +145,11 @@ export async function POST(request: Request) {
 
             if (balance !== '0') {
               const decimals = 6;
-              const balanceNum = parseInt(balance);
-              const formattedBalance = (balanceNum / Math.pow(10, decimals)).toLocaleString();
+              const balanceNum = BigInt(balance);
+              const divisor = BigInt(Math.pow(10, decimals));
+              const displayBalance = (Number(balanceNum) / Number(divisor)).toString();
 
-              responseData.userShares = formattedBalance;
+              responseData.userShares = displayBalance;
               responseData.userHoldings = [{
                 ticker: currentData.ticker || 'UNKNOWN',
                 name: currentData.name,
@@ -157,7 +158,7 @@ export async function POST(request: Request) {
                 poolAddress: currentData.poolAddress || undefined
               }];
 
-              console.log(`✅ [getKOLPageData] User holds ${formattedBalance} tokens`);
+              console.log(`✅ [getKOLPageData] User holds ${displayBalance} tokens`);
             } else {
               console.log(`ℹ️ [getKOLPageData] User has 0 balance for this KOL`);
             }
