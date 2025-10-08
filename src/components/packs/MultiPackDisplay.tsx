@@ -1,29 +1,82 @@
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useSolanaWallets } from "@privy-io/react-auth/solana"
+import { KOLInfiniteMovingCards } from "@/components/ui/kol-infinite-cards"
+
+interface KOLImageData {
+  id: string;
+  name: string;
+  avatarUrl: string;
+  ticker: string;
+}
 
 export const MultiPackDisplay = ({ onOpenPack, packCount }: { onOpenPack: () => void; packCount: number }) => {
-    return (
-      <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
-        {/* Stylish blurred background with KOL pack images */}
-        <div className="absolute inset-0 z-0">
-          {/* Multiple pack images positioned randomly with blur */}
-          <div className="absolute top-10 left-10 w-64 h-96 opacity-20 blur-3xl">
-            <img src="/pack.png" alt="" className="w-full h-full object-cover" />
-          </div>
-          <div className="absolute top-32 right-20 w-56 h-80 opacity-15 blur-3xl">
-            <img src="/pack.png" alt="" className="w-full h-full object-cover transform rotate-12" />
-          </div>
-          <div className="absolute bottom-20 left-1/4 w-48 h-72 opacity-20 blur-3xl">
-            <img src="/pack.png" alt="" className="w-full h-full object-cover transform -rotate-12" />
-          </div>
-          <div className="absolute bottom-32 right-1/3 w-52 h-76 opacity-15 blur-3xl">
-            <img src="/pack.png" alt="" className="w-full h-full object-cover" />
-          </div>
+    const [kolImages, setKolImages] = useState<KOLImageData[]>([]);
+    const [loading, setLoading] = useState(true);
 
-          {/* Dark gradient overlay - black to transparent */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black via-black/80 to-black/60" />
-        </div>
+    useEffect(() => {
+      const fetchKOLImages = async () => {
+        try {
+          const response = await fetch('/api/getRandomKOLImages?count=50');
+          const data = await response.json();
+          if (data.success) {
+            setKolImages(data.data);
+          }
+        } catch (error) {
+          console.error('Error fetching KOL images:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchKOLImages();
+    }, []);
+
+    return (
+      <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden bg-black">
+        {/* Infinite moving KOL cards background */}
+        {!loading && kolImages.length > 0 && (
+          <div className="absolute inset-0 z-0 flex flex-col justify-evenly">
+            {/* First row - moving left */}
+            <KOLInfiniteMovingCards
+              items={kolImages.slice(0, 10)}
+              direction="left"
+              speed="slow"
+              pauseOnHover={false}
+            />
+            {/* Second row - moving right */}
+            <KOLInfiniteMovingCards
+              items={kolImages.slice(10, 20)}
+              direction="right"
+              speed="normal"
+              pauseOnHover={false}
+            />
+            {/* Third row - moving left */}
+            <KOLInfiniteMovingCards
+              items={kolImages.slice(20, 30)}
+              direction="left"
+              speed="fast"
+              pauseOnHover={false}
+            />
+            {/* Fourth row - moving right */}
+            <KOLInfiniteMovingCards
+              items={kolImages.slice(30, 40)}
+              direction="right"
+              speed="slow"
+              pauseOnHover={false}
+            />
+            {/* Fifth row - moving left */}
+            <KOLInfiniteMovingCards
+              items={kolImages.slice(40, 50)}
+              direction="left"
+              speed="normal"
+              pauseOnHover={false}
+            />
+          </div>
+        )}
+
+        {/* Dark overlay to ensure content visibility */}
+        <div className="absolute inset-0 z-[1] bg-black/40" />
 
         {/* Content */}
         <div className="relative z-10 text-center text-white space-y-8">
@@ -73,27 +126,72 @@ export const MultiPackDisplay = ({ onOpenPack, packCount }: { onOpenPack: () => 
 
   // loading component
   export const MultiPackOpeningLoader = ({ packCount }: { packCount: number }) => {
-    return (
-      <div className="relative min-h-screen flex items-center justify-center overflow-hidden">
-        {/* Same stylish blurred background */}
-        <div className="absolute inset-0 z-0">
-          {/* Multiple pack images positioned randomly with blur */}
-          <div className="absolute top-10 left-10 w-64 h-96 opacity-20 blur-3xl">
-            <img src="/pack.png" alt="" className="w-full h-full object-cover" />
-          </div>
-          <div className="absolute top-32 right-20 w-56 h-80 opacity-15 blur-3xl">
-            <img src="/pack.png" alt="" className="w-full h-full object-cover transform rotate-12" />
-          </div>
-          <div className="absolute bottom-20 left-1/4 w-48 h-72 opacity-20 blur-3xl">
-            <img src="/pack.png" alt="" className="w-full h-full object-cover transform -rotate-12" />
-          </div>
-          <div className="absolute bottom-32 right-1/3 w-52 h-76 opacity-15 blur-3xl">
-            <img src="/pack.png" alt="" className="w-full h-full object-cover" />
-          </div>
+    const [kolImages, setKolImages] = useState<KOLImageData[]>([]);
+    const [loading, setLoading] = useState(true);
 
-          {/* Dark gradient overlay - black to transparent */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black via-black/80 to-black/60" />
-        </div>
+    useEffect(() => {
+      const fetchKOLImages = async () => {
+        try {
+          const response = await fetch('/api/getRandomKOLImages?count=50');
+          const data = await response.json();
+          if (data.success) {
+            setKolImages(data.data);
+          }
+        } catch (error) {
+          console.error('Error fetching KOL images:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchKOLImages();
+    }, []);
+
+    return (
+      <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-black">
+        {/* Infinite moving KOL cards background */}
+        {!loading && kolImages.length > 0 && (
+          <div className="absolute inset-0 z-0 flex flex-col justify-evenly">
+            {/* First row - moving left */}
+            <KOLInfiniteMovingCards
+              items={kolImages.slice(0, 10)}
+              direction="left"
+              speed="slow"
+              pauseOnHover={false}
+            />
+            {/* Second row - moving right */}
+            <KOLInfiniteMovingCards
+              items={kolImages.slice(10, 20)}
+              direction="right"
+              speed="normal"
+              pauseOnHover={false}
+            />
+            {/* Third row - moving left */}
+            <KOLInfiniteMovingCards
+              items={kolImages.slice(20, 30)}
+              direction="left"
+              speed="fast"
+              pauseOnHover={false}
+            />
+            {/* Fourth row - moving right */}
+            <KOLInfiniteMovingCards
+              items={kolImages.slice(30, 40)}
+              direction="right"
+              speed="slow"
+              pauseOnHover={false}
+            />
+            {/* Fifth row - moving left */}
+            <KOLInfiniteMovingCards
+              items={kolImages.slice(40, 50)}
+              direction="left"
+              speed="normal"
+              pauseOnHover={false}
+            />
+          </div>
+        )}
+
+        {/* Dark overlay to ensure content visibility */}
+        <div className="absolute inset-0 z-[1] bg-black/40" />
 
         {/* Content */}
         <div className="relative z-10 text-center text-white space-y-8">

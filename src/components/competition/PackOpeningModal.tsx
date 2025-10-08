@@ -337,7 +337,7 @@ export function PackOpeningModal({ isOpen, onClose, userTP: initialTP }: PackOpe
             <X className="w-6 h-6 text-neutral-600" />
           </button>
 
-          <div className="min-h-screen flex items-center justify-center p-4 py-20 pb-32">
+          <div className="min-h-screen flex items-start justify-center p-4 pt-20 pb-40">
             <div className="w-full max-w-5xl my-8">
             {/* Header */}
             <div className="text-center mb-8 md:mb-12">
@@ -457,7 +457,7 @@ export function PackOpeningModal({ isOpen, onClose, userTP: initialTP }: PackOpe
                   </DrawerDescription>
                 </DrawerHeader>
 
-                <div className="px-6 py-8">
+                <div className="px-6 py-8 overflow-y-auto flex-1">
                   <div className="flex items-center justify-center gap-6">
                     <Button
                       onClick={() => handleQuantityChange(-1)}
@@ -492,7 +492,7 @@ export function PackOpeningModal({ isOpen, onClose, userTP: initialTP }: PackOpe
                   </div>
                 </div>
 
-                <DrawerFooter className="px-6 pb-8 flex flex-col items-center gap-3">
+                <DrawerFooter className="px-6 pb-12 pt-4 flex flex-col items-center gap-3 shrink-0">
                   <Button
                     onClick={handleOpenPacks}
                     disabled={isProcessing}
@@ -518,7 +518,7 @@ export function PackOpeningModal({ isOpen, onClose, userTP: initialTP }: PackOpe
             </Drawer>
 
             {/* Action Button - Click to Open Drawer */}
-            <div className="max-w-2xl mx-auto px-4 pb-16">
+            <div className="max-w-2xl mx-auto px-4 pb-24">
               {selectedPack ? (
                 <Button
                   onClick={() => setIsDrawerOpen(true)}

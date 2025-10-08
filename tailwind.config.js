@@ -43,6 +43,9 @@ module.exports = {
           },
         },
       },
+      spacing: {
+        'safe': 'env(safe-area-inset-bottom)',
+      },
     },
   },
 };
