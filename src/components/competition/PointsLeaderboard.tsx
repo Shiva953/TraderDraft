@@ -13,7 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Trophy, Search, ExternalLink } from 'lucide-react';
+import { Trophy, Search, ExternalLink, HelpCircle } from 'lucide-react';
+import { FunkyTooltip } from '@/components/ui/funky-tooltip';
 
 interface Competition {
   id: string;
@@ -229,8 +230,54 @@ export function PointsLeaderboard() {
                 <div>Rank</div>
                 <div>User</div>
                 <div className="text-center">Total TP</div>
-                <div className="text-right">TP Earned</div>
-                <div className="text-right">Points</div>
+                <div className="flex items-center justify-end gap-1.5">
+                  <span>TP Earned</span>
+                  <FunkyTooltip
+                    content={
+                      <div className="space-y-2 text-xs">
+                        <div className="font-semibold text-white border-b border-neutral-700 pb-2 mb-2">
+                          TP Distribution Formula
+                        </div>
+                        <div className="text-neutral-300 space-y-1.5">
+                          <div className="font-mono text-[10px] bg-neutral-800/50 px-2 py-1 rounded">
+                            TP = (Your Points / Total Points) × 10,000
+                          </div>
+                          <div className="text-neutral-400 leading-relaxed">
+                            Your TP share is proportional to your Points relative to all participants
+                          </div>
+                        </div>
+                      </div>
+                    }
+                  >
+                    <div className="cursor-help p-1 rounded-full hover:bg-amber-500/10 transition-colors">
+                      <HelpCircle className="h-4 w-4 text-amber-500 hover:text-amber-400 transition-colors" />
+                    </div>
+                  </FunkyTooltip>
+                </div>
+                <div className="flex items-center justify-end gap-1.5">
+                  <span>Points</span>
+                  <FunkyTooltip
+                    content={
+                      <div className="space-y-2 text-xs">
+                        <div className="font-semibold text-white border-b border-neutral-700 pb-2 mb-2">
+                          Points Calculation
+                        </div>
+                        <div className="text-neutral-300 space-y-1.5">
+                          <div className="font-mono text-[10px] bg-neutral-800/50 px-2 py-1 rounded">
+                            Points = Σ Daily Scores
+                          </div>
+                          <div className="text-neutral-400 leading-relaxed">
+                            Sum of all your daily KOL holding scores throughout the competition
+                          </div>
+                        </div>
+                      </div>
+                    }
+                  >
+                    <div className="cursor-help p-1 rounded-full hover:bg-amber-500/10 transition-colors">
+                      <HelpCircle className="h-4 w-4 text-amber-500 hover:text-amber-400 transition-colors" />
+                    </div>
+                  </FunkyTooltip>
+                </div>
               </div>
 
               {/* Table Body */}
