@@ -21,4 +21,6 @@ export interface TokenPriceData {
   priceChange24hPercent: number;
   volume24h?: number;
   liquidityUsd?: number;
+  totalSupply?: number;
+  marketCap?: number;
 }

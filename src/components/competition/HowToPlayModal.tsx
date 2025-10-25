@@ -44,7 +44,7 @@ export function HowToPlayModal({ open, onOpenChange }: HowToPlayModalProps) {
             <h3 className="text-base font-medium text-gray-200 mb-3">scoring system</h3>
             <div className="space-y-4 text-gray-300 font-light">
               <div>
-                <h4 className="font-medium text-white mb-2">daily window score</h4>
+                <h4 className="font-medium text-white mb-2">daily score</h4>
                 <p className="mb-2">each day, your KOL holdings are scored based on:</p>
                 <ul className="list-disc list-inside ml-4 space-y-1.5">
                   <li>PnL performance of each KOL trader</li>

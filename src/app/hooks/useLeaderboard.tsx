@@ -4,6 +4,13 @@ import type { TraderApiData, LeaderboardEntry, PeriodData, LeaderboardApiRespons
 
 export type Period = 'daily' | 'weekly' | 'monthly';
 
+// Stable options object to prevent re-renders
+const LEADERBOARD_API_OPTIONS = {
+  dedupe: true,
+  cacheTtl: 60000,
+  retries: 2,
+};
+
 const convertApiDataToLeaderboardEntry = (data: TraderApiData[]): LeaderboardEntry[] => {
   return data.map((trader) => {
     const traderUrl = trader.address
@@ -23,6 +30,7 @@ const convertApiDataToLeaderboardEntry = (data: TraderApiData[]): LeaderboardEnt
       xUrl,
       traderUrl,
       pnl: trader.pnl,
+      avgDailyPnl: trader.avgDailyPnl,
       winRate: Number(trader.winRate).toFixed(2),
       walletAddress: trader.address,
       tokenPrice: trader.tokenPrice,
@@ -30,6 +38,8 @@ const convertApiDataToLeaderboardEntry = (data: TraderApiData[]): LeaderboardEnt
       priceChange24hPercent: trader.priceChange24hPercent,
       poolAddress: trader.poolAddress,
       tokenMintAddress: trader.tokenMintAddress,
+      marketCap: trader.marketCap,
+      totalSupply: trader.totalSupply,
     };
   });
 };
@@ -45,11 +55,10 @@ export const useLeaderboard = (initialPeriod: Period = 'daily') => {
   const [initialLoading, setInitialLoading] = useState(true); // Start in loading state
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const { data, loading, error, execute } = useApi<LeaderboardApiResponse>('/api/getTopTraders', {
-    dedupe: true,
-    cacheTtl: 60000,
-    retries: 2,
-  });
+  const { data, loading, error, execute } = useApi<LeaderboardApiResponse>(
+    '/api/getTopTraders',
+    LEADERBOARD_API_OPTIONS
+  );
 
   const leaderboardData = useMemo(() => {
     console.log('🔍 [useLeaderboard] Processing data:', data?.selected?.traders?.length || 0, 'traders');
@@ -64,11 +73,11 @@ export const useLeaderboard = (initialPeriod: Period = 'daily') => {
 
   const fetchData = useCallback(async (fetchAllPeriods = false) => {
     console.log(`🚀 [useLeaderboard] fetchData called - period: ${currentPeriod}, fetchAll: ${fetchAllPeriods}`);
-    
+
     try {
       const result = await execute({
         period: currentPeriod,
-        limit: 20,
+        limit: 50, // Changed from 20 to 50 to fetch top 50 traders
         fetchAll: fetchAllPeriods,
       });
 

@@ -121,7 +121,8 @@ export async function POST(
       dailyScoresCount: number;
     }>();
 
-    const allHoldings = await prisma.kolHolding.findMany({
+    // Fetch all daily score snapshots for this competition
+    const allSnapshots = await prisma.dailyScoreSnapshot.findMany({
       where: { competitionId },
       include: {
         user: {
@@ -130,9 +131,12 @@ export async function POST(
       }
     });
 
-    for (const holding of allHoldings) {
-      const userId = holding.userId;
-      const dailyScore = parseFloat(holding.dailyScore.toString());
+    console.debug(`[FINALIZE] Found ${allSnapshots.length} daily score snapshots for competition ${competitionId}`);
+
+    // Sum up all daily scores for each user to get window score
+    for (const snapshot of allSnapshots) {
+      const userId = snapshot.userId;
+      const dailyScore = parseFloat(snapshot.totalDailyScore.toString());
 
       if (!userWindowScores.has(userId)) {
         const entry = competitionEntries.find(e => e.userId === userId);
@@ -143,7 +147,7 @@ export async function POST(
 
         userWindowScores.set(userId, {
           userId,
-          userWallet: holding.user.userPrivyWalletAddress,
+          userWallet: snapshot.user.userPrivyWalletAddress,
           windowScore: 0,
           entryId: entry.id,
           dailyScoresCount: 0
@@ -350,12 +354,15 @@ export async function GET(
         user: {
           select: {
             userPrivyWalletAddress: true,
-            totalTournamentPoints: true
+            totalTournamentPoints: true,
+            xUsername: true,
+            xProfilePictureUrl: true,
+            xUrl: true
           }
         }
       },
       orderBy: {
-        leaderboardPoints: 'desc'
+        tournamentPoints: 'desc'
       }
     });
 
@@ -364,6 +371,13 @@ export async function GET(
     console.debug(`[FINALIZE][GET] Returning finalized results for competition ${competitionId}:`);
     results.forEach((entry, idx) => {
       console.debug(`[FINALIZE][GET] Rank ${idx + 1}: userId=${entry.userId}, wallet=${entry.user.userPrivyWalletAddress}, windowScore=${entry.windowScore}, TP=${entry.tournamentPoints}, LP=${entry.leaderboardPoints}, userTotalTP=${entry.user.totalTournamentPoints}`);
+    });
+
+    // Sort results by tournamentPoints descending to ensure correct ranking
+    const sortedResults = [...results].sort((a, b) => {
+      const aTP = parseFloat(a.tournamentPoints?.toString() || '0');
+      const bTP = parseFloat(b.tournamentPoints?.toString() || '0');
+      return bTP - aTP; // Descending order
     });
 
     return NextResponse.json({
@@ -377,10 +391,13 @@ export async function GET(
         createdAt: competition.createdAt.toISOString(),
         updatedAt: competition.updatedAt.toISOString()
       },
-      results: results.map((entry, index) => ({
-        rank: index + 1,
+      results: sortedResults.map((entry, index) => ({
+        rank: index + 1, // Recalculate rank based on sorted order
         userId: entry.userId,
         userWallet: entry.user.userPrivyWalletAddress,
+        xUsername: entry.user.xUsername,
+        xProfilePictureUrl: entry.user.xProfilePictureUrl,
+        xUrl: entry.user.xUrl,
         joinedAt: entry.joinedAt.toISOString(),
         windowScore: entry.windowScore?.toString() || '0',
         tournamentPoints: entry.tournamentPoints?.toString() || '0',

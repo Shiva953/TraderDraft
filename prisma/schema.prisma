@@ -15,14 +15,23 @@ model User {
   claimedPacks             Int?
   unclaimedPacks           Int?
   totalTournamentPoints    Decimal  @default(0) @db.Decimal
+  portfolio                Decimal? @db.Decimal
+
+  // X/Twitter Profile Data
+  xUsername                String?  // Twitter/X handle without @
+  xProfilePictureUrl       String?  // Twitter/X avatar URL
+  xUrl                     String?  // Full Twitter/X profile URL
+
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
 
   // Relations
   orders                   Order[]  @relation("UserOrders")
   competitionEntries       CompetitionEntry[]
-  kolHoldings             KolHolding[]
+  dailyScoreSnapshots      DailyScoreSnapshot[]
+  revealedPacks            RevealedPack[] @relation("UserRevealedPacks")
 
+  @@index([xUsername])
   @@map("users")
 }
 
@@ -44,8 +53,15 @@ model Trader {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  // Relations
-  kolHoldings      KolHolding[]
+  // Market data (cached, updated every 2 minutes by background job)
+  tokenPrice              Float?   // Token price in USD
+  priceChange24h          Float?   // Absolute 24h price change in USD
+  priceChange24hPercent   Float?   // Percentage 24h price change
+  marketCap               Float?   // Market capitalization in USD
+  totalSupply             Float?   // Total token supply
+  volume24h               Float?   // 24h trading volume
+  liquidityUsd            Float?   // Liquidity in USD
+  marketDataLastUpdated   DateTime? // Timestamp of last market data update
 
   @@unique([address, period])
   @@index([period, rank])
@@ -53,6 +69,7 @@ model Trader {
   @@index([poolAddress])
   @@index([ticker])
   @@index([rarity])
+  @@index([marketDataLastUpdated])
   @@map("traders")
 }
 
@@ -66,8 +83,8 @@ model Competition {
   updatedAt   DateTime          @updatedAt
 
   // Relations
-  entries     CompetitionEntry[]
-  kolHoldings KolHolding[]
+  entries            CompetitionEntry[]
+  dailyScoreSnapshots DailyScoreSnapshot[]
 
   @@index([startDate, endDate])
   @@index([status])
@@ -97,31 +114,26 @@ model CompetitionEntry {
   @@map("competition_entries")
 }
 
-// KOL token holdings + daily scores combined for a given competition
-model KolHolding {
+// Daily aggregate score snapshots for users in competitions
+// Stores ONE row per user per competition per day (much lighter than per-KOL storage)
+// All KOL holdings are calculated from on-chain data, only the daily total score is stored
+model DailyScoreSnapshot {
   id              String      @id @default(cuid())
   userId          Int
-  traderId        String
   competitionId   String
-  tokenAmount     Decimal     @db.Decimal
-  purchasePrice   Decimal?    @db.Decimal
-  transactionHash String?
-  purchasedAt     DateTime    @default(now())
-  
-  // Daily score tracking (updated daily at 14:00 UTC)
-  dailyScore      Decimal     @default(0) @db.Decimal
-  lastScoreUpdate DateTime?
+  snapshotDate    DateTime    // The date of this snapshot (normalized to 14:00 UTC)
+  totalDailyScore Decimal     @db.Decimal // Sum of all KOL scores for this user on this day
+  createdAt       DateTime    @default(now())
 
   // Relations
   user            User        @relation(fields: [userId], references: [id])
-  trader          Trader      @relation(fields: [traderId], references: [id])
   competition     Competition @relation(fields: [competitionId], references: [id])
 
+  @@unique([userId, competitionId, snapshotDate])
   @@index([userId, competitionId])
   @@index([competitionId])
-  @@index([traderId])
-  @@index([competitionId, lastScoreUpdate])
-  @@map("kol_holdings")
+  @@index([competitionId, snapshotDate])
+  @@map("daily_score_snapshots")
 }
 
 model Order {
@@ -132,12 +144,55 @@ model Order {
   totalValue             Decimal  @db.Decimal
   transactionHash        String?
   createdAt              DateTime @default(now())
-  
+
   user                   User     @relation("UserOrders", fields: [userId], references: [id])
 
   @@index([userPrivyWalletAddress])
   @@index([createdAt])
   @@map("orders")
+}
+
+// Off-chain storage for revealed pack contents
+// Replaces on-chain Pack PDAs to reduce transaction overhead
+model RevealedPack {
+  id                     String   @id @default(cuid())
+  packId                 String   @unique
+  userPrivyWalletAddress String
+  userId                 Int
+
+  // 4 KOL token mint addresses in this pack
+  kolMintA               String
+  kolMintB               String
+  kolMintC               String
+  kolMintD               String
+
+  // KOL metadata (denormalized for quick access)
+  kolNameA               String
+  kolNameB               String
+  kolNameC               String
+  kolNameD               String
+
+  kolTickerA             String
+  kolTickerB             String
+  kolTickerC             String
+  kolTickerD             String
+
+  kolRarityA             Rarity
+  kolRarityB             Rarity
+  kolRarityC             Rarity
+  kolRarityD             Rarity
+
+  revealedAt             DateTime @default(now())
+  claimedAt              DateTime?
+
+  user                   User     @relation("UserRevealedPacks", fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([userPrivyWalletAddress])
+  @@index([revealedAt])
+  @@index([claimedAt])
+  @@index([userId, claimedAt])
+  @@map("revealed_packs")
 }
 
 model ScrapingMetadata {
@@ -149,6 +204,21 @@ model ScrapingMetadata {
 
   @@unique([period, isActive])
   @@map("scraping_metadata")
+}
+
+// App phase tracking for bootstrap and competition cycles
+model AppPhase {
+  id              String   @id @default(cuid())
+  currentPhase    String   // PACK_SALE | PACK_REVEAL | COMPETITION_LOOP
+  phaseStartedAt  DateTime
+  packSaleEndsAt  DateTime?
+  revealEndsAt    DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([currentPhase])
+  @@index([createdAt])
+  @@map("app_phases")
 }
 
 

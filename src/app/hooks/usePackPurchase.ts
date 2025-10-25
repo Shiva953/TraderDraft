@@ -99,28 +99,57 @@ export const usePackPurchase = () => {
 
       console.log("✅ [BuyPack] Transaction sent successfully:", result);
 
-      // Step 3: Update database with purchase info
+      // Step 3: Update database with purchase info (WITH RETRY LOGIC - CRITICAL!)
       console.log("🔄 [BuyPack] Updating user packs in database...");
       
-      const updateResponse = await fetch("/api/pack/updateUserPacks", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userPrivyWalletAddress: embeddedWallet.address,
-          packsBought: packCount,
-          totalValue: totalPrice,
-          transactionHash: result.signature,
-        }),
-      });
+      const updatePacksWithRetry = async (retryCount = 0): Promise<boolean> => {
+        const MAX_RETRIES = 5; // More retries since this is critical after successful transaction
+        const RETRY_DELAY = 2000; // 2 seconds between retries
 
-      const updateData = await updateResponse.json();
-      if (!updateData.success) {
-        console.error("❌ [BuyPack] Failed to update user packs:", updateData.error);
-        // Don't throw here as the transaction was successful
-      } else {
-        console.log("✅ [BuyPack] User packs updated successfully");
+        try {
+          console.log(`🔄 [BuyPack] Update attempt ${retryCount + 1}/${MAX_RETRIES + 1}...`);
+          
+          const updateResponse = await fetch("/api/pack/updateUserPacks", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              userPrivyWalletAddress: embeddedWallet.address,
+              packsBought: packCount,
+              totalValue: totalPrice,
+              transactionHash: result.signature,
+            }),
+          });
+
+          const updateData = await updateResponse.json();
+          
+          if (!updateResponse.ok || !updateData.success) {
+            throw new Error(updateData.error || `HTTP ${updateResponse.status}: Update failed`);
+          }
+          
+          console.log("✅ [BuyPack] User packs updated successfully");
+          return true;
+          
+        } catch (error) {
+          console.error(`❌ [BuyPack] Update attempt ${retryCount + 1} failed:`, error);
+          
+          if (retryCount < MAX_RETRIES) {
+            console.log(`⏳ [BuyPack] Retrying in ${RETRY_DELAY}ms... (${retryCount + 1}/${MAX_RETRIES})`);
+            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+            return updatePacksWithRetry(retryCount + 1);
+          } else {
+            console.error(`❌ [BuyPack] MAX RETRIES REACHED - Update failed permanently!`);
+            console.error(`⚠️ [BuyPack] Transaction succeeded but DB update failed. TxHash: ${result.signature}`);
+            return false;
+          }
+        }
+      };
+
+      const updateSuccess = await updatePacksWithRetry();
+      if (!updateSuccess) {
+        // Show warning but don't block success state since transaction completed
+        console.warn("⚠️ [BuyPack] Packs purchased but database update failed. Contact support with transaction hash.");
       }
 
       // Success state

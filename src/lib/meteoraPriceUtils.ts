@@ -29,6 +29,10 @@ interface TokenPriceData {
   priceChange24hPercent: number;
   volume24h?: number;
   liquidityUsd?: number;
+  totalSupply?: number;
+  marketCap?: number;
+  circulatingSupply?: number;
+  holdersCount?: number;
 }
 
 export class MeteoraAPIClient {
@@ -42,6 +46,14 @@ export class MeteoraAPIClient {
   // On-chain connection for direct pool queries
   private connection: Connection;
   private cpAmm: CpAmm;
+
+  // Cache for SOL/USD price to ensure consistency within a request
+  private solPriceCache: { price: number; timestamp: number } | null = null;
+  private readonly CACHE_DURATION_MS = 300000; // 5 minutes cache to avoid rate limits
+
+  // Cache for individual token prices (poolAddress -> TokenPriceData)
+  private tokenPriceCache: Map<string, { data: TokenPriceData; timestamp: number }> = new Map();
+  private readonly TOKEN_PRICE_CACHE_MS = 120000; // 2 minutes cache for token prices
 
   constructor(private apiKey?: string) {
     this.connection = new Connection("https://devnet.helius-rpc.com/?api-key=017f56ed-c6c1-480a-8c11-dbc09ab2358d", "confirmed");
@@ -188,67 +200,181 @@ export class MeteoraAPIClient {
   }
 
   /**
-   * Fetch live SOL price in USD from Jupiter V6 API
-   * Uses SOL mint address and USDC as quote currency
+   * Fetch SOL price from Binance API (PRIMARY - No rate limits, very reliable)
    */
-  private async getSOLPriceUSD(): Promise<number> {
+  private async getSOLPriceFromBinance(): Promise<number> {
     try {
-      // SOL mint address (native SOL is represented as So11111111111111111111111111111111111111112)
-      const SOL_MINT = 'So11111111111111111111111111111111111111112';
-      const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'; // USDC mint
-      
-      // Jupiter V6 Price API - gets price of SOL in USDC terms
-      const response = await fetch(
-        `https://price.jup.ag/v6/price?ids=${SOL_MINT}&vsToken=${USDC_MINT}`
-      );
+      const response = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=SOLUSDT', {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+      });
 
       if (!response.ok) {
-        console.warn(`⚠️ [JUPITER] Failed to fetch SOL price: ${response.status}, falling back to CoinGecko`);
-        return await this.getSOLPriceFromCoinGecko();
+        throw new Error(`Binance API failed with status ${response.status}`);
       }
 
       const data = await response.json();
-      const solPriceData = data?.data?.[SOL_MINT];
+      const solPrice = parseFloat(data?.price);
 
-      if (solPriceData && typeof solPriceData.price === 'number' && solPriceData.price > 0) {
-        const solPrice = solPriceData.price;
-        console.log(`✅ [JUPITER] SOL price: $${solPrice.toFixed(2)}`);
+      if (!isNaN(solPrice) && solPrice > 0) {
+        console.log(`✅ [BINANCE] SOL/USDT price: $${solPrice.toFixed(2)}`);
         return solPrice;
       }
 
-      console.warn(`⚠️ [JUPITER] Invalid SOL price data, falling back to CoinGecko`);
-      return await this.getSOLPriceFromCoinGecko();
+      throw new Error(`Invalid price from Binance: ${JSON.stringify(data)}`);
     } catch (error) {
-      console.error(`❌ [JUPITER] Error fetching SOL price:`, error);
-      return await this.getSOLPriceFromCoinGecko();
+      console.error(`❌ [BINANCE] Error:`, error);
+      throw error;
     }
   }
 
   /**
-   * Fallback: Fetch SOL price from CoinGecko API
+   * Fetch SOL price from CryptoCompare API (FALLBACK 1)
+   */
+  private async getSOLPriceFromCryptoCompare(): Promise<number> {
+    try {
+      const response = await fetch('https://min-api.cryptocompare.com/data/price?fsym=SOL&tsyms=USD', {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+      });
+
+      if (!response.ok) {
+        throw new Error(`CryptoCompare API failed with status ${response.status}`);
+      }
+
+      const data = await response.json();
+      const solPrice = data?.USD;
+
+      if (typeof solPrice === 'number' && solPrice > 0) {
+        console.log(`✅ [CRYPTOCOMPARE] SOL/USD price: $${solPrice.toFixed(2)}`);
+        return solPrice;
+      }
+
+      throw new Error(`Invalid price from CryptoCompare: ${JSON.stringify(data)}`);
+    } catch (error) {
+      console.error(`❌ [CRYPTOCOMPARE] Error:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch SOL price from CoinGecko API (FALLBACK 2 - Has rate limits)
    */
   private async getSOLPriceFromCoinGecko(): Promise<number> {
     try {
-      const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
+      const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd', {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+      });
 
       if (!response.ok) {
-        console.warn(`⚠️ [COINGECKO] Failed to fetch SOL price: ${response.status}`);
-        return 150; // Final fallback
+        throw new Error(`CoinGecko API failed with status ${response.status}`);
       }
 
       const data = await response.json();
       const solPrice = data?.solana?.usd;
 
       if (typeof solPrice === 'number' && solPrice > 0) {
-        console.log(`✅ [COINGECKO] SOL price (fallback): $${solPrice}`);
+        console.log(`✅ [COINGECKO] SOL/USD price: $${solPrice.toFixed(2)}`);
         return solPrice;
       }
 
-      console.warn(`⚠️ [COINGECKO] Invalid SOL price data`);
-      return 150; // Final fallback
+      throw new Error(`Invalid price from CoinGecko: ${JSON.stringify(data)}`);
     } catch (error) {
-      console.error(`❌ [COINGECKO] Error fetching SOL price:`, error);
-      return 150; // Final fallback
+      console.error(`❌ [COINGECKO] Error:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch live SOL price in USD with multi-source fallback
+   * Uses 5-minute cache to ensure price consistency and avoid rate limits
+   * 
+   * Sources (in order):
+   * 1. Binance API - No rate limits, very reliable
+   * 2. CryptoCompare - Generous free tier
+   * 3. CoinGecko - Last resort (has rate limits)
+   */
+  async getSOLPriceUSD(): Promise<number> {
+    // Check cache first (5-minute TTL)
+    const now = Date.now();
+    if (this.solPriceCache && (now - this.solPriceCache.timestamp < this.CACHE_DURATION_MS)) {
+      const ageSeconds = Math.floor((now - this.solPriceCache.timestamp) / 1000);
+      console.log(`✅ [CACHE] Using cached SOL price: $${this.solPriceCache.price.toFixed(2)} (age: ${ageSeconds}s)`);
+      return this.solPriceCache.price;
+    }
+
+    console.log(`🔍 [PRICE] Fetching live SOL/USD price from multiple sources...`);
+
+    // Try sources in order
+    const sources = [
+      { name: 'Binance', fn: () => this.getSOLPriceFromBinance() },
+      { name: 'CryptoCompare', fn: () => this.getSOLPriceFromCryptoCompare() },
+      { name: 'CoinGecko', fn: () => this.getSOLPriceFromCoinGecko() },
+    ];
+
+    for (const source of sources) {
+      try {
+        const price = await source.fn();
+        
+        // Cache the successful price
+        this.solPriceCache = { price, timestamp: now };
+        console.log(`✅ [${source.name.toUpperCase()}] Live SOL price fetched and cached: $${price.toFixed(2)}`);
+        return price;
+      } catch (error) {
+        console.warn(`⚠️ [${source.name.toUpperCase()}] Failed, trying next source...`);
+        // Continue to next source
+      }
+    }
+
+    // If all sources fail
+    const errorMsg = 'All price sources failed (Binance, CryptoCompare, CoinGecko). Cannot calculate accurate prices.';
+    console.error(`❌ [PRICE] ${errorMsg}`);
+    throw new Error(errorMsg);
+  }
+
+  /**
+   * Get token holders count by fetching token accounts from RPC
+   * Uses getProgramAccounts to count all token accounts with non-zero balance
+   */
+  async getTokenHoldersCount(mintAddress: string): Promise<number> {
+    try {
+      console.log(`👥 [HOLDERS] Fetching holders count for mint: ${mintAddress}`);
+      const mintPubkey = new PublicKey(mintAddress);
+
+      // Get all token accounts for this mint with non-zero balance
+      // Using data slice to only get balance field (bytes 64-72) for efficiency
+      const TOKEN_ACCOUNT_SIZE = 165;
+      const accounts = await this.connection.getProgramAccounts(
+        new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'), // SPL Token Program
+        {
+          filters: [
+            { dataSize: TOKEN_ACCOUNT_SIZE }, // Token account size
+            {
+              memcmp: {
+                offset: 0, // Mint address is at offset 0
+                bytes: mintPubkey.toBase58()
+              }
+            }
+          ],
+          dataSlice: { offset: 64, length: 8 } // Only fetch balance field
+        }
+      );
+
+      // Count accounts with non-zero balance
+      let holdersCount = 0;
+      for (const account of accounts) {
+        const balance = Buffer.from(account.account.data).readBigUInt64LE();
+        if (balance > BigInt(0)) {
+          holdersCount++;
+        }
+      }
+
+      console.log(`✅ [HOLDERS] Found ${holdersCount} holders for ${mintAddress.slice(0, 8)}...`);
+      return holdersCount;
+    } catch (error) {
+      console.error(`❌ [HOLDERS] Error fetching holders count:`, error);
+      return 0;
     }
   }
 
@@ -256,8 +382,18 @@ export class MeteoraAPIClient {
    * Get token price data with 24h change
    * Combines pool info and metrics for complete price data
    * Uses Meteora SDK's getPriceFromSqrtPrice to accurately calculate price from sqrt_price
+   * Now with 2-minute caching to speed up subsequent requests
    */
-  async getTokenPriceData(poolAddress: string): Promise<TokenPriceData | null> {
+  async getTokenPriceData(poolAddress: string, mintAddress?: string): Promise<TokenPriceData | null> {
+    // Check cache first
+    const now = Date.now();
+    const cached = this.tokenPriceCache.get(poolAddress);
+    if (cached && (now - cached.timestamp < this.TOKEN_PRICE_CACHE_MS)) {
+      const ageSeconds = Math.floor((now - cached.timestamp) / 1000);
+      console.log(`✅ [CACHE] Using cached price for ${poolAddress.slice(0, 8)}... (age: ${ageSeconds}s)`);
+      return cached.data;
+    }
+
     try {
       // Fetch pool info, metrics, and SOL price in parallel
       const [poolInfo, poolMetrics, solPriceUSD] = await Promise.all([
@@ -288,25 +424,91 @@ export class MeteoraAPIClient {
         priceChange24h = currentPrice * (priceChange24hPercent / 100);
       }
 
-      // Convert SOL price to USD using live Jupiter price
+      // Convert SOL price to USD using live price (multi-source with cache)
       const priceInUSD = currentPrice * solPriceUSD;
       const priceChange24hUSD = priceChange24h * solPriceUSD;
 
-      console.log(`✅ [PRICE] Final price data for ${poolAddress}:`, {
-        priceSOL: currentPrice,
-        solPriceUSD,
-        priceUSD: priceInUSD,
-        priceChange24hPercent,
-        volume24h: poolMetrics?.volume_24h || poolInfo.volume_24h || poolInfo.volume24h
+      console.log(`✅ [PRICE] Final price data for ${poolAddress}:`);
+      console.log(`   Token Price (SOL): ${currentPrice.toFixed(9)} SOL`);
+      console.log(`   SOL/USD Rate: $${solPriceUSD.toFixed(2)}`);
+      console.log(`   Token Price (USD): $${priceInUSD.toFixed(9)} (${currentPrice.toFixed(9)} × $${solPriceUSD.toFixed(2)})`);
+      console.log(`   24h Change: ${priceChange24hPercent.toFixed(2)}%`);
+
+      // Total supply for KOL tokens (as defined in createTokensAndPoolV2: 1 billion)
+      const totalSupply = 1000000000; // 1 billion
+
+      // Circulating supply is fixed at 60M (6% of total supply minted to pool)
+      // This is the actual amount minted as defined in createTokensAndPoolV2
+      const circulatingSupply = 60000000; // 60M tokens
+
+      // Fetch holders count if mintAddress provided
+      let holdersCount = 0;
+
+      if (mintAddress) {
+        try {
+          holdersCount = await this.getTokenHoldersCount(mintAddress);
+          console.log(`✅ [HOLDERS] ${holdersCount} holders for ${mintAddress.slice(0, 8)}...`);
+        } catch (error) {
+          console.warn(`⚠️ [HOLDERS] Error fetching holders count:`, error);
+        }
+      }
+
+      // Market cap should be based on circulating supply, not total supply
+      const marketCap = circulatingSupply * priceInUSD;
+
+      console.log(`💰 [MARKET CAP CALC] Pool ${poolAddress.slice(0, 8)}...:`);
+      console.log(`   Total Supply: ${totalSupply.toLocaleString()} (max possible)`);
+      console.log(`   Circulating Supply: ${circulatingSupply.toLocaleString()} (currently minted)`);
+      console.log(`   Holders: ${holdersCount}`);
+      console.log(`   Price (USD): $${priceInUSD.toFixed(9)}`);
+      console.log(`   Market Cap: $${marketCap.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`);
+
+      // Debug liquidity data
+      console.log(`🔍 [LIQUIDITY DEBUG] Pool info liquidity fields:`, {
+        liquidity_usd: poolInfo.liquidity_usd,
+        tvl: poolInfo.tvl,
+        token_a_reserve: poolInfo.token_a_reserve,
+        token_b_reserve: poolInfo.token_b_reserve,
+        token_a_amount: poolInfo.token_a_amount,
+        token_b_amount: poolInfo.token_b_amount
       });
 
-      return {
+      // Calculate liquidity USD - fallback to calculating from reserves if API doesn't provide it
+      let liquidityUsd = poolInfo.liquidity_usd || poolInfo.tvl;
+
+      // If liquidity is not available from API, calculate from reserves
+      if (!liquidityUsd && poolInfo.token_b_reserve) {
+        // Token B is SOL (WSOL), so we can calculate total liquidity from SOL reserves
+        // Total liquidity = 2 * SOL reserves * SOL price (since pool is balanced)
+        const solReserve = poolInfo.token_b_reserve;
+        liquidityUsd = 2 * solReserve * solPriceUSD;
+        console.log(`💧 [LIQUIDITY] Calculated from reserves: ${solReserve} SOL × 2 × $${solPriceUSD} = $${liquidityUsd.toFixed(2)}`);
+      }
+
+      const priceData: TokenPriceData = {
         price: priceInUSD,
         priceChange24h: priceChange24hUSD,
         priceChange24hPercent,
         volume24h: poolMetrics?.volume_24h || poolInfo.volume_24h || poolInfo.volume24h,
-        liquidityUsd: poolInfo.liquidity_usd || poolInfo.tvl
+        liquidityUsd,
+        totalSupply,
+        circulatingSupply,
+        marketCap,
+        holdersCount
       };
+
+      console.log(`📦 [PRICE DATA OBJECT]:`, JSON.stringify({
+        price: priceData.price,
+        marketCap: priceData.marketCap,
+        totalSupply: priceData.totalSupply,
+        liquidityUsd: priceData.liquidityUsd
+      }));
+
+      // Cache the result before returning
+      this.tokenPriceCache.set(poolAddress, { data: priceData, timestamp: now });
+      console.log(`💾 [CACHE] Cached price for ${poolAddress.slice(0, 8)}...`);
+
+      return priceData;
     } catch (error) {
       console.error(`Error getting token price data for ${poolAddress}:`, error);
       return null;

@@ -24,7 +24,7 @@ export const useOrders = () => {
     setError(null);
 
     try {
-      const response = await fetch("/api/getOrders", {
+      const response = await fetch("/api/user/getOrders", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

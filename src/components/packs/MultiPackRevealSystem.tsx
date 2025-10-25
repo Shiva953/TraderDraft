@@ -50,11 +50,24 @@ export const MultiPackRevealSystem = () => {
       setCurrentStep("loading")
 
       try {
-        // Step 1: Reveal all packs
+        // Get user wallet address
+        if (!wallets || wallets.length === 0) {
+          throw new Error("No wallet found")
+        }
+
+        const embeddedWallet = wallets.find((w) => w.walletClientType === "privy")
+        if (!embeddedWallet) {
+          throw new Error("No embedded wallet found")
+        }
+
+        // Step 1: Reveal all packs (now stored in database)
         const response = await fetch("/api/pack/revealAllPacks", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ numberOfPacks: packCount }),
+          body: JSON.stringify({
+            numberOfPacks: packCount,
+            userPublicKey: embeddedWallet.address
+          }),
         })
 
         if (response.ok) {
@@ -65,16 +78,7 @@ export const MultiPackRevealSystem = () => {
             // Reset user pack holdings to 0 after successful reveal
             await resetUserPackHoldings()
 
-            // Step 2: Automatically claim all KOL tokens
-            if (!wallets || wallets.length === 0) {
-              throw new Error("No wallet found for claiming tokens")
-            }
-
-            const embeddedWallet = wallets.find((w) => w.walletClientType === "privy")
-            if (!embeddedWallet) {
-              throw new Error("No embedded wallet found for claiming tokens")
-            }
-
+            // Step 2: Automatically claim all KOL tokens from vault
             // Call backend API to claim all tokens
             const claimResponse = await fetch("/api/pack/claimAllKOLTokens", {
               method: "POST",

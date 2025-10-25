@@ -1,0 +1,47 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/phaseManager",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/updateDB",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/startCompetition",
+      "schedule": "0 0 * * 1,4"
+    },
+    {
+      "path": "/api/cron/calculateDailyScores",
+      "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/cron/finalizeCompetition",
+      "schedule": "0 12 * * 0,3"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Credentials",
+          "value": "true"
+        },
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, OPTIONS, PATCH, DELETE, POST, PUT"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization, Privy-Token"
+        }
+      ]
+    }
+  ]
+}

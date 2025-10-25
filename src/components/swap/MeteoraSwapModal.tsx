@@ -192,7 +192,7 @@ export default function MeteoraSwapModal({
     }
 
     setIsSwapping(true);
-    const loadingToast = toast.loading("Preparing swap transaction...");
+    const loadingToast = toast.loading("Swapping...");
 
     try {
       // Convert amount to smallest unit based on mode
@@ -227,7 +227,6 @@ export default function MeteoraSwapModal({
       }
 
       console.log("📝 Transaction received from server, signing...");
-      toast.loading("Please sign the transaction in your wallet...", { id: loadingToast });
 
       // Deserialize legacy transaction from Meteora SDK
       const txBuffer = Buffer.from(data.data.transaction, 'base64');
@@ -239,7 +238,6 @@ export default function MeteoraSwapModal({
       const signedTx = await signTransaction(transaction);
 
       console.log("✅ Transaction signed, sending to network...");
-      toast.loading("Sending transaction to network...", { id: loadingToast });
 
       // Send the signed transaction ourselves
       const signature = await connection.sendRawTransaction(signedTx.serialize(), {
@@ -249,7 +247,6 @@ export default function MeteoraSwapModal({
       });
 
       console.log("📤 Transaction sent:", signature);
-      toast.loading("Confirming transaction...", { id: loadingToast });
 
       // Confirm the transaction ourselves
       const confirmation = await connection.confirmTransaction({
@@ -274,42 +271,11 @@ export default function MeteoraSwapModal({
         shouldRegister: !!(activeCompetitionId && traderId && kolAmount && parseFloat(kolAmount) > 0)
       });
 
+      // Note: KOL token purchases are now tracked automatically via daily on-chain snapshots
+      // The daily score snapshot cron job fetches all token balances from on-chain
+      // and auto-enrolls users who hold KOL tokens in active competitions
       if (activeCompetitionId && traderId && kolAmount && parseFloat(kolAmount) > 0) {
-        try {
-          console.log("🏆 [Competition] Registering KOL purchase in competition...");
-          console.log("🏆 [Competition] Request URL:", `/api/competitions/${activeCompetitionId}/buyKOLToken`);
-          console.log("🏆 [Competition] Request body:", {
-            userPrivyWalletAddress: userWallet,
-            traderId,
-            tokenAmount: parseFloat(kolAmount),
-            purchasePrice: parseFloat(solAmount),
-            transactionHash: signature
-          });
-
-          const buyKOLResponse = await fetch(`/api/competitions/${activeCompetitionId}/buyKOLToken`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              userPrivyWalletAddress: userWallet,
-              traderId,
-              tokenAmount: parseFloat(kolAmount),
-              purchasePrice: parseFloat(solAmount),
-              transactionHash: signature
-            }),
-          });
-
-          if (buyKOLResponse.ok) {
-            const buyKOLData = await buyKOLResponse.json();
-            console.log("✅ [Competition] KOL purchase registered:", buyKOLData);
-            isFirstCompetitionEntry = buyKOLData.data?.competitionJoined || false;
-          } else {
-            console.warn("⚠️ [Competition] Failed to register KOL purchase:", await buyKOLResponse.text());
-          }
-        } catch (competitionError) {
-          console.error("❌ [Competition] Error registering KOL purchase:", competitionError);
-        }
+        console.log("🏆 [Competition] KOL tokens purchased - will be counted in next daily snapshot (14:00 UTC)");
       }
 
       toast.success(
@@ -459,18 +425,6 @@ export default function MeteoraSwapModal({
           {/* Fee Information */}
           {quote && (
             <div className="p-2.5 rounded-lg bg-muted/30 space-y-1 text-xs">
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Price Impact</span>
-                <span className="font-medium">
-                  {typeof quote.priceImpact === 'number'
-                    ? quote.priceImpact.toFixed(4)
-                    : parseFloat(quote.priceImpact).toFixed(4)}%
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">LP Fee (5%)</span>
-                <span className="font-medium">{(parseFloat(kolAmount) * 0.05).toFixed(4)} {kolName.toUpperCase()}</span>
-              </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Network Fee</span>
                 <span className="font-medium">~0.000005 SOL</span>

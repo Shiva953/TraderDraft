@@ -365,9 +365,9 @@ export async function POST(request: Request) {
     const provider = new AnchorProvider(connection, anchorWallet, { commitment: "confirmed" });
     anchor.setProvider(provider);
 
-    const programId = new PublicKey("4nSNt5ed3cqPWRpwFf8SRvTfLyZvJRgUhwahc8jZQGG2");
+    const programId = new PublicKey("9GNSpxshtu8rA7cmHdvNVgGXh9WtxBrSC53k3FJ1jMnZ");
     const program = new Program<Pnlpackprogram>(IDL as Pnlpackprogram, provider);
-    const globalPackPoolAccount = new PublicKey("GrT2MFauW4JzY867xE61dMiMwETBfzbh9hzU6iLeq4iQ");
+    const globalPackPoolAccount = new PublicKey("4AjtpSua4zndvhs4y3zCxyLSvQm1SFpZqD5W76PEkmid");
     console.log(`🔗 [ANCHOR] Program ID: ${programId.toBase58()}`);
     console.log(`🔗 [ANCHOR] GlobalPackPoolAccount: ${globalPackPoolAccount.toBase58()}`);
 

@@ -1,11 +1,18 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import type { ApiState, ApiOptions } from '@/types';
 
 const apiCache = new Map<string, { data: any; timestamp: number; ttl: number }>();
 
+// Default options to prevent recreation
+const DEFAULT_OPTIONS: ApiOptions = {
+  dedupe: true,
+  cacheTtl: 30000,
+  retries: 2
+};
+
 export const useApi = <T>(
   endpoint: string,
-  options: ApiOptions = { dedupe: true, cacheTtl: 30000, retries: 2 }
+  options: ApiOptions = DEFAULT_OPTIONS
 ) => {
   const [state, setState] = useState<ApiState<T>>({
     data: null,
@@ -17,9 +24,16 @@ export const useApi = <T>(
   const requestIdRef = useRef(0);
   const retryCountRef = useRef(0);
 
+  // Stabilize options to prevent unnecessary re-renders
+  const stableOptions = useMemo(() => ({
+    dedupe: options.dedupe ?? DEFAULT_OPTIONS.dedupe!,
+    cacheTtl: options.cacheTtl ?? DEFAULT_OPTIONS.cacheTtl!,
+    retries: options.retries ?? DEFAULT_OPTIONS.retries!,
+  }), [options.dedupe, options.cacheTtl, options.retries]);
+
   const executeInternal = useCallback(async (body?: any, method = 'POST', retryCount = 0): Promise<any> => {
     // Check cache first
-    if (options.dedupe && retryCount === 0) {
+    if (stableOptions.dedupe && retryCount === 0) {
       const cacheKey = `${endpoint}-${JSON.stringify(body)}`;
       const cached = apiCache.get(cacheKey);
       if (cached && Date.now() - cached.timestamp < cached.ttl) {
@@ -66,12 +80,12 @@ export const useApi = <T>(
       const data = await response.json();
 
       // Cache the result
-      if (options.dedupe && data.success) {
+      if (stableOptions.dedupe && data.success) {
         const cacheKey = `${endpoint}-${JSON.stringify(body)}`;
         apiCache.set(cacheKey, {
           data: data.data || data,
           timestamp: Date.now(),
-          ttl: options.cacheTtl!,
+          ttl: stableOptions.cacheTtl,
         });
       }
 
@@ -82,7 +96,7 @@ export const useApi = <T>(
         console.error(`❌ [useApi] ${endpoint} request timed out (attempt ${retryCount + 1})`);
 
         // Retry on timeout
-        if (retryCount < (options.retries || 0)) {
+        if (retryCount < stableOptions.retries) {
           const delay = Math.pow(2, retryCount) * 500; // 500ms, 1s, 2s
           console.log(`⏳ [useApi] Retrying ${endpoint} in ${delay}ms...`);
           // Keep loading state during retry - don't show error
@@ -99,7 +113,7 @@ export const useApi = <T>(
       console.error(`❌ [useApi] ${endpoint} error (attempt ${retryCount + 1}):`, errorMessage);
 
       // Retry on HTTP errors (500, 404, etc)
-      if (retryCount < (options.retries || 0)) {
+      if (retryCount < stableOptions.retries) {
         const delay = Math.pow(2, retryCount) * 500; // 500ms, 1s, 2s
         console.log(`⏳ [useApi] Retrying ${endpoint} in ${delay}ms...`);
         // Keep loading state during retry - don't show error
@@ -111,7 +125,7 @@ export const useApi = <T>(
       setState(prev => ({ ...prev, loading: false, error: errorMessage }));
       throw error;
     }
-  }, [endpoint, options.dedupe, options.cacheTtl, options.retries]);
+  }, [endpoint, stableOptions]);
 
   const execute = useCallback(async (body?: any, method = 'POST') => {
     return executeInternal(body, method, 0);

@@ -1,12 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { useSolanaWallets } from "@privy-io/react-auth/solana";
 import { X, Minus, Plus } from 'lucide-react';
 import { MultiPackRevealResponse } from "@/types/pack";
 import { motion, AnimatePresence } from "framer-motion";
-import { MultiPackDisplay, MultiPackOpeningLoader } from '../packs/MultiPackDisplay';
+import { MultiPackOpeningLoader } from '../packs/MultiPackDisplay';
 import { ConsolidatedKOLGrid } from '../packs/MultiPackKOLGrid';
 import {
   Drawer,
@@ -23,6 +24,7 @@ interface PackOpeningModalProps {
   isOpen: boolean;
   onClose: () => void;
   userTP: number;
+  onPackOpenSuccess?: () => void;
 }
 
 const PACK_TYPES = {
@@ -61,10 +63,10 @@ const ShieldLogo = ({ className = "" }: { className?: string }) => (
   </svg>
 );
 
-export function PackOpeningModal({ isOpen, onClose, userTP: initialTP }: PackOpeningModalProps) {
+export function PackOpeningModal({ isOpen, onClose, userTP: initialTP, onPackOpenSuccess }: PackOpeningModalProps) {
   const [selectedPack, setSelectedPack] = useState<PackType | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [currentStep, setCurrentStep] = useState<"selection" | "pack" | "loading" | "revealed">("selection");
+  const [currentStep, setCurrentStep] = useState<"selection" | "loading" | "revealed">("selection");
   const [packData, setPackData] = useState<MultiPackRevealResponse["data"] | null>(null);
   const [numberOfPacks, setNumberOfPacks] = useState(0);
   const [userTP, setUserTP] = useState(initialTP);
@@ -87,7 +89,7 @@ export function PackOpeningModal({ isOpen, onClose, userTP: initialTP }: PackOpe
 
     try {
       console.log('🔄 Fetching latest TP for wallet:', userWallet);
-      const response = await fetch(`/api/getUserTotalTP?userWallet=${userWallet}`);
+      const response = await fetch(`/api/user/getUserTotalTP?userWallet=${userWallet}`);
       const data = await response.json();
 
       console.log('📊 Received TP data:', data);
@@ -101,16 +103,50 @@ export function PackOpeningModal({ isOpen, onClose, userTP: initialTP }: PackOpe
     }
   };
 
-  // Prevent body scroll when modal is open
+  // Prevent body scroll when modal is open AND hide TestModeController
   useEffect(() => {
     if (isOpen || currentStep !== 'selection') {
       document.body.style.overflow = 'hidden';
+      
+      // Hide TestModeController when modal is fullscreen
+      // Target all fixed elements at bottom-right with z-50 (TestModeController button/panel)
+      const bottomRightElements = document.querySelectorAll('.fixed');
+      bottomRightElements.forEach((el) => {
+        const htmlEl = el as HTMLElement;
+        const classes = htmlEl.className;
+        // Check if it has bottom-6, right-6, and z-50 OR if it's the TestMode help modal (z-[60])
+        if ((classes.includes('bottom-6') && classes.includes('right-6') && classes.includes('z-50')) ||
+            (classes.includes('z-[60]'))) {
+          htmlEl.style.display = 'none';
+        }
+      });
     } else {
       document.body.style.overflow = 'unset';
+      
+      // Restore TestModeController
+      const bottomRightElements = document.querySelectorAll('.fixed');
+      bottomRightElements.forEach((el) => {
+        const htmlEl = el as HTMLElement;
+        const classes = htmlEl.className;
+        if ((classes.includes('bottom-6') && classes.includes('right-6') && classes.includes('z-50')) ||
+            (classes.includes('z-[60]'))) {
+          htmlEl.style.display = '';
+        }
+      });
     }
 
     return () => {
       document.body.style.overflow = 'unset';
+      // Restore TestModeController on cleanup
+      const bottomRightElements = document.querySelectorAll('.fixed');
+      bottomRightElements.forEach((el) => {
+        const htmlEl = el as HTMLElement;
+        const classes = htmlEl.className;
+        if ((classes.includes('bottom-6') && classes.includes('right-6') && classes.includes('z-50')) ||
+            (classes.includes('z-[60]'))) {
+          htmlEl.style.display = '';
+        }
+      });
     };
   }, [isOpen, currentStep]);
 
@@ -171,7 +207,9 @@ export function PackOpeningModal({ isOpen, onClose, userTP: initialTP }: PackOpe
         await fetchLatestTP();
 
         setNumberOfPacks(packsToOpen);
-        setCurrentStep('pack');
+        
+        // Go directly to loading/revealing step instead of showing pack display
+        handleRevealPacks(packsToOpen);
       } else {
         console.error('❌ Failed to open packs:', result.error);
         alert(result.error || 'Failed to open packs');
@@ -184,15 +222,24 @@ export function PackOpeningModal({ isOpen, onClose, userTP: initialTP }: PackOpe
     }
   };
 
-  const handleRevealPacks = async () => {
+  const handleRevealPacks = async (packsToReveal: number) => {
     setCurrentStep('loading');
 
     try {
-      // Step 1: Reveal all packs
+      if (!userWallet) {
+        throw new Error("No wallet found");
+      }
+
+      console.log(`🎁 Revealing ${packsToReveal} packs for wallet: ${userWallet}`);
+
+      // Step 1: Reveal all packs (now stored in database)
       const response = await fetch("/api/pack/revealAllPacks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ numberOfPacks }),
+        body: JSON.stringify({
+          numberOfPacks: packsToReveal,
+          userPublicKey: userWallet // ✅ Pass wallet address
+        }),
       });
 
       if (response.ok) {
@@ -229,6 +276,11 @@ export function PackOpeningModal({ isOpen, onClose, userTP: initialTP }: PackOpe
 
           console.log("✅ Tokens claimed successfully:", claimData.data);
 
+          // Notify parent to refresh user data
+          if (onPackOpenSuccess) {
+            onPackOpenSuccess();
+          }
+
           // Show the revealed cards after claiming is complete
           setTimeout(() => {
             setCurrentStep('revealed');
@@ -261,22 +313,9 @@ export function PackOpeningModal({ isOpen, onClose, userTP: initialTP }: PackOpe
   };
 
   if (currentStep !== 'selection') {
-    return (
-      <div className="fixed inset-0 z-50 bg-black overflow-hidden">
+    const modalContent = (
+      <div className="fixed inset-0 z-[9999] bg-black overflow-hidden">
         <AnimatePresence mode="wait">
-          {currentStep === "pack" && (
-            <motion.div
-              key="pack"
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -50 }}
-              transition={{ duration: 0.5 }}
-              className="h-full"
-            >
-              <MultiPackDisplay onOpenPack={handleRevealPacks} packCount={numberOfPacks} />
-            </motion.div>
-          )}
-
           {currentStep === "loading" && (
             <motion.div
               key="loading"
@@ -298,27 +337,31 @@ export function PackOpeningModal({ isOpen, onClose, userTP: initialTP }: PackOpe
               transition={{ duration: 0.7, ease: "easeOut" }}
               className="h-full w-full overflow-y-auto overscroll-contain"
             >
-              <div className="w-full max-w-7xl mx-auto px-6 pt-6 pb-32">
-                <button
-                  onClick={handleClose}
-                  className="fixed top-6 right-6 z-50 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
-                >
-                  <X className="w-6 h-6 text-white" />
-                </button>
+              <div className="w-full min-h-screen">
+                <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 pt-6 pb-48">
+                  <button
+                    onClick={handleClose}
+                    className="fixed top-4 right-4 sm:top-6 sm:right-6 z-50 p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-sm"
+                  >
+                    <X className="w-4 h-4 text-white" />
+                  </button>
 
-                {/* <StatsSummary stats={packData?.stats!} /> */}
-                <ConsolidatedKOLGrid kols={packData?.consolidatedKols || []} />
+                  {/* <StatsSummary stats={packData?.stats!} /> */}
+                  <ConsolidatedKOLGrid kols={packData?.consolidatedKols || []} />
+                </div>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
     );
+    
+    return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : null;
   }
 
   if (!isOpen) return null;
 
-  return (
+  const selectionModal = (
     <AnimatePresence>
       {isOpen && (
         <motion.div
@@ -337,8 +380,8 @@ export function PackOpeningModal({ isOpen, onClose, userTP: initialTP }: PackOpe
             <X className="w-6 h-6 text-neutral-600" />
           </button>
 
-          <div className="min-h-screen flex items-start justify-center p-4 pt-20 pb-40">
-            <div className="w-full max-w-5xl my-8">
+          <div className="min-h-screen flex items-start justify-center p-4 pb-40">
+            <div className="w-full max-w-5xl my-6">
             {/* Header */}
             <div className="text-center mb-8 md:mb-12">
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-neutral-600 flex items-center justify-center gap-2">
@@ -378,7 +421,7 @@ export function PackOpeningModal({ isOpen, onClose, userTP: initialTP }: PackOpe
                       `}
                     >
                       {/* Pack Image Container */}
-                      <div className="relative aspect-[2/3] mb-4 md:mb-6">
+                      <div className="relative aspect-[2/2.52] mb-4 md:mb-6">
                         {/* Metallic Pack Wrapper Effect */}
                         <div className="absolute inset-0 bg-gradient-to-b from-neutral-300 via-neutral-200 to-neutral-300 rounded-lg overflow-hidden shadow-xl">
                           {/* Top Seal */}
@@ -416,9 +459,9 @@ export function PackOpeningModal({ isOpen, onClose, userTP: initialTP }: PackOpe
                         <h3 className={`text-xl font-medium ${isSelected ? 'text-black' : 'text-neutral-700'}`}>
                           {pack.name}
                         </h3>
-                        <p className="text-neutral-500 text-sm">
-                          {pack.shares}
-                        </p>
+                        {/* <p className="text-neutral-500 text-sm">
+                          // {pack.shares}
+                        </p> */}
                         
                         {/* Price Badge */}
                         <div className="flex items-center justify-center gap-2">
@@ -427,17 +470,6 @@ export function PackOpeningModal({ isOpen, onClose, userTP: initialTP }: PackOpe
                             <span className="font-semibold">{pack.price === 2000 ? '5k' : pack.price.toLocaleString()}</span>
                           </div>
                         </div>
-
-                        {/* Availability Status */}
-                        {canAfford ? (
-                          <p className="text-neutral-600 text-sm pt-2">
-                            {maxPacks} {maxPacks === 1 ? 'pack' : 'packs'} available
-                          </p>
-                        ) : (
-                          <p className="text-neutral-400 text-sm pt-2">
-                            Not enough TP
-                          </p>
-                        )}
                       </div>
                     </button>
                   </motion.div>
@@ -563,4 +595,6 @@ export function PackOpeningModal({ isOpen, onClose, userTP: initialTP }: PackOpe
       )}
     </AnimatePresence>
   );
+
+  return typeof document !== 'undefined' ? createPortal(selectionModal, document.body) : null;
 }

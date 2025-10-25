@@ -43,7 +43,7 @@ bunx prisma studio       # Open Prisma Studio GUI
 - **User**: Privy wallet address, pack holdings, tournament points
 - **Competition**: Active tournaments with start/end dates, status (ACTIVE/ENDED/FINALIZED), and TP (Tournament Points) pool
 - **CompetitionEntry**: User participation in competitions with scores (windowScore, tournamentPoints, leaderboardPoints)
-- **KolHolding**: User's KOL token holdings within a competition + daily score tracking
+- **DailyScoreSnapshot**: Lightweight daily aggregate score storage (ONE row per user per competition per day) - token holdings are fetched from on-chain, not stored
 - **Order**: Pack purchase transactions
 
 ### Rarity System
@@ -58,11 +58,11 @@ Pack generation uses weighted random selection to match these distribution targe
 
 ### Solana Program Integration
 
-Custom Anchor program (`pnlpackprogram`) at address `4nSNt5ed3cqPWRpwFf8SRvTfLyZvJRgUhwahc8jZQGG2` handles:
+Custom Anchor program (`pnlpackprogram`) at address `9GNSpxshtu8rA7cmHdvNVgGXh9WtxBrSC53k3FJ1jMnZ` handles:
 - Pack initialization with KOL token distributions
 - Claiming tokens from packs (4 KOLs per pack)
 - On-chain pack state management
-- Global pack pool PDA: `GrT2MFauW4JzY867xE61dMiMwETBfzbh9hzU6iLeq4iQ`
+- Global pack pool PDA: `4AjtpSua4zndvhs4y3zCxyLSvQm1SFpZqD5W76PEkmid`
 
 IDL is located at `src/lib/idl.ts`.
 
@@ -70,9 +70,8 @@ IDL is located at `src/lib/idl.ts`.
 
 - **Competition Routes** (`/api/competitions/*`):
   - `start`: Create new competition window
-  - `[id]/buyKOLToken`: Purchase KOL tokens during active competition
-  - `[id]/dailyUserScore`: Update daily scores (cron job)
-  - `[id]/finalize`: Close competition and calculate final standings
+  - `[id]/dailyUserScore`: Fetch on-chain token balances and calculate/store daily aggregate scores (cron job at 14:00 UTC)
+  - `[id]/finalize`: Close competition and calculate final standings from daily score snapshots
   - `[id]/leaderboard`: Get competition rankings
   - `[id]/results`: Fetch competition results
 

@@ -45,12 +45,13 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get user's current TP
+    // Get user's current TP and claimedPacks
     const user = await prisma.user.findUnique({
       where: { userPrivyWalletAddress: userWallet },
       select: {
         id: true,
-        totalTournamentPoints: true
+        totalTournamentPoints: true,
+        claimedPacks: true
       }
     });
 
@@ -81,22 +82,28 @@ export async function POST(request: Request) {
       );
     }
 
-    // Deduct TP from user
+    // Deduct TP from user AND increment claimedPacks count
+    // IMPORTANT: Handle NULL claimedPacks by ensuring it's initialized first
+    const currentClaimedPacks = user.claimedPacks || 0;
     const updatedUser = await prisma.user.update({
       where: { userPrivyWalletAddress: userWallet },
       data: {
         totalTournamentPoints: {
           decrement: totalCost
-        }
+        },
+        claimedPacks: currentClaimedPacks + numberOfPacks // ← Direct set instead of increment to handle NULL
       },
       select: {
-        totalTournamentPoints: true
+        totalTournamentPoints: true,
+        claimedPacks: true
       }
     });
 
     const newTP = parseFloat(updatedUser.totalTournamentPoints.toString());
+    const newClaimedPacks = updatedUser.claimedPacks || 0;
 
     console.log(`✅ Successfully deducted ${totalCost} TP from user. New balance: ${newTP}`);
+    console.log(`✅ Incremented claimedPacks by ${numberOfPacks}. New count: ${newClaimedPacks}`);
 
     return NextResponse.json({
       success: true,
@@ -107,7 +114,8 @@ export async function POST(request: Request) {
         totalCost,
         previousTP: currentTP,
         newTP,
-        deducted: totalCost
+        deducted: totalCost,
+        claimedPacks: newClaimedPacks
       }
     });
 

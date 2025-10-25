@@ -1,22 +1,64 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from "@/lib/prisma";
-import { meteoraClient } from '@/lib/meteoraPriceUtils';
 
+// Helper function to calculate average daily PnL based on period
+function calculateAvgDailyPnl(pnl: string, period: string): string {
+  const pnlValue = parseFloat(pnl);
+  if (isNaN(pnlValue)) return pnl;
 
+  let divisor = 1;
+  switch (period) {
+    case 'DAILY':
+      divisor = 1;
+      break;
+    case 'WEEKLY':
+      divisor = 7;
+      break;
+    case 'MONTHLY':
+      divisor = 30;
+      break;
+    default:
+      divisor = 1;
+  }
 
-// Cache for price data to avoid repeated API calls
-const priceDataCache = new Map<string, {
-  data: any;
-  timestamp: number;
-  ttl: number;
-}>();
+  const avgDailyPnl = pnlValue / divisor;
+  // Preserve the sign and format
+  const sign = avgDailyPnl >= 0 ? '+' : '';
+  return `${sign}${avgDailyPnl.toFixed(2)}`;
+}
 
-const PRICE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-const MAX_CONCURRENT_PRICE_REQUESTS = 5;
+// Helper function to sort traders by avgDailyPnl and reassign ranks
+function sortAndRerankByAvgDailyPnl(traders: any[]): any[] {
+  console.log(`🔄 [RANK] Re-ranking ${traders.length} traders by avgDailyPnl (was ranked by total PnL)`);
+  
+  // Log top 3 BEFORE re-ranking
+  const topBeforeRanking = traders
+    .slice()
+    .sort((a, b) => a.rank - b.rank)
+    .slice(0, 3);
+  console.log(`📊 [BEFORE] Top 3 by total PnL: ${topBeforeRanking.map(t => `#${t.rank} ${t.name} (${t.avgDailyPnl})`).join(', ')}`);
+  
+  // Sort by avgDailyPnl (descending - highest first)
+  const sorted = [...traders].sort((a, b) => {
+    const pnlA = parseFloat(a.avgDailyPnl || '0');
+    const pnlB = parseFloat(b.avgDailyPnl || '0');
+    return pnlB - pnlA; // Descending order
+  });
+
+  // Reassign ranks
+  const reranked = sorted.map((trader, index) => ({
+    ...trader,
+    rank: index + 1 // New rank based on avgDailyPnl
+  }));
+
+  console.log(`✅ [AFTER] Top 3 by avg daily PnL: ${reranked.slice(0, 3).map(t => `#${t.rank} ${t.name} (${t.avgDailyPnl})`).join(', ')}`);
+  
+  return reranked;
+}
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
-  console.log("🔵 [API] POST /getTopTraders called (optimized v2)");
+  console.log("🔵 [API] POST /getTopTraders called (OPTIMIZED - Single DB query with cached market data)");
 
   try {
     const contentType = request.headers.get('content-type') || '';
@@ -29,23 +71,22 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { 
-      period = 'daily', 
-      limit = 20, 
-      fetchAll = false,
-      includePriceData = true // Allow disabling price data fetching
+    const {
+      period = 'daily',
+      limit = 50, // Changed default from 20 to 50
+      fetchAll = false
     } = body;
 
-    console.log(`🔵 [API] Params: period=${period}, limit=${limit}, fetchAll=${fetchAll}, includePriceData=${includePriceData}`);
+    console.log(`🔵 [API] Params: period=${period}, limit=${limit}, fetchAll=${fetchAll}`);
 
     let response;
 
     if (fetchAll) {
       // Fetch all periods (for initial load or when explicitly requested)
       const [dailyData, weeklyData, monthlyData] = await Promise.all([
-        fetchTradersData('DAILY', limit, includePriceData),
-        fetchTradersData('WEEKLY', limit, includePriceData),
-        fetchTradersData('MONTHLY', limit, includePriceData)
+        fetchTradersData('DAILY', limit),
+        fetchTradersData('WEEKLY', limit),
+        fetchTradersData('MONTHLY', limit)
       ]);
 
       console.log(`🔵 [API] Fetched data - Daily: ${dailyData.traders.length}, Weekly: ${weeklyData.traders.length}, Monthly: ${monthlyData.traders.length}`);
@@ -104,7 +145,7 @@ export async function POST(request: NextRequest) {
     } else {
       // Fetch only the requested period
       const periodEnum = period.toUpperCase() as 'DAILY' | 'WEEKLY' | 'MONTHLY';
-      const selectedData = await fetchTradersData(periodEnum, limit, includePriceData);
+      const selectedData = await fetchTradersData(periodEnum, limit);
 
       if (!selectedData.traders || selectedData.traders.length === 0) {
         const hasAnyData = await prisma.trader.count({
@@ -162,31 +203,30 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const period = searchParams.get('period') || 'daily';
-  const limit = parseInt(searchParams.get('limit') || '20');
+  const limit = parseInt(searchParams.get('limit') || '50'); // Changed default from 20 to 50
   const fetchAll = searchParams.get('fetchAll') === 'true';
-  const includePriceData = searchParams.get('includePriceData') !== 'false';
 
   const mockRequest = new NextRequest(request.url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ period, limit, fetchAll, includePriceData })
+    body: JSON.stringify({ period, limit, fetchAll })
   });
 
   return POST(mockRequest);
 }
 
-// Optimized function with better caching and concurrency control
-async function fetchTradersData(period: 'DAILY' | 'WEEKLY' | 'MONTHLY', limit: number, includePriceData: boolean = true) {
+// Optimized function - Now uses cached market data from database (updated every 2 mins by cron)
+async function fetchTradersData(period: 'DAILY' | 'WEEKLY' | 'MONTHLY', limit: number) {
   try {
-    console.log(`🔍 [DB] Fetching ${period} traders with limit ${limit}, includePriceData: ${includePriceData}`);
+    console.log(`🔍 [DB] Fetching ${period} traders with limit ${limit} (using cached market data)`);
     const startTime = Date.now();
 
-    // Use a single transaction to fetch both metadata and traders
+    // Fetch both metadata and traders with ALL market data in a single query
     const [metadata, traders] = await Promise.all([
       prisma.scrapingMetadata.findFirst({
-        where: { 
+        where: {
           period: period,
-          isActive: true 
+          isActive: true
         },
         orderBy: { scrapedAt: 'desc' },
         select: {
@@ -208,7 +248,16 @@ async function fetchTradersData(period: 'DAILY' | 'WEEKLY' | 'MONTHLY', limit: n
           avatarUrl: true,
           xUrl: true,
           tokenMintAddress: true,
-          poolAddress: true
+          poolAddress: true,
+          // Include cached market data fields
+          tokenPrice: true,
+          priceChange24h: true,
+          priceChange24hPercent: true,
+          marketCap: true,
+          totalSupply: true,
+          volume24h: true,
+          liquidityUsd: true,
+          marketDataLastUpdated: true
         }
       })
     ]);
@@ -216,28 +265,30 @@ async function fetchTradersData(period: 'DAILY' | 'WEEKLY' | 'MONTHLY', limit: n
     const dbEndTime = Date.now();
     console.log(`✅ [DB] ${period} query completed in ${dbEndTime - startTime}ms, found ${traders.length} traders`);
 
-    if (!includePriceData) {
-      console.log(`⚠️ [PRICE] Skipping price data fetching for ${period}`);
-      return {
-        traders: traders.map(trader => ({
-          ...trader,
-          tokenPrice: undefined,
-          priceChange24h: undefined,
-          priceChange24hPercent: undefined
-        })),
-        totalTraders: metadata?.totalTraders || 0,
-        lastUpdated: metadata?.scrapedAt?.toISOString()
-      };
+    // Check if market data is stale (older than 5 minutes)
+    if (traders.length > 0 && traders[0].marketDataLastUpdated) {
+      const ageMinutes = (Date.now() - traders[0].marketDataLastUpdated.getTime()) / 1000 / 60;
+      if (ageMinutes > 5) {
+        console.warn(`⚠️ [MARKET DATA] Cache is ${ageMinutes.toFixed(1)} minutes old - consider running /api/updateMarketData`);
+      } else {
+        console.log(`✅ [MARKET DATA] Using fresh cache (${ageMinutes.toFixed(1)} minutes old)`);
+      }
     }
 
-    // Fetch price data with optimizations
-    const tradersWithPriceData = await enrichTradersWithPriceDataOptimized(traders, period);
+    // Calculate avgDailyPnl for each trader
+    const tradersWithAvgPnl = traders.map(trader => ({
+      ...trader,
+      avgDailyPnl: calculateAvgDailyPnl(trader.pnl, period)
+    }));
+
+    // Sort and re-rank by avgDailyPnl
+    const rerankedTraders = sortAndRerankByAvgDailyPnl(tradersWithAvgPnl);
 
     const totalEndTime = Date.now();
-    console.log(`✅ [TOTAL] ${period} processing completed in ${totalEndTime - startTime}ms`);
+    console.log(`✅ [TOTAL] ${period} processing completed in ${totalEndTime - startTime}ms (NO external API calls!)`);
 
     return {
-      traders: tradersWithPriceData,
+      traders: rerankedTraders,
       totalTraders: metadata?.totalTraders || 0,
       lastUpdated: metadata?.scrapedAt?.toISOString()
     };
@@ -251,126 +302,6 @@ async function fetchTradersData(period: 'DAILY' | 'WEEKLY' | 'MONTHLY', limit: n
   }
 }
 
-async function enrichTradersWithPriceDataOptimized(traders: any[], period: string) {
-  console.log(`💰 [PRICE] Enriching ${traders.length} traders with price data (optimized)`);
-  
-  const tradersWithPools = traders.filter(trader => trader.poolAddress);
-  
-  if (tradersWithPools.length === 0) {
-    console.log(`⚠️ [PRICE] No traders with pool addresses found`);
-    return traders.map(trader => ({
-      ...trader,
-      tokenPrice: undefined,
-      priceChange24h: undefined,
-      priceChange24hPercent: undefined
-    }));
-  }
-
-  try {
-    const now = Date.now();
-    const poolAddresses = [...new Set(tradersWithPools.map(trader => trader.poolAddress))]; // Remove duplicates
-    
-    console.log(`🔍 [PRICE] Fetching price data for ${poolAddresses.length} unique pools`);
-    
-    // Check cache first and separate cached vs uncached pools
-    const cachedPools = new Map();
-    const uncachedPools = [];
-    
-    for (const poolAddress of poolAddresses) {
-      const cacheKey = `${period}-${poolAddress}`;
-      const cached = priceDataCache.get(cacheKey);
-      
-      if (cached && (now - cached.timestamp) < cached.ttl) {
-        cachedPools.set(poolAddress, cached.data);
-        console.log(`📂 [CACHE] Using cached data for pool ${poolAddress}`);
-      } else {
-        uncachedPools.push(poolAddress);
-      }
-    }
-    
-    let priceDataMap = new Map(cachedPools);
-    
-    // Fetch uncached data with concurrency control
-    if (uncachedPools.length > 0) {
-      console.log(`🌐 [PRICE] Fetching fresh data for ${uncachedPools.length} uncached pools`);
-      
-      // Process in batches to avoid overwhelming the API
-      const batches = [];
-      for (let i = 0; i < uncachedPools.length; i += MAX_CONCURRENT_PRICE_REQUESTS) {
-        batches.push(uncachedPools.slice(i, i + MAX_CONCURRENT_PRICE_REQUESTS));
-      }
-      
-      for (const batch of batches) {
-        try {
-          const batchPriceData = await meteoraClient.batchGetTokenPriceData(batch);
-          
-          // Merge batch results and update cache
-          for (const [poolAddress, priceData] of batchPriceData.entries()) {
-            priceDataMap.set(poolAddress, priceData);
-            
-            // Update cache
-            const cacheKey = `${period}-${poolAddress}`;
-            priceDataCache.set(cacheKey, {
-              data: priceData,
-              timestamp: now,
-              ttl: PRICE_CACHE_TTL
-            });
-          }
-        } catch (batchError) {
-          console.error(`❌ [PRICE] Error fetching batch:`, batchError);
-        }
-      }
-    }
-    
-    console.log(`✅ [PRICE] Retrieved price data for ${priceDataMap.size} pools total`);
-
-    // Enrich traders with price data
-    return traders.map(trader => {
-      if (!trader.poolAddress) {
-        return {
-          ...trader,
-          tokenPrice: undefined,
-          priceChange24h: undefined,
-          priceChange24hPercent: undefined
-        };
-      }
-
-      const priceData = priceDataMap.get(trader.poolAddress);
-      
-      if (!priceData) {
-        return {
-          ...trader,
-          tokenPrice: undefined,
-          priceChange24h: undefined,
-          priceChange24hPercent: undefined
-        };
-      }
-
-      return {
-        ...trader,
-        tokenPrice: priceData.price.toFixed(6),
-        priceChange24h: priceData.priceChange24h.toFixed(6),
-        priceChange24hPercent: priceData.priceChange24hPercent
-      };
-    });
-  } catch (error) {
-    console.error(`❌ [PRICE] Error fetching price data:`, error);
-    // Return traders without price data on error
-    return traders.map(trader => ({
-      ...trader,
-      tokenPrice: undefined,
-      priceChange24h: undefined,
-      priceChange24hPercent: undefined
-    }));
-  }
-}
-
-// Cleanup function to remove expired cache entries
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, cached] of priceDataCache.entries()) {
-    if ((now - cached.timestamp) > cached.ttl) {
-      priceDataCache.delete(key);
-    }
-  }
-}, 10 * 60 * 1000); // Clean up every 10 minutes
+// NOTE: Price data enrichment is now handled by the background cron job at /api/cron/updateMarketData
+// This runs every 2 minutes and updates the Trader table with fresh market data
+// No need for runtime API calls or complex caching logic here!

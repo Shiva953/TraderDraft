@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useSolanaWallets } from "@privy-io/react-auth/solana"
 import { KOLInfiniteMovingCards } from "@/components/ui/kol-infinite-cards"
+import { FlipWords } from "@/components/ui/flip-words"
 
 interface KOLImageData {
   id: string;
@@ -17,7 +18,7 @@ export const MultiPackDisplay = ({ onOpenPack, packCount }: { onOpenPack: () => 
     useEffect(() => {
       const fetchKOLImages = async () => {
         try {
-          const response = await fetch('/api/getRandomKOLImages?count=50');
+          const response = await fetch('/api/kol/random-images?count=50');
           const data = await response.json();
           if (data.success) {
             setKolImages(data.data);
@@ -80,12 +81,32 @@ export const MultiPackDisplay = ({ onOpenPack, packCount }: { onOpenPack: () => 
 
         {/* Content */}
         <div className="relative z-10 text-center text-white space-y-8">
-          <div className="space-y-4">
-            {/* <h1 className="text-4xl md:text-5xl font-bold">Ready to Reveal?</h1> */}
-            {/* <p className="text-xl text-gray-300">
-              You're about to open {packCount} pack{packCount === 1 ? '' : 's'} simultaneously
-            </p> */}
-          </div>
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className="space-y-6"
+          >
+            <div className="text-3xl md:text-4xl font-bold tracking-tighter text-white">
+              <FlipWords
+                words={["Get Ready", "Packs Await", "Let's Go", "Time to Open"]}
+                duration={2500}
+                className="text-white font-bold tracking-tighter"
+              />
+            </div>
+            <motion.p
+              className="text-md md:text-xl text-neutral-100 font-light tracking-tight"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: [0.7, 1, 0.7] }}
+              transition={{
+                duration: 2.5,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+            >
+              {packCount} pack{packCount === 1 ? '' : 's'} ready to reveal
+            </motion.p>
+          </motion.div>
 
           <div className="flex justify-center gap-4">
             {[...Array(Math.min(packCount, 3))].map((_, i) => (
@@ -132,7 +153,7 @@ export const MultiPackDisplay = ({ onOpenPack, packCount }: { onOpenPack: () => 
     useEffect(() => {
       const fetchKOLImages = async () => {
         try {
-          const response = await fetch('/api/getRandomKOLImages?count=50');
+          const response = await fetch('/api/kol/random-images?count=50');
           const data = await response.json();
           if (data.success) {
             setKolImages(data.data);
@@ -194,7 +215,20 @@ export const MultiPackDisplay = ({ onOpenPack, packCount }: { onOpenPack: () => 
         <div className="absolute inset-0 z-[1] bg-black/40" />
 
         {/* Content */}
-        <div className="relative z-10 text-center text-white space-y-8">
+        <div className="relative z-10 text-center text-white space-y-12">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+            className="space-y-4"
+          >
+            <div className="text-4xl md:text-5xl font-bold tracking-tighter text-white">
+              Revealing...
+            </div>
+            <p className="text-md md:text-lg text-neutral-200 opacity-70 font-light tracking-tight max-w-md mx-auto">
+              Please don't refresh - we're revealing your pack. This can take up to a minute.
+            </p>
+          </motion.div>
 
           {/* Modern ripple/wave loading animation */}
           <div className="flex justify-center items-center h-24">

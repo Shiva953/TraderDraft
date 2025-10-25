@@ -8,24 +8,18 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
-interface KOLHolding {
-  holdingId: string;
-  traderId: string;
-  traderName: string;
-  traderTicker: string;
-  traderPnl: string;
-  tokenAmount: string;
+interface DailySnapshot {
+  snapshotDate: string;
   dailyScore: string;
-  lastScoreUpdate: string | null;
+  createdAt: string;
 }
 
 interface UserDailyScore {
   userId: number;
   userWallet: string;
-  totalDailyScore: number;
-  holdingsCount: number;
-  lastUpdated: string | null;
-  holdings: KOLHolding[];
+  totalScore: number;
+  snapshotsCount: number;
+  snapshots: DailySnapshot[];
 }
 
 interface DailyScore {
@@ -105,18 +99,19 @@ export function DailyScoresModal({ open, onOpenChange, competitionId }: DailySco
       if (data.success && data.userScores) {
         console.log(`📊 [DailyScores] Received ${data.userScores.length} user scores:`, data.userScores);
 
-        // Sort by total daily score descending
+        // Sort by total score descending
         const sortedScores = data.userScores.sort((a: UserDailyScore, b: UserDailyScore) =>
-          b.totalDailyScore - a.totalDailyScore
+          b.totalScore - a.totalScore
         );
         setUserScores(sortedScores);
 
         console.log(`📊 [DailyScores] Displaying ${sortedScores.length} sorted scores`);
 
-        // Find the most recent lastUpdated timestamp from all users
+        // Find the most recent snapshot timestamp from all users
         const mostRecentUpdate = sortedScores.reduce((latest: Date | null, score: UserDailyScore) => {
-          if (score.lastUpdated) {
-            const scoreDate = new Date(score.lastUpdated);
+          if (score.snapshots && score.snapshots.length > 0) {
+            const latestSnapshot = score.snapshots[0]; // Snapshots are sorted desc by date
+            const scoreDate = new Date(latestSnapshot.createdAt);
             return !latest || scoreDate > latest ? scoreDate : latest;
           }
           return latest;
@@ -208,7 +203,7 @@ export function DailyScoresModal({ open, onOpenChange, competitionId }: DailySco
                 <div className="text-center">rank</div>
                 <div className="truncate">wallet</div>
                 <div className="text-right">score</div>
-                <div className="text-right">holdings</div>
+                <div className="text-right">snapshots</div>
                 <div></div>
               </div>
 
@@ -246,17 +241,17 @@ export function DailyScoresModal({ open, onOpenChange, competitionId }: DailySco
                         </div>
 
                         <div className="text-right font-medium text-sm truncate">
-                          {userScore.lastUpdated ? (
-                            <span className="text-emerald-400">{userScore.totalDailyScore.toFixed(2)}</span>
+                          {userScore.snapshots && userScore.snapshots.length > 0 ? (
+                            <span className="text-emerald-400">{userScore.totalScore?.toFixed(2) || '0.00'}</span>
                           ) : (
                             <span className="text-gray-500" title="waiting for next snapshot">
-                              {userScore.totalDailyScore.toFixed(2)}
+                              {userScore.totalScore?.toFixed(2) || '0.00'}
                             </span>
                           )}
                         </div>
 
                         <div className="text-right text-gray-300 text-sm font-light">
-                          {userScore.holdingsCount}
+                          {userScore.snapshotsCount || 0}
                         </div>
 
                         <div className="flex justify-center">
@@ -270,25 +265,27 @@ export function DailyScoresModal({ open, onOpenChange, competitionId }: DailySco
 
                       {isExpanded && (
                         <div className="ml-8 mr-2 space-y-1.5">
-                          {userScore.holdings.map((holding) => (
-                            <div
-                              key={holding.holdingId}
-                              className="grid grid-cols-[minmax(120px,1fr)_100px_90px] gap-3 px-4 py-2.5 rounded-lg bg-gray-900/50 text-sm"
-                            >
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className="text-gray-200 truncate font-light">{holding.traderName}</span>
-                                <Badge variant="secondary" className="text-xs flex-shrink-0 font-light bg-gray-700/50">
-                                  {holding.traderTicker}
-                                </Badge>
+                          {userScore.snapshots && userScore.snapshots.length > 0 ? (
+                            userScore.snapshots.map((snapshot, idx) => (
+                              <div
+                                key={`${snapshot.snapshotDate}-${idx}`}
+                                className="grid grid-cols-[minmax(120px,1fr)_90px] gap-3 px-4 py-2.5 rounded-lg bg-gray-900/50 text-sm"
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="text-gray-400 text-xs truncate font-light">
+                                    {new Date(snapshot.snapshotDate).toLocaleDateString()}
+                                  </span>
+                                </div>
+                                <div className="text-right font-medium text-emerald-400 text-sm truncate">
+                                  {parseFloat(snapshot.dailyScore).toFixed(2)}
+                                </div>
                               </div>
-                              <div className="text-right text-gray-400 text-xs truncate font-light">
-                                {parseFloat(holding.tokenAmount).toFixed(2)} tokens
-                              </div>
-                              <div className="text-right font-medium text-emerald-400 text-sm truncate">
-                                {parseFloat(holding.dailyScore).toFixed(2)}
-                              </div>
+                            ))
+                          ) : (
+                            <div className="px-4 py-2 text-gray-500 text-xs text-center">
+                              No snapshots yet - waiting for daily snapshot
                             </div>
-                          ))}
+                          )}
                         </div>
                       )}
                     </div>

@@ -44,23 +44,25 @@ export const ConsolidatedKOLGrid = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState("")
 
-  // Filter KOLs based on search query
-  const filteredKols = kols.filter((kol) => {
-    if (!searchQuery) return true
-    const query = searchQuery.toLowerCase()
-    return (
-      kol.name?.toLowerCase().includes(query) ||
-      kol.ticker?.toLowerCase().includes(query)
-    )
-  })
+  // Filter KOLs based on search query and sort by rank (ascending)
+  const filteredKols = kols
+    .filter((kol) => {
+      if (!searchQuery) return true
+      const query = searchQuery.toLowerCase()
+      return (
+        kol.name?.toLowerCase().includes(query) ||
+        kol.ticker?.toLowerCase().includes(query)
+      )
+    })
+    .sort((a, b) => a.rank - b.rank) // Sort by rank: lowest rank number (highest rank) first
 
   return (
     <div className="w-full max-w-7xl mx-auto p-6">
       {/* Header with Title and Search */}
-      <div className="flex items-center justify-between mb-6 gap-4">
-        <h2 className="text-2xl md:text-3xl font-medium tracking-tight text-white">KOL Cards</h2>
+      <div className="flex items-center gap-4 mb-6 pr-16 sm:pr-20">
+        <h2 className="text-2xl md:text-3xl font-medium tracking-tight text-white flex-shrink-0">KOL Cards</h2>
 
-        <div className="relative w-full max-w-xs">
+        <div className="relative w-[320px] sm:w-[480px] flex-shrink-0 ml-auto">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
           <Input
             type="text"
@@ -102,7 +104,7 @@ export const ConsolidatedKOLGrid = ({
                       {/* Rarity & Occurrences */}
                       <div className="flex flex-col items-end gap-1">
                         <Badge variant="outline" className={`text-xs ${rarityConfig.badgeClass}`}>
-                          {rarityConfig.icon}
+                          {rarityConfig.label}
                         </Badge>
                         {kol.packOccurrences > 1 && (
                           <Badge variant="secondary" className="text-xs bg-purple-500/20 text-purple-400 border-purple-500/50">
@@ -119,7 +121,7 @@ export const ConsolidatedKOLGrid = ({
                       </h3>
                       <div className="flex items-center gap-1 text-neutral-400 text-xs mt-1">
                         <Trophy className="h-3 w-3" />
-                        <span>#{kol.rank}</span>
+                        <span>#{index + 1}</span>
                       </div>
                     </div>
 
@@ -130,7 +132,7 @@ export const ConsolidatedKOLGrid = ({
                         <span className="text-white font-medium">{kol.totalTokenAmountFormatted}</span>
                       </div>
                       <div className="flex justify-between items-center text-xs">
-                        <span className="text-neutral-500">PnL</span>
+                        <span className="text-neutral-500">Avg Daily PnL</span>
                         <span className={`font-medium ${kol.pnl.includes('+') ? 'text-emerald-400' : 'text-rose-400'}`}>
                           {kol.pnl}
                         </span>

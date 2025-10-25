@@ -326,48 +326,7 @@ export async function POST(
       );
     }
 
-    // Update or create KolHolding records with the current on-chain balances
-    const upsertPromises = scoreUpdates.map(async (update) => {
-      // Check if a holding record exists for this user/trader/competition combination
-      const existingHolding = await prisma.kolHolding.findFirst({
-        where: {
-          userId: update.userId,
-          traderId: update.traderId,
-          competitionId
-        }
-      });
-
-      if (existingHolding) {
-        // Update existing holding
-        return prisma.kolHolding.update({
-          where: { id: existingHolding.id },
-          data: {
-            tokenAmount: update.tokenAmount,
-            dailyScore: update.newDailyScore,
-            lastScoreUpdate: now,
-            purchasedAt: now // Update timestamp to reflect latest snapshot
-          }
-        });
-      } else {
-        // Create new holding record
-        return prisma.kolHolding.create({
-          data: {
-            userId: update.userId,
-            traderId: update.traderId,
-            competitionId,
-            tokenAmount: update.tokenAmount,
-            dailyScore: update.newDailyScore,
-            lastScoreUpdate: now,
-            purchasedAt: now,
-            purchasePrice: null,
-            transactionHash: null
-          }
-        });
-      }
-    });
-
-    await Promise.all(upsertPromises);
-
+    // Aggregate scores by user (sum all KOL scores for each user)
     const userSummaries = new Map<number, {
       userId: number;
       userWallet: string;
@@ -389,6 +348,34 @@ export async function POST(
       summary.totalDailyScore += update.newDailyScore;
       summary.holdingsCount += 1;
     }
+
+    // Normalize snapshot date to 14:00 UTC for consistent daily snapshots
+    const snapshotDate = new Date(now);
+    snapshotDate.setUTCHours(14, 0, 0, 0);
+
+    // Store ONE row per user per day with their total daily score
+    const snapshotPromises = Array.from(userSummaries.values()).map(summary => {
+      return prisma.dailyScoreSnapshot.upsert({
+        where: {
+          userId_competitionId_snapshotDate: {
+            userId: summary.userId,
+            competitionId,
+            snapshotDate
+          }
+        },
+        update: {
+          totalDailyScore: summary.totalDailyScore
+        },
+        create: {
+          userId: summary.userId,
+          competitionId,
+          snapshotDate,
+          totalDailyScore: summary.totalDailyScore
+        }
+      });
+    });
+
+    await Promise.all(snapshotPromises);
 
     console.debug(`[USER_SUMMARIES] User daily score summaries:`);
     for (const summary of userSummaries.values()) {
@@ -451,7 +438,7 @@ export async function GET(
         console.warn(`[GET_SCORES] User not found for wallet: ${userWallet}`);
         return NextResponse.json({
           success: true,
-          scores: [],
+          snapshots: [],
           message: 'User not found'
         });
       }
@@ -459,17 +446,9 @@ export async function GET(
       whereClause.userId = user.id;
     }
 
-    const holdings = await prisma.kolHolding.findMany({
+    const snapshots = await prisma.dailyScoreSnapshot.findMany({
       where: whereClause,
       include: {
-        trader: {
-          select: {
-            name: true,
-            ticker: true,
-            pnl: true,
-            avatarUrl: true
-          }
-        },
         user: {
           select: {
             userPrivyWalletAddress: true
@@ -478,53 +457,42 @@ export async function GET(
       },
       orderBy: [
         { userId: 'asc' },
-        { dailyScore: 'desc' }
+        { snapshotDate: 'desc' }
       ]
     });
 
-    console.debug(`[GET_SCORES] Fetched ${holdings.length} holdings for competitionId=${competitionId}${userWallet ? `, userWallet=${userWallet}` : ''}`);
+    console.debug(`[GET_SCORES] Fetched ${snapshots.length} daily snapshots for competitionId=${competitionId}${userWallet ? `, userWallet=${userWallet}` : ''}`);
 
     const userScores = new Map<number, {
       userId: number;
       userWallet: string;
-      totalDailyScore: number;
-      holdings: any[];
-      lastUpdated: Date | null;
+      snapshots: any[];
+      totalScore: number;
     }>();
 
-    for (const holding of holdings) {
-      if (!userScores.has(holding.userId)) {
-        userScores.set(holding.userId, {
-          userId: holding.userId,
-          userWallet: holding.user.userPrivyWalletAddress,
-          totalDailyScore: 0,
-          holdings: [],
-          lastUpdated: holding.lastScoreUpdate
+    for (const snapshot of snapshots) {
+      if (!userScores.has(snapshot.userId)) {
+        userScores.set(snapshot.userId, {
+          userId: snapshot.userId,
+          userWallet: snapshot.user.userPrivyWalletAddress,
+          snapshots: [],
+          totalScore: 0
         });
       }
 
-      const userScore = userScores.get(holding.userId)!;
-      userScore.totalDailyScore += parseFloat(holding.dailyScore.toString());
-      userScore.holdings.push({
-        holdingId: holding.id,
-        traderId: holding.traderId,
-        traderName: holding.trader.name,
-        traderTicker: holding.trader.ticker,
-        traderPnl: holding.trader.pnl,
-        tokenAmount: holding.tokenAmount.toString(),
-        dailyScore: holding.dailyScore.toString(),
-        lastScoreUpdate: holding.lastScoreUpdate?.toISOString()
+      const userScore = userScores.get(snapshot.userId)!;
+      userScore.totalScore += parseFloat(snapshot.totalDailyScore.toString());
+      userScore.snapshots.push({
+        snapshotDate: snapshot.snapshotDate.toISOString(),
+        dailyScore: snapshot.totalDailyScore.toString(),
+        createdAt: snapshot.createdAt.toISOString()
       });
-
-      if (holding.lastScoreUpdate && (!userScore.lastUpdated || holding.lastScoreUpdate > userScore.lastUpdated)) {
-        userScore.lastUpdated = holding.lastScoreUpdate;
-      }
     }
 
     console.debug(`[GET_SCORES] User scores summary:`);
     for (const score of userScores.values()) {
       console.debug(
-        `[GET_USER_SCORE] UserID=${score.userId} | Wallet=${score.userWallet} | TotalDailyScore=${score.totalDailyScore} | HoldingsCount=${score.holdings.length} | LastUpdated=${score.lastUpdated?.toISOString()}`
+        `[GET_USER_SCORE] UserID=${score.userId} | Wallet=${score.userWallet} | TotalScore=${score.totalScore} | SnapshotsCount=${score.snapshots.length}`
       );
     }
 
@@ -534,10 +502,9 @@ export async function GET(
       userScores: Array.from(userScores.values()).map(score => ({
         userId: score.userId,
         userWallet: score.userWallet,
-        totalDailyScore: score.totalDailyScore,
-        holdingsCount: score.holdings.length,
-        lastUpdated: score.lastUpdated?.toISOString(),
-        holdings: score.holdings
+        totalScore: score.totalScore,
+        snapshotsCount: score.snapshots.length,
+        snapshots: score.snapshots
       }))
     });
 

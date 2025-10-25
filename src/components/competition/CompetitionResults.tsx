@@ -39,13 +39,15 @@ interface CompetitionResultsProps {
   nextCompetitionStart?: Date | null;
   competitionStartDate?: Date;
   competitionEndDate?: Date;
+  onPackOpenSuccess?: () => void;
 }
 
 export function CompetitionResults({
   competitionId,
   nextCompetitionStart,
   competitionStartDate,
-  competitionEndDate
+  competitionEndDate,
+  onPackOpenSuccess
 }: CompetitionResultsProps) {
   const [results, setResults] = useState<CompetitionResult[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,13 +93,27 @@ export function CompetitionResults({
       if (data.success) {
         // Handle both 'results' (old) and 'leaderboard' (new) response formats
         const leaderboard = data.results || data.leaderboard || [];
-        setResults(leaderboard);
+        
+        // Sort by tournamentPoints descending at UI level as additional safeguard
+        const sortedLeaderboard = [...leaderboard].sort((a, b) => {
+          const aTP = parseFloat(a.tournamentPoints || '0');
+          const bTP = parseFloat(b.tournamentPoints || '0');
+          return bTP - aTP; // Highest TP first
+        });
+        
+        // Recalculate ranks based on sorted order
+        const rankedLeaderboard = sortedLeaderboard.map((entry, index) => ({
+          ...entry,
+          rank: index + 1
+        }));
+        
+        setResults(rankedLeaderboard);
 
         // If no participants, show empty state
-        if (leaderboard.length === 0) {
+        if (rankedLeaderboard.length === 0) {
           console.log('ℹ️ [CompetitionResults] No participants in this competition');
         } else {
-          console.log(`✅ [CompetitionResults] Loaded ${leaderboard.length} results`);
+          console.log(`✅ [CompetitionResults] Loaded ${rankedLeaderboard.length} results`);
         }
       } else {
         throw new Error('No results available');
@@ -191,32 +207,6 @@ export function CompetitionResults({
               </p>
             )}
 
-            {/* Action Buttons */}
-            <div className="flex flex-wrap gap-4 justify-center mt-6">
-              <Button
-                onClick={() => setShowRevealModal(true)}
-                size="lg"
-                className="bg-black hover:bg-black text-white font-semibold cursor-pointer px-8"
-              >
-                Reveal Winners
-              </Button>
-              <Button
-                onClick={() => setShowTPModal(true)}
-                size="lg"
-                className="bg-white text-black hover:bg-neutral-200 font-semibold cursor-pointer px-8"
-              >
-                View Your Points
-              </Button>
-              <Button
-                onClick={() => setShowPackModal(true)}
-                size="lg"
-                variant="outline"
-                className="border-white/40 text-white hover:bg-white/10 font-semibold cursor-pointer px-8"
-              >
-                Open Your Packs
-              </Button>
-            </div>
-
             {/* Next Competition Timer */}
             {timeUntilNext && (
               <p className="mt-6 text-lg text-neutral-300 font-mono tracking-wider">
@@ -255,7 +245,7 @@ export function CompetitionResults({
                       </p>
                     </div>
                     <div className="mt-1">
-                      <p className="text-xs text-neutral-500">Window Score</p>
+                      <p className="text-xs text-neutral-500">Score</p>
                       <p className="text-lg font-semibold text-white">
                         {parseFloat(result.windowScore).toFixed(2)}
                       </p>
@@ -265,43 +255,6 @@ export function CompetitionResults({
               );
             })}
           </div>
-
-          {/* Full Leaderboard */}
-          {results.length > 3 && (
-            <Card className="border-neutral-700 bg-neutral-800/50 p-6">
-              <h3 className="text-xl font-bold text-white mb-4">Full Leaderboard</h3>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                <div className="grid grid-cols-[60px_1fr_120px_120px] gap-4 px-4 pb-2 text-xs uppercase tracking-wider text-neutral-400 border-b border-neutral-700 sticky top-0 bg-neutral-800/50">
-                  <div>Rank</div>
-                  <div>Wallet</div>
-                  <div className="text-right">Window Score</div>
-                  <div className="text-right">TP Earned</div>
-                </div>
-                {results.map((result) => {
-                  const isUser = userWallet && result.userWallet.toLowerCase() === userWallet.toLowerCase();
-                  return (
-                    <div
-                      key={result.userId}
-                      className={`grid grid-cols-[60px_1fr_120px_120px] gap-4 items-center px-4 py-3 rounded-lg ${
-                        isUser ? 'bg-emerald-500/20 border border-emerald-500/50' : 'bg-neutral-900/50 hover:bg-neutral-900'
-                      } transition-colors`}
-                    >
-                      <div className="font-bold text-white">#{result.rank}</div>
-                      <div className="font-mono text-sm text-neutral-200">
-                        {result.userWallet.substring(0, 6)}...{result.userWallet.substring(result.userWallet.length - 4)}
-                      </div>
-                      <div className="text-right text-neutral-300">
-                        {parseFloat(result.windowScore).toFixed(2)}
-                      </div>
-                      <div className="text-right font-semibold text-emerald-400">
-                        +{parseFloat(result.tournamentPoints).toFixed(2)}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
-          )}
         </div>
 
         {/* Decorative gradient overlay */}
@@ -495,7 +448,7 @@ export function CompetitionResults({
                 </div>
                 <div className="grid grid-cols-2 gap-4 pt-4 border-t border-emerald-500/30">
                   <div>
-                    <p className="text-xs text-neutral-400">Window Score</p>
+                    <p className="text-xs text-neutral-400">Score</p>
                     <p className="text-lg font-semibold text-white">{parseFloat(userResult.windowScore).toFixed(2)}</p>
                   </div>
                   <div>
@@ -561,41 +514,6 @@ export function CompetitionResults({
                 <p className="text-neutral-400">No participants in this competition</p>
               </div>
             )}
-
-            {/* Full Leaderboard */}
-            {results.length > 3 && (
-              <div>
-                <h3 className="text-lg font-bold text-white mb-3">All Participants</h3>
-                <div className="border border-neutral-700 rounded-lg overflow-hidden">
-                  <div className="max-h-64 overflow-y-auto">
-                    <div className="grid grid-cols-[60px_1fr_100px] gap-4 px-4 py-2 text-xs uppercase tracking-wider text-neutral-400 border-b border-neutral-700 bg-neutral-800 sticky top-0">
-                      <div>Rank</div>
-                      <div>Wallet</div>
-                      <div className="text-right">TP</div>
-                    </div>
-                    {results.map((result) => {
-                      const isUser = userWallet && result.userWallet.toLowerCase() === userWallet.toLowerCase();
-                      return (
-                        <div
-                          key={result.userId}
-                          className={`grid grid-cols-[60px_1fr_100px] gap-4 items-center px-4 py-3 border-b border-neutral-800 ${
-                            isUser ? 'bg-emerald-500/20' : 'hover:bg-neutral-800/50'
-                          }`}
-                        >
-                          <div className="font-bold text-white">#{result.rank}</div>
-                          <div className="font-mono text-sm text-neutral-200 truncate">
-                            {result.userWallet.substring(0, 6)}...{result.userWallet.substring(result.userWallet.length - 4)}
-                          </div>
-                          <div className="text-right font-semibold text-emerald-400">
-                            {parseFloat(result.tournamentPoints).toFixed(2)}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </DialogContent>
       </Dialog>
@@ -605,6 +523,7 @@ export function CompetitionResults({
         isOpen={showPackModal}
         onClose={() => setShowPackModal(false)}
         userTP={userResult ? parseFloat(userResult.userTotalTP) : 0}
+        onPackOpenSuccess={onPackOpenSuccess}
       />
     </>
   );

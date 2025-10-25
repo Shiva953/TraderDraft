@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowDown, Users, ExternalLink, TrendingUp, TrendingDown } from "lucide-react";
-import { useSolanaWallets } from "@privy-io/react-auth";
+import { ArrowLeft, ArrowDown, ExternalLink, TrendingUp, TrendingDown } from "lucide-react";
+import { useSolanaWallets, usePrivy } from "@privy-io/react-auth";
+import { useRouter } from "next/navigation";
 import MeteoraSwapModal from "@/components/swap/MeteoraSwapModal";
 import { useActiveCompetition } from "@/app/hooks/useActiveCompetition";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -30,6 +31,12 @@ interface TraderData {
   tokenPrice?: string;
   priceChange24h?: string;
   priceChange24hPercent?: number;
+  liquidityUsd?: number;
+  marketCap?: number;
+  totalSupply?: number;
+  circulatingSupply?: number;
+  holdersCount?: number;
+  volume24h?: number;
 }
 
 interface KOLData {
@@ -60,11 +67,21 @@ export default function TraderPage({ params }: TraderPageProps) {
   const [activeCompetitionId, setActiveCompetitionId] = useState<string | null>(null);
   const [resolvedKolName, setResolvedKolName] = useState<string | null>(null);
   const {wallets} = useSolanaWallets()
+  const { authenticated, ready } = usePrivy();
+  const router = useRouter();
   // DISABLE competition hook on KOL page to prevent API clash with swap requests
   const { competition, isActive } = useActiveCompetition({ enabled: false });
 
   const embeddedWallet = wallets.find((w) => w.walletClientType === "privy");
   const userPrivyWalletAddress = embeddedWallet?.address;
+
+  // Redirect to home if not authenticated
+  useEffect(() => {
+    if (ready && !authenticated) {
+      console.log('🔒 [KOLPage] User not authenticated, redirecting to home');
+      router.push('/');
+    }
+  }, [authenticated, ready, router]);
 
   // Resolve params once on mount (Next.js 15 async params fix)
   useEffect(() => {
@@ -112,7 +129,7 @@ export default function TraderPage({ params }: TraderPageProps) {
 
         console.log(`🔄 [KOLPage] Fetching all data (attempt ${retryCount + 1}/${MAX_RETRIES + 1})`);
 
-        const response = await fetch('/api/getKOLPageData', {
+        const response = await fetch('/api/kol/page-data', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -187,12 +204,36 @@ export default function TraderPage({ params }: TraderPageProps) {
     setIsSwapModalOpen(true);
   };
 
-  const handleSwapSuccess = () => {
-    console.log("✅ Swap successful - user can manually refresh the page to see updated shares");
-    // Don't refresh automatically to avoid request clashes
+  const handleSwapSuccess = async () => {
+    console.log("✅ Swap successful - refreshing KOL page data");
+    
+    // Refetch the user shares after swap
+    if (!resolvedKolName || !userPrivyWalletAddress) return;
+    
+    try {
+      const response = await fetch('/api/kol/page-data', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          kolTicker: resolvedKolName,
+          userWalletAddress: userPrivyWalletAddress
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUserShares(data.data.userShares);
+        console.log("✅ User shares updated after swap");
+      }
+    } catch (err) {
+      console.error("Failed to refresh shares after swap:", err);
+    }
   };
 
-  if (loading) {
+  // Show loading while checking authentication or while data is loading
+  if (!ready || loading) {
     return (
       <main className="min-h-screen bg-background">
         <div className="container mx-auto p-6 md:p-8 max-w-7xl">
@@ -285,7 +326,7 @@ export default function TraderPage({ params }: TraderPageProps) {
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {currentData.tokenPrice ? '24h change' : 'Price data unavailable'}
+                    {/* {currentData.tokenPrice ? '24h change' : 'Price data unavailable'} */}
                   </p>
                 </div>
               </CardContent>
@@ -314,78 +355,137 @@ export default function TraderPage({ params }: TraderPageProps) {
           </div>
 
           {/* Right Panel - Profile & Stats */}
-          <div className="space-y-6">
-            {/* Profile Card */}
-            <Card className="overflow-hidden">
-              <CardContent className="p-0">
-                <div className="relative aspect-square bg-gradient-to-br from-primary/10 to-accent/10">
-                  <Avatar className="w-full h-full rounded-none">
-                    <AvatarImage
-                      src={currentData.avatarUrl}
-                      alt={currentData.name}
-                      className="object-cover"
-                    />
-                    <AvatarFallback className="rounded-none text-6xl">
-                      {currentData.name.charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
-
-                  {/* PnL Badge Overlay */}
-                  <div className="absolute top-4 right-4">
-                    <Card className="shadow-lg">
-                      <CardContent className="p-3">
-                        <p className="text-xs text-muted-foreground mb-1">PnL</p>
-                        <p className={`text-lg font-bold ${isProfitable ? 'text-success' : 'text-destructive'}`}>
-                          {currentData.pnl.toUpperCase()}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
-              </CardContent>
+          <div className="space-y-6 w-full">
+            {/* Profile Card - Fixed Height */}
+            <Card className="overflow-hidden h-[400px] w-full p-0" style={{ border: '4px solid #E0D29C' }}>
+              <div className="relative h-full bg-gradient-to-br from-primary/10 to-accent/10">
+                <Avatar className="w-full h-full rounded-none">
+                  <AvatarImage
+                    src={currentData.avatarUrl}
+                    alt={currentData.name}
+                    className="object-cover w-full h-full"
+                  />
+                  <AvatarFallback className="rounded-none text-6xl">
+                    {currentData.name.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+              </div>
             </Card>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-2 gap-4">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardDescription>Win Rate</CardDescription>
-                  <CardTitle className="text-3xl">
-                    {currentData.winRate?.toFixed(1)}%
-                  </CardTitle>
-                </CardHeader>
+            {/* Stats Grid - Individual Cards */}
+            <div className="grid grid-cols-3 gap-2 w-full">
+              {/* PnL */}
+              <Card className="bg-neutral-900/80 border-neutral-800">
+                <CardContent className="px-2 py-0">
+                  <p className="text-xs text-muted-foreground mb-0 pl-0.5">Total PnL</p>
+                  <p className={`text-2xl font-bold leading-tight pl-0.5 ${isProfitable ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                    {currentData.pnl.toUpperCase()}
+                  </p>
+                </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardDescription className="flex items-center gap-1.5">
-                    <Users className="h-3.5 w-3.5" />
-                    Supply
-                  </CardDescription>
-                  <CardTitle className="text-lg">
-                    <span className="text-3xl font-bold">599.8k</span>
-                    <span className="text-sm text-muted-foreground ml-1">/1B</span>
-                  </CardTitle>
-                </CardHeader>
+              {/* Liquidity */}
+              <Card className="bg-neutral-900/80 border-neutral-800">
+                <CardContent className="px-2 py-0">
+                  <p className="text-xs text-muted-foreground mb-0 pl-0.5">Liquidity</p>
+                  <p className="text-2xl font-bold leading-tight pl-0.5">
+                    {currentData.liquidityUsd !== undefined
+                      ? `$${(currentData.liquidityUsd / 1000).toFixed(2)}K`
+                      : '—'}
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Market Cap */}
+              <Card className="bg-neutral-900/80 border-neutral-800">
+                <CardContent className="px-2 py-0">
+                  <p className="text-xs text-muted-foreground mb-0 pl-0.5">Market Cap</p>
+                  <p className="text-2xl font-bold leading-tight pl-0.5">
+                    {currentData.marketCap !== undefined
+                      ? `$${(currentData.marketCap / 1000).toFixed(2)}K`
+                      : '—'}
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Total Supply */}
+              <Card className="bg-neutral-900/80 border-neutral-800">
+                <CardContent className="px-2 py-0">
+                  <p className="text-xs text-muted-foreground mb-0 pl-0.5">Total Supply</p>
+                  <p className="text-2xl font-bold leading-tight pl-0.5">
+                    {currentData.totalSupply !== undefined
+                      ? currentData.totalSupply >= 1000000000
+                        ? `${(currentData.totalSupply / 1000000000).toFixed(2)}B`
+                        : `${(currentData.totalSupply / 1000000).toFixed(2)}M`
+                      : '—'}
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Circ. Supply */}
+              <Card className="bg-neutral-900/80 border-neutral-800">
+                <CardContent className="px-2 py-0">
+                  <p className="text-xs text-muted-foreground mb-0 pl-0.5">Circ. Supply</p>
+                  <p className="text-2xl font-bold leading-tight pl-0.5">
+                    {currentData.circulatingSupply !== undefined
+                      ? `${(currentData.circulatingSupply / 1000000).toFixed(2)}M`
+                      : '—'}
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* % Circ. Supply */}
+              <Card className="bg-neutral-900/80 border-neutral-800">
+                <CardContent className="px-2 py-0">
+                  <p className="text-xs text-muted-foreground mb-0 pl-0.5">% Circ. Supply</p>
+                  <p className="text-2xl font-bold leading-tight pl-0.5">
+                    {currentData.totalSupply !== undefined && currentData.circulatingSupply !== undefined
+                      ? `${((currentData.circulatingSupply / currentData.totalSupply) * 100).toFixed(2)}%`
+                      : '—'}
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Holders */}
+              <Card className="bg-neutral-900/80 border-neutral-800">
+                <CardContent className="px-2 py-0">
+                  <p className="text-xs text-muted-foreground mb-0 pl-0.5">Holders</p>
+                  <p className="text-2xl font-bold leading-tight pl-0.5">
+                    {currentData.holdersCount !== undefined
+                      ? currentData.holdersCount >= 1000
+                        ? `${(currentData.holdersCount / 1000).toFixed(2)}k`
+                        : currentData.holdersCount.toString()
+                      : '—'}
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Win Rate */}
+              <Card className="bg-neutral-900/80 border-neutral-800">
+                <CardContent className="px-2 py-0">
+                  <p className="text-xs text-muted-foreground mb-0 pl-0.5">Win Rate</p>
+                  <p className="text-2xl font-bold leading-tight pl-0.5">
+                    {currentData.winRate !== undefined
+                      ? `${currentData.winRate.toFixed(1)}%`
+                      : '—'}
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Shares */}
+              <Card className="bg-neutral-900/80 border-neutral-800">
+                <CardContent className="px-2 py-0">
+                  <p className="text-xs text-muted-foreground mb-0 pl-0.5">Shares</p>
+                  <p className="text-2xl font-bold leading-tight pl-0.5">
+                    {userShares !== "0"
+                      ? parseFloat(userShares) >= 1000
+                        ? `${(parseFloat(userShares) / 1000).toFixed(2)}k`
+                        : parseFloat(userShares).toFixed(2)
+                      : '—'}
+                  </p>
+                </CardContent>
               </Card>
             </div>
-
-            {/* Your Shares Card */}
-            <Card className="border-primary/20 bg-card/50 backdrop-blur">
-              <CardHeader>
-                <CardDescription>Your Shares</CardDescription>
-                <CardTitle className="flex items-center gap-2 text-3xl">
-                  <Users className="h-6 w-6 text-muted-foreground" />
-                  {userShares}
-                  {userShares !== "0" && (
-                    <span className="text-sm font-normal text-success ml-1">tokens</span>
-                  )}
-                </CardTitle>
-                {userShares === "0" && (
-                  <CardDescription className="text-xs">No holdings found</CardDescription>
-                )}
-              </CardHeader>
-            </Card>
           </div>
         </div>
       </div>

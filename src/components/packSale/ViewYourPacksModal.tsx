@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Package, RefreshCw } from 'lucide-react';
 import { useUserPacks } from '@/app/hooks/useUserPacks';
@@ -13,37 +13,60 @@ import ViewOrdersModal from './ViewOrdersModal';
 interface ViewYourPacksModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onPacksChanged?: () => void; // Callback when packs are opened/changed
 }
 
-export default function ViewYourPacksModal({ isOpen, onClose }: ViewYourPacksModalProps) {
+export default function ViewYourPacksModal({ isOpen, onClose, onPacksChanged }: ViewYourPacksModalProps) {
   const [showOrdersModal, setShowOrdersModal] = useState(false);
   const { data: userPacks, loading, error, refresh, isConnected } = useUserPacks();
+  const scrollableRef = useRef<HTMLDivElement>(null);
+  const modalContentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
+      // Focus the modal content to enable immediate scrolling
+      const focusTimeout = setTimeout(() => {
+        if (scrollableRef.current) {
+          scrollableRef.current.focus();
+        } else if (modalContentRef.current) {
+          modalContentRef.current.focus();
+        }
+      }, 50);
+      
+      return () => {
+        clearTimeout(focusTimeout);
+        document.body.style.overflow = 'unset';
+      };
     } else {
       document.body.style.overflow = 'unset';
     }
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
   }, [isOpen]);
 
   if (!isOpen) return null;
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
-      onClose();
+      handleClose();
     }
+  };
+
+  const handleClose = () => {
+    // Notify parent that packs may have changed when closing
+    onPacksChanged?.();
+    onClose();
   };
 
   const modalContent = (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm"
       onClick={handleBackdropClick}
     >
-      <div className="relative w-full max-w-2xl max-h-[80vh] bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl overflow-hidden">
+      <div 
+        ref={modalContentRef}
+        className="relative w-full max-w-2xl max-h-[80vh] bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-neutral-800">
           <div className="flex items-center gap-3">
@@ -51,7 +74,7 @@ export default function ViewYourPacksModal({ isOpen, onClose }: ViewYourPacksMod
             <h2 className="text-2xl font-semibold text-white">Your Packs</h2>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="p-2 rounded-lg hover:bg-neutral-800 transition-colors duration-200"
           >
             <X className="h-5 w-5 text-neutral-400" />
@@ -59,7 +82,11 @@ export default function ViewYourPacksModal({ isOpen, onClose }: ViewYourPacksMod
         </div>
 
         {/* Content */}
-        <div className="overflow-y-auto max-h-[calc(80vh-140px)] p-6">
+        <div 
+          ref={scrollableRef}
+          tabIndex={0}
+          className="overflow-y-auto max-h-[calc(80vh-140px)] p-6 focus:outline-none"
+        >
           {!isConnected ? (
             <div className="flex items-center justify-center py-12">
               <p className="text-neutral-400">Please connect your wallet</p>

@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
+import { createPortal } from "react-dom"
 import { useOrders } from "@/app/hooks/useOrders"
 
 interface ViewOrdersModalProps {
@@ -10,10 +11,28 @@ interface ViewOrdersModalProps {
 
 export default function ViewOrdersModal({ isOpen, onClose }: ViewOrdersModalProps) {
   const { orders, loading, error, fetchOrders, totalPacks, totalValue } = useOrders()
+  const scrollableRef = useRef<HTMLDivElement>(null)
+  const modalContentRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (isOpen) {
       fetchOrders()
+      document.body.style.overflow = 'hidden'
+      // Focus the modal content to enable immediate scrolling
+      const focusTimeout = setTimeout(() => {
+        if (scrollableRef.current) {
+          scrollableRef.current.focus()
+        } else if (modalContentRef.current) {
+          modalContentRef.current.focus()
+        }
+      }, 50)
+      
+      return () => {
+        clearTimeout(focusTimeout)
+        document.body.style.overflow = 'unset'
+      }
+    } else {
+      document.body.style.overflow = 'unset'
     }
   }, [isOpen, fetchOrders])
 
@@ -28,13 +47,24 @@ export default function ViewOrdersModal({ isOpen, onClose }: ViewOrdersModalProp
     })
   }
 
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      onClose()
+    }
+  }
+
   if (!isOpen) return null
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/70" onClick={onClose} />
-
-      <div className="relative w-full max-w-3xl rounded-2xl bg-gray-200 p-6 shadow-2xl font-mono">
+  const modalContent = (
+    <div 
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+      onClick={handleBackdropClick}
+    >
+      <div 
+        ref={modalContentRef}
+        className="relative w-full max-w-3xl rounded-2xl bg-gray-200 p-6 shadow-2xl font-mono"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="mb-6 text-center">
           <h2 className="text-xl font-light text-gray-600 tracking-tight">Your Orders</h2>
           {!loading && orders.length > 0 && (
@@ -88,7 +118,11 @@ export default function ViewOrdersModal({ isOpen, onClose }: ViewOrdersModalProp
         ) : (
           <>
             {/* Scrollable orders container */}
-            <div className="max-h-96 overflow-y-auto space-y-4 pr-2">
+            <div 
+              ref={scrollableRef}
+              tabIndex={0}
+              className="max-h-96 overflow-y-auto space-y-4 pr-2 focus:outline-none"
+            >
               {orders.map((order) => {
                 const orderDate = new Date(order.createdAt)
                 const timeString = orderDate.toLocaleTimeString("en-US", {
@@ -161,4 +195,6 @@ export default function ViewOrdersModal({ isOpen, onClose }: ViewOrdersModalProp
       </div>
     </div>
   )
+
+  return createPortal(modalContent, document.body)
 }

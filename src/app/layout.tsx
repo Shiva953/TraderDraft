@@ -5,6 +5,7 @@ import { Toaster } from "sonner";
 import {PrivyProvider} from '@privy-io/react-auth';
 import { Geist, Geist_Mono, Roboto_Mono } from "next/font/google";
 import { ClientLayout } from "@/components/layout/ClientLayout";
+import { ChunkErrorBoundary } from "@/components/ChunkErrorBoundary";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -37,27 +38,30 @@ export default function RootLayout({
   return (
     <html lang="en" http-equiv="Content-Security-Policy">
       <body
-        className={`${geistSans.className} ${geistMono.variable} ${robotoMono.variable} bg-neutral-950`}
+        className={`${geistSans.className} ${geistMono.variable} ${robotoMono.variable}`}
+        style={{ backgroundColor: '#0F0F0F' }}
       >
-        <Providers appId={appId}>
-        {/* <CronInitializer /> */}
-        <ClientLayout>
-          {children}
-        </ClientLayout>
-        <Toaster
-            position="top-right"
-            expand={true}
-            richColors
-            theme="dark"
-            toastOptions={{
-              style: {
-                background: 'rgb(23 23 23)',
-                border: '1px solid rgb(64 64 64)',
-                color: 'white',
-              },
-            }}
-          />
-        </Providers>
+        <ChunkErrorBoundary>
+          <Providers appId={appId}>
+          {/* <CronInitializer /> */}
+          <ClientLayout>
+            {children}
+          </ClientLayout>
+          <Toaster
+              position="top-right"
+              expand={true}
+              richColors
+              theme="dark"
+              toastOptions={{
+                style: {
+                  background: 'rgb(23 23 23)',
+                  border: '1px solid rgb(64 64 64)',
+                  color: 'white',
+                },
+              }}
+            />
+          </Providers>
+        </ChunkErrorBoundary>
       </body>
     </html>
   );

@@ -62,6 +62,7 @@ export interface LeaderboardEntry {
   xUrl?: string;
   traderUrl?: string;
   pnl: string;
+  avgDailyPnl?: string;
   winRate: string;
   walletAddress?: string;
   tokenPrice?: string;
@@ -69,6 +70,8 @@ export interface LeaderboardEntry {
   priceChange24hPercent?: number;
   poolAddress?: string;
   tokenMintAddress?: string;
+  marketCap?: number;
+  totalSupply?: number;
 }
 
 /**
@@ -80,6 +83,7 @@ export interface TraderApiData {
   ticker?: string;
   address: string;
   pnl: string;
+  avgDailyPnl?: string;
   winRate: string;
   avatarUrl?: string;
   xUrl?: string;
@@ -88,6 +92,8 @@ export interface TraderApiData {
   tokenPrice?: string;
   priceChange24h?: string;
   priceChange24hPercent?: number;
+  marketCap?: number;
+  totalSupply?: number;
 }
 
 /**

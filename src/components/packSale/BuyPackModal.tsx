@@ -159,7 +159,7 @@ export default function BuyPackModal({ isOpen, onClose, onPurchaseComplete }: Bu
                   Your packs will be revealed on
                 </p>
                 <Badge variant="outline" className="text-base px-3 py-1 border-neutral-700 text-white">
-                  20th Sep 2025
+                  20th November, 2025
                 </Badge>
               </div>
 

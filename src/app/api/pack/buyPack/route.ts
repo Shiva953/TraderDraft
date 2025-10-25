@@ -88,7 +88,7 @@ export async function POST(request: Request) {
     }
 
     // Use hardcoded global pack pool address
-    const globalPackPool = new PublicKey("GrT2MFauW4JzY867xE61dMiMwETBfzbh9hzU6iLeq4iQ");
+    const globalPackPool = new PublicKey("4AjtpSua4zndvhs4y3zCxyLSvQm1SFpZqD5W76PEkmid");
     console.log(`${debugPrefix} 🟡 globalPackPool PDA: ${globalPackPool.toBase58()}`);
     
     // Calculate amounts

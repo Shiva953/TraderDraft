@@ -2,26 +2,38 @@
 
 import { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
 import { useLogin, useLogout } from '@privy-io/react-auth';
 import UserProfilePicture from '@/components/profile/UserProfilePicture';
-import { PackOpeningModal } from '@/components/competition/PackOpeningModal';
+import { KOLSearchDialog } from '@/components/search/KOLSearchDialog';
 import { useWallet } from '@/app/hooks/useWallet';
 import { useUserPacks } from '@/app/hooks/useUserPacks';
 import { useUserData } from '@/app/hooks/useUserData';
-import { Home, Trophy } from 'lucide-react';
+import { Home, Trophy, Package, Briefcase, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { Inter } from 'next/font/google';
+import { Button } from '@/components/ui/button';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarHeader,
+  useSidebar,
+} from '@/components/ui/sidebar';
 
-export function Navigation() {
-  const [showPackOpeningModal, setShowPackOpeningModal] = useState(false);
-  const [userTP, setUserTP] = useState(0);
-  const pathname = usePathname();
-  const router = useRouter();
+const inter = Inter({ subsets: ['latin'] });
+
+// Header component for top bar with trigger and user profile
+export function NavigationHeader() {
   const { logout } = useLogout();
+  const { state, toggleSidebar } = useSidebar();
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const {
     address: walletAddress,
     fullAddress: fullWalletAddress,
-    isLoading: isWalletLoading,
     isConnected: authenticated
   } = useWallet();
 
@@ -30,103 +42,167 @@ export function Navigation() {
   } = useUserPacks();
 
   const {
-    packs: userPacks,
     tokenHoldings,
     tokenHoldingsCount,
     loading: userDataLoading,
     error: userDataError,
+    refreshUserData,
   } = useUserData(authenticated);
 
-  // Fetch user TP when wallet is connected
-  useEffect(() => {
-    if (fullWalletAddress) {
-      fetchUserTP();
-    }
-  }, [fullWalletAddress]);
-
-  const fetchUserTP = async () => {
-    if (!fullWalletAddress) return;
-    try {
-      const response = await fetch(`/api/getUserTotalTP?userWallet=${encodeURIComponent(fullWalletAddress)}`);
-      if (response.ok) {
-        const data = await response.json();
-        setUserTP(data.totalTP || 0);
-      }
-    } catch (err) {
-      console.error('Error fetching total TP:', err);
-    }
-  };
-
-  // Don't show navigation if not authenticated
   if (!authenticated) {
     return null;
   }
 
   return (
     <>
-      <nav className="border-b border-neutral-800 bg-black/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="mx-auto max-w-7xl px-4 py-3">
-          <div className="flex items-center justify-between">
-            {/* Left side - Action buttons */}
-            <div className="flex items-center gap-3">
-              <Button
-                onClick={() => setShowPackOpeningModal(true)}
-                className="bg-white text-black font-semibold hover:bg-neutral-200 cursor-pointer"
-              >
-                Buy Packs With TP
-              </Button>
-              <Button
-                onClick={() => setShowPackOpeningModal(true)}
-                variant="outline"
-                className="border-neutral-700 hover:bg-neutral-800 text-white font-semibold cursor-pointer"
-              >
-                Open Your Packs
-              </Button>
-            </div>
+      <header className="bg-[#0F0F0F] backdrop-blur-sm sticky top-0 w-full z-50 border-b border-neutral-800">
+        <div className="flex items-center justify-between w-full px-4 h-16">
+          {/* Left spacer to balance layout when sidebar is collapsed */}
+          <div className="flex-shrink-0" style={{ width: state === 'collapsed' ? '0' : '0' }}></div>
 
-            {/* Center - Navigation Links */}
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={() => router.push('/')}
-                variant="ghost"
-                className={`gap-2 ${pathname === '/' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white hover:bg-neutral-900'}`}
-              >
-                <Home className="h-4 w-4" />
-                Home
-              </Button>
-              <Button
-                onClick={() => router.push('/leaderboard')}
-                variant="ghost"
-                className={`cursor-pointer gap-2 ${pathname === '/leaderboard' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white hover:bg-neutral-900'}`}
-              >
-                <Trophy className="h-4 w-4" />
-                Leaderboard
-              </Button>
-            </div>
+          {/* Center - Search button */}
+          <div className="flex-1 flex justify-center px-4">
+            <Button
+              onClick={() => setIsSearchOpen(true)}
+              variant="outline"
+              className="max-w-md w-full bg-neutral-900 border-neutral-700 text-neutral-400 hover:bg-neutral-800 hover:border-neutral-600 hover:text-white transition-all cursor-pointer h-11 justify-start text-left font-normal"
+            >
+              <Search className="h-4 w-4 mr-2 shrink-0" />
+              <span className="hidden sm:inline">Search KOLs</span>
+              <span className="sm:hidden">Search...</span>
+              <kbd className="ml-auto hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border border-neutral-700 bg-neutral-950 px-1.5 font-mono text-[10px] font-medium text-neutral-400">
+                <span className="text-xs">⌘</span>K
+              </kbd>
+            </Button>
+          </div>
 
-            {/* Right side - User profile */}
-            <div className="flex items-center gap-3">
-              <UserProfilePicture
-                walletAddress={walletAddress}
-                userPrivyWalletAddress={fullWalletAddress}
-                userPacks={userPacksData}
-                tokenHoldings={tokenHoldings}
-                tokenHoldingsCount={tokenHoldingsCount}
-                userDataLoading={userDataLoading}
-                userDataError={userDataError}
-                onLogout={logout}
-              />
-            </div>
+          {/* Right side - User profile */}
+          <div className="flex-shrink-0">
+            <UserProfilePicture
+              walletAddress={walletAddress}
+              userPrivyWalletAddress={fullWalletAddress}
+              userPacks={userPacksData}
+              tokenHoldings={tokenHoldings}
+              tokenHoldingsCount={tokenHoldingsCount}
+              userDataLoading={userDataLoading}
+              userDataError={userDataError}
+              onLogout={logout}
+              onRefreshData={refreshUserData}
+            />
           </div>
         </div>
-      </nav>
+      </header>
 
-      {/* Pack Opening Modal */}
-      <PackOpeningModal
-        isOpen={showPackOpeningModal}
-        onClose={() => setShowPackOpeningModal(false)}
-        userTP={userTP}
+      {/* Search Dialog */}
+      <KOLSearchDialog
+        open={isSearchOpen}
+        onOpenChange={setIsSearchOpen}
       />
+    </>
+  );
+}
+
+// Navigation sidebar component
+export function Navigation() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { state, toggleSidebar } = useSidebar();
+
+  const {
+    isConnected: authenticated
+  } = useWallet();
+
+  // Don't show navigation if not authenticated
+  if (!authenticated) {
+    return null;
+  }
+
+  const menuItems = [
+    {
+      title: 'Home',
+      icon: Home,
+      onClick: () => router.push('/'),
+      isActive: pathname === '/',
+    },
+    {
+      title: 'Leaderboard',
+      icon: Trophy,
+      onClick: () => router.push('/leaderboard'),
+      isActive: pathname === '/leaderboard',
+    },
+    {
+      title: 'Open Packs',
+      icon: Package,
+      onClick: () => router.push('/packs'),
+      isActive: pathname === '/packs',
+    },
+    {
+      title: 'Portfolio',
+      icon: Briefcase,
+      onClick: () => router.push('/portfolio'),
+      isActive: pathname === '/portfolio',
+    },
+  ];
+
+  return (
+    <>
+      {/* Sidebar */}
+      <Sidebar 
+        collapsible="icon" 
+        className="z-100 border-r border-neutral-800 [&_[data-sidebar=sidebar-inner]]:bg-[#0F0F0F]"
+        style={{ '--sidebar-width-icon': '4.5rem' } as React.CSSProperties}
+      >
+        <SidebarHeader className="cursor-pointer bg-[#0F0F0F] border-b border-neutral-800 relative h-16 p-0">
+          <button
+            onClick={toggleSidebar}
+            className="absolute -right-4 top-1/2 -translate-y-1/2 bg-[#0F0F0F] text-white border border-1 border-opacity-50 border-white hover:bg-neutral-800 cursor-pointer p-2 rounded-md transition-colors flex items-center justify-center"
+            aria-label="Toggle sidebar"
+          >
+            {state === 'expanded' ? (
+              <ChevronLeft className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+          </button>
+        </SidebarHeader>
+        
+        <SidebarContent className="bg-[#0F0F0F]">
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu className="gap-[2px] py-6 px-2">
+                {menuItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      onClick={item.onClick}
+                      isActive={item.isActive}
+                      size="lg"
+                      tooltip={item.title}
+                      className={`${inter.className} text-[0.819rem] font-medium ml-2 px-3 py-5 cursor-pointer transition-all duration-200`}
+                      style={{
+                        backgroundColor: item.isActive ? '#262626' : 'transparent',
+                        color: 'rgba(255, 255, 255, 0.7)'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!item.isActive) {
+                          e.currentTarget.style.backgroundColor = '#1A1A1A'
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!item.isActive) {
+                          e.currentTarget.style.backgroundColor = 'transparent'
+                        }
+                      }}
+                    >
+                      <item.icon className="h-6 w-6" />
+                      <span>{item.title}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+      </Sidebar>
     </>
   );
 }

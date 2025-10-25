@@ -15,6 +15,7 @@ interface UserProfileDropDownMenuProps {
   tokenHoldingsCount: number
   loading: boolean
   error: string | null
+  onRefreshData?: () => void
 }
 
 export default function UserProfileDropDownMenu({
@@ -25,7 +26,8 @@ export default function UserProfileDropDownMenu({
   tokenHoldings,
   tokenHoldingsCount,
   loading,
-  error
+  error,
+  onRefreshData
 }: UserProfileDropDownMenuProps) {
   const [showTokenModal, setShowTokenModal] = useState(false)
   const [showPacksModal, setShowPacksModal] = useState(false)
@@ -42,7 +44,7 @@ export default function UserProfileDropDownMenu({
   const fetchTotalTP = async () => {
     setTpLoading(true);
     try {
-      const response = await fetch(`/api/getUserTotalTP?userWallet=${encodeURIComponent(userPrivyWalletAddress)}`);
+      const response = await fetch(`/api/user/getUserTotalTP?userWallet=${encodeURIComponent(userPrivyWalletAddress)}`);
       if (response.ok) {
         const data = await response.json();
         setTotalTP(data.totalTP || 0);
@@ -220,12 +222,14 @@ export default function UserProfileDropDownMenu({
         isOpen={showTokenModal}
         onClose={() => setShowTokenModal(false)}
         tokenHoldings={tokenHoldings}
+        loading={loading}
       />
 
       {/* View Your Packs Modal */}
       <ViewYourPacksModal
         isOpen={showPacksModal}
         onClose={() => setShowPacksModal(false)}
+        onPacksChanged={onRefreshData}
       />
     </>
   )

@@ -10,14 +10,17 @@ export async function POST(request: NextRequest) {
 
   try {
 
-    const authHeader = request.headers.get('authorization');
-    const expectedToken = process.env.CRON_SECRET || 'your-secret-token';
-    
-    if (authHeader !== `Bearer ${expectedToken}`) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+    // Skip auth in development mode
+    if (process.env.NODE_ENV !== 'development') {
+      const authHeader = request.headers.get('authorization');
+      const expectedToken = process.env.CRON_SECRET || 'your-secret-token';
+
+      if (authHeader !== `Bearer ${expectedToken}`) {
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 401 }
+        );
+      }
     }
 
     const isUpdating = await checkIfUpdateInProgress();

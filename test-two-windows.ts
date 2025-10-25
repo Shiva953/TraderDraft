@@ -1,3 +1,13 @@
+// ============================================================================
+// ⚠️  DEPRECATED TEST FILE
+// ============================================================================
+// This test file is DEPRECATED as of the KolHolding table removal.
+// The buyKOLToken route no longer exists - token holdings are now tracked
+// automatically via on-chain snapshots in the dailyUserScore cron job.
+//
+// This file is kept for reference only and will not run successfully.
+// ============================================================================
+
 const BASE_URL = 'http://localhost:3000';
 
 // ============================================================================

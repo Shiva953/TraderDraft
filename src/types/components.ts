@@ -24,7 +24,7 @@ export interface UserProfileDropDownMenuProps {
   tokenHoldings: TokenHolding[];
   tokenHoldingsCount: number;
   loading: boolean;
-  refreshUserData: () => void;
+  refreshUserData: (withRetry?: boolean) => void;
 }
 
 export interface UserProfilePictureProps {

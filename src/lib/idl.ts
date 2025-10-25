@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/pnlpackprogram.json`.
  */
 export type Pnlpackprogram = {
-  "address": "4nSNt5ed3cqPWRpwFf8SRvTfLyZvJRgUhwahc8jZQGG2",
+  "address": "9GNSpxshtu8rA7cmHdvNVgGXh9WtxBrSC53k3FJ1jMnZ",
   "metadata": {
     "name": "pnlpackprogram",
     "version": "0.1.0",
@@ -193,8 +193,7 @@ export type Pnlpackprogram = {
         {
           "name": "poolTokenAccount",
           "docs": [
-            "Pool token account (6% destination) - provided by client",
-            "Assumes pool is already created by client[meteora createPool DAMM v2 ixn] and will be used for Meteora pool creation"
+            "Pool token account (6% destination) - provided by client"
           ],
           "writable": true
         },
@@ -939,6 +938,16 @@ export type Pnlpackprogram = {
       "code": 6023,
       "name": "invalidDistributionCalculation",
       "msg": "Invalid distribution calculation"
+    },
+    {
+      "code": 6024,
+      "name": "insufficientFunds",
+      "msg": "Insufficient funds for transfer"
+    },
+    {
+      "code": 6025,
+      "name": "overflow",
+      "msg": "Arithmetic overflow"
     }
   ],
   "types": [
@@ -1086,7 +1095,7 @@ export type Pnlpackprogram = {
 };
 
   export const IDL = {
-    "address": "4nSNt5ed3cqPWRpwFf8SRvTfLyZvJRgUhwahc8jZQGG2",
+    "address": "9GNSpxshtu8rA7cmHdvNVgGXh9WtxBrSC53k3FJ1jMnZ",
     "metadata": {
       "name": "pnlpackprogram",
       "version": "0.1.0",
@@ -1274,8 +1283,7 @@ export type Pnlpackprogram = {
           {
             "name": "pool_token_account",
             "docs": [
-              "Pool token account (6% destination) - provided by client",
-              "Assumes pool is already created by client[meteora createPool DAMM v2 ixn] and will be used for Meteora pool creation"
+              "Pool token account (6% destination) - provided by client"
             ],
             "writable": true
           },
@@ -2020,6 +2028,16 @@ export type Pnlpackprogram = {
         "code": 6023,
         "name": "InvalidDistributionCalculation",
         "msg": "Invalid distribution calculation"
+      },
+      {
+        "code": 6024,
+        "name": "InsufficientFunds",
+        "msg": "Insufficient funds for transfer"
+      },
+      {
+        "code": 6025,
+        "name": "Overflow",
+        "msg": "Arithmetic overflow"
       }
     ],
     "types": [

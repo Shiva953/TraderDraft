@@ -9,7 +9,6 @@ import { Leaderboard } from "../components/leaderboard/Leaderboard";
 import { Trending, type TrendingItem } from "../components/trending/Trending";
 import Swap from "../components/traderProfile/swap";
 import { PackSaleBannerNew } from "../components/packSale/PackSaleBannerNew";
-import { useDevBackgroundJobs } from "./hooks/useDevBackgroundJobs";
 import UserPacks from "../components/packSale/UserPacks";
 import { useUserData } from "./hooks/useUserData";
 import MultiPackRevealSystem from "../components/packs/MultiPackRevealSystem";
@@ -24,6 +23,9 @@ import { useWallet } from "./hooks/useWallet";
 import { useUserPacks } from "./hooks/useUserPacks";
 import { useLeaderboard } from "./hooks/useLeaderboard";
 import { useActiveCompetition } from "./hooks/useActiveCompetition";
+import { useAppPhase } from "@/app/hooks/useAppPhase";
+import { PackSalePhaseBanner } from "../components/phase/PackSalePhaseBanner";
+import { PackRevealPhaseBanner } from "../components/phase/PackRevealPhaseBanner";
 
 export default function Home() {
   const [showPackReveal, setShowPackReveal] = useState(false);
@@ -33,7 +35,6 @@ export default function Home() {
 
   const { login } = useLogin();
   const { logout } = useLogout();
-  const { triggerManualUpdate, isTriggering } = useDevBackgroundJobs();
 
   const { 
     address: walletAddress, 
@@ -64,6 +65,9 @@ export default function Home() {
     loading: competitionLoading,
     isActive: isCompetitionActive
   } = useActiveCompetition();
+
+  // Fetch current app phase (PACK_SALE, PACK_REVEAL, COMPETITION_LOOP)
+  const { phaseData, loading: phaseLoading } = useAppPhase();
 
   // Debug competition state
   useEffect(() => {
@@ -119,7 +123,7 @@ export default function Home() {
   const fetchUserTP = async () => {
     if (!fullWalletAddress) return;
     try {
-      const response = await fetch(`/api/getUserTotalTP?userWallet=${encodeURIComponent(fullWalletAddress)}`);
+      const response = await fetch(`/api/user/getUserTotalTP?userWallet=${encodeURIComponent(fullWalletAddress)}`);
       if (response.ok) {
         const data = await response.json();
         setUserTP(data.totalTP || 0);
@@ -141,6 +145,12 @@ export default function Home() {
   const handleClosePackReveal = useCallback(() => {
     setShowPackReveal(false);
     refreshUserData();
+  }, [refreshUserData]);
+
+  const handlePackOpenSuccess = useCallback(() => {
+    console.log('✅ Packs opened successfully - refreshing user data');
+    refreshUserData();
+    fetchUserTP();
   }, [refreshUserData]);
 
   const handleScrollToLeaderboard = useCallback(() => {
@@ -169,7 +179,7 @@ export default function Home() {
 
   if (isWalletLoading) {
     return (
-      <div className="min-h-screen bg-neutral-950 text-white flex items-center justify-center">
+      <div className="min-h-screen text-white flex items-center justify-center" style={{ backgroundColor: '#0F0F0F' }}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto"></div>
           <p>Loading wallet...</p>
@@ -180,7 +190,7 @@ export default function Home() {
 
   if (!authenticated) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950 text-white flex items-center justify-center p-4">
+      <main className="min-h-screen text-white flex items-center justify-center p-4" style={{ backgroundColor: '#0F0F0F' }}>
         <div className="w-full max-w-md space-y-8 text-center">
           {/* Logo or icon area */}
           <div className="space-y-3">
@@ -191,7 +201,7 @@ export default function Home() {
               Trade KOLs, Compete for TP and let the KOL mania begin....
             </p> */}
           </div>
-    
+
           <div className="pt-4">
             <Button
               onClick={() => login()}
@@ -201,7 +211,7 @@ export default function Home() {
               Login With Privy
             </Button>
           </div>
-    
+
           {/* Optional: Add a subtle footer text */}
           <p className="text-neutral-500 text-sm pt-8">
             Secure authentication powered by Privy
@@ -226,44 +236,53 @@ export default function Home() {
   }
 
   return (
-    <main className="mx-auto max-w-7xl space-y-6 p-4">
-      <header className="text-center mt-12">
+    <main className="w-full px-4 sm:px-6 lg:px-8 py-4">
+      {/* Center-focused container with max width */}
+      <div className="mx-auto max-w-7xl space-y-6">
+      {/* <header className="text-center mt-12">
         <h1 className="text-4xl font-semibold text-neutral-100">Kolscan</h1>
-      </header>
+      </header> */}
 
-      {/* Competition Banner/Results - Below Kolscan heading */}
-      {competitionLoading ? (
+      {/* Phase-Specific Banners */}
+      {phaseLoading ? (
+        <CompetitionBannerSkeleton />
+      ) : phaseData?.phase === 'PACK_SALE' ? (
+        // Pack Sale Phase (Day 0-7) - Show Pack Sale Banner
+        <PackSalePhaseBanner
+          endsAt={phaseData.endsAt}
+          timeRemaining={phaseData.endsIn}
+        />
+      ) : phaseData?.phase === 'PACK_REVEAL' ? (
+        // Pack Reveal Phase (Day 7-10) - Show Pack Reveal Banner
+        <PackRevealPhaseBanner
+          endsAt={phaseData.endsAt}
+          timeRemaining={phaseData.endsIn}
+        />
+      ) : competitionLoading ? (
         <CompetitionBannerSkeleton />
       ) : competition?.status === 'ACTIVE' ? (
-        // Active competition - show banner
+        // Competition Active - Show Competition Banner
         <CompetitionBanner
           endTime={competition.endDate}
           competitionId={competition.id}
         />
-      ) : lastFinalized ? (
-        // No active competition but have last finalized - show results
-        <CompetitionResults
-          competitionId={lastFinalized.id}
-          nextCompetitionStart={null}
-          competitionStartDate={lastFinalized.startDate}
-          competitionEndDate={lastFinalized.endDate}
-        />
       ) : null}
 
-      {/* KOL Leaderboard */}
-      <div className="space-y-4">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-white">
-            {isCompetitionActive ? 'Trade KOLs and Earn TP' : 'Top KOL Traders'}
-          </h2>
-          <p className="text-neutral-400 text-sm mt-1">
-            {isCompetitionActive ? 'Top traders of the week' : 'Discover and trade top performing traders'}
-          </p>
-        </div>
+      {/* KOL Leaderboard - Show during all phases except when loading */}
+      {(phaseData?.phase === 'INITIALIZING' || phaseData?.phase === 'PACK_SALE' || phaseData?.phase === 'PACK_REVEAL' || phaseData?.phase === 'COMPETITION_ACTIVE' || phaseData?.phase === 'COMPETITION_RESULTS' || phaseData?.phase === 'WAITING_FOR_NEXT_COMPETITION') && (
+        <div className="space-y-4">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-white">
+              {isCompetitionActive ? 'Trade KOLs and Earn TP' : 'Top KOLs'}
+            </h2>
+            <p className="text-neutral-400 text-sm mt-1">
+              {isCompetitionActive ? 'Top traders of the week' : 'Discover and trade top performing traders'}
+            </p>
+          </div>
 
         <div id="home-leaderboard" className="rounded-2xl border border-neutral-800 p-4">
-          <div className="mb-4 flex items-center justify-between">
-            <div className="flex items-center gap-4">
+          <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4">
               <div className="flex items-center gap-2">
                 <span className="text-sm text-neutral-400">Period:</span>
                 <select
@@ -320,8 +339,10 @@ export default function Home() {
             showActions={true}
           />
         </div>
-      </div>
+        </div>
+      )}
 
+      </div>
     </main>
   );
 }

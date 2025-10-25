@@ -8,7 +8,7 @@ export type {
   Trader,
   Competition,
   CompetitionEntry,
-  KolHolding,
+  DailyScoreSnapshot,
   Order,
   ScrapingMetadata,
   Rarity,
