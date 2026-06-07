@@ -195,7 +195,7 @@ export default function Home() {
           {/* Logo or icon area */}
           <div className="space-y-3">
             <h1 className="text-5xl font-bold tracking-tight bg-gradient-to-r from-pink-400 via-rose-400 to-pink-500 bg-clip-text text-transparent animate-fade-in">
-              Kolscan
+              TraderDraft
             </h1>
             {/* <p className="text-neutral-400 text-lg">
               Trade KOLs, Compete for TP and let the KOL mania begin....
@@ -239,9 +239,6 @@ export default function Home() {
     <main className="w-full px-4 sm:px-6 lg:px-8 py-4">
       {/* Center-focused container with max width */}
       <div className="mx-auto max-w-7xl space-y-6">
-      {/* <header className="text-center mt-12">
-        <h1 className="text-4xl font-semibold text-neutral-100">Kolscan</h1>
-      </header> */}
 
       {/* Phase-Specific Banners */}
       {phaseLoading ? (

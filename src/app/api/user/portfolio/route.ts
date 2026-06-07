@@ -1,18 +1,10 @@
 import { NextResponse } from 'next/server';
-import { Connection, PublicKey, GetMultipleAccountsConfig } from '@solana/web3.js';
-import { getAssociatedTokenAddress } from '@solana/spl-token';
 import { TokenHolding } from '@/types';
 import prisma from '@/lib/prisma';
 import { meteoraClient } from '@/lib/meteoraPriceUtils';
 
 // Use Helius RPC for much faster responses
-const connection = new Connection(
-  "https://devnet.helius-rpc.com/?api-key=017f56ed-c6c1-480a-8c11-dbc09ab2358d",
-  "confirmed"
-);
-
-// Batch size for RPC requests to avoid rate limits
-const BATCH_SIZE = 100;
+const HELIUS_RPC_URL = "https://devnet.helius-rpc.com/?api-key=017f56ed-c6c1-480a-8c11-dbc09ab2358d";
 
 interface EnrichedTokenHolding extends TokenHolding {
   valueSOL?: number;
@@ -32,22 +24,116 @@ export async function POST(request: Request) {
 
     console.log(`🔍 [api/user/portfolio] Fetching enriched holdings for: ${userPrivyWalletAddress}`);
 
-    // Get all KOLs with token mint addresses
-    const kolsWithTokens = await prisma.trader.findMany({
-      where: {
-        tokenMintAddress: { not: null },
-        period: 'DAILY'
-      },
-      select: {
-        name: true,
-        ticker: true,
-        tokenMintAddress: true,
-        poolAddress: true,
-        avatarUrl: true
-      }
-    });
+    // ⚡ OPTIMIZATION: Parallelize independent data fetching operations
+    console.log(`⚡ [OPTIMIZATION] Fetching token accounts, KOL data, and SOL price in parallel...`);
 
-    console.log(`📊 [api/user/portfolio-holdings] Found ${kolsWithTokens.length} KOLs with tokens`);
+    const [tokenAccountsResponse, kolsWithTokens, solPriceUSD] = await Promise.all([
+      // 1. Get all user's token accounts - Try V2 first, fallback to V1
+      (async () => {
+        try {
+          // Try getTokenAccountsByOwnerV2 first
+          console.log(`🔄 [FETCH] Attempting getTokenAccountsByOwnerV2...`);
+          const v2Response = await fetch(HELIUS_RPC_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              id: 'portfolio-holdings-v2',
+              method: 'getTokenAccountsByOwnerV2',
+              params: [
+                userPrivyWalletAddress,
+                { programId: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' },
+                {
+                  encoding: 'jsonParsed',
+                  limit: 10000
+                }
+              ]
+            })
+          });
+
+          const v2Json = await v2Response.json();
+          console.log(`🔍 [FETCH DEBUG V2] Response status: ${v2Response.status}`);
+
+          // Direct array check
+          const resultValue = v2Json?.result?.value;
+          console.log(`🔍 [FETCH DEBUG V2] resultValue exists:`, !!resultValue);
+          console.log(`🔍 [FETCH DEBUG V2] resultValue type:`, typeof resultValue);
+          console.log(`🔍 [FETCH DEBUG V2] resultValue is Array:`, Array.isArray(resultValue));
+          console.log(`🔍 [FETCH DEBUG V2] resultValue length:`, resultValue?.length);
+
+          // Check if it has array methods
+          if (resultValue) {
+            console.log(`🔍 [FETCH DEBUG V2] Has forEach:`, typeof resultValue.forEach === 'function');
+            console.log(`🔍 [FETCH DEBUG V2] Has map:`, typeof resultValue.map === 'function');
+            console.log(`🔍 [FETCH DEBUG V2] Constructor:`, resultValue.constructor?.name);
+
+            // Check first item
+            if (resultValue.length > 0) {
+              console.log(`🔍 [FETCH DEBUG V2] First item exists:`, !!resultValue[0]);
+              console.log(`🔍 [FETCH DEBUG V2] First item keys:`, resultValue[0] ? Object.keys(resultValue[0]) : 'none');
+            }
+          }
+
+          // Check for JSON-RPC error (method not found, etc.)
+          if (v2Json.error) {
+            console.warn(`⚠️ [V2 FAILED] Error: ${v2Json.error.message || JSON.stringify(v2Json.error)}`);
+            console.log(`🔄 [FALLBACK] Trying getTokenAccountsByOwner (V1)...`);
+
+            // Fallback to V1
+            const v1Response = await fetch(HELIUS_RPC_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                jsonrpc: '2.0',
+                id: 'portfolio-holdings-v1',
+                method: 'getTokenAccountsByOwner',
+                params: [
+                  userPrivyWalletAddress,
+                  { programId: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' },
+                  { encoding: 'jsonParsed' }
+                ]
+              })
+            });
+
+            const v1Json = await v1Response.json();
+            console.log(`✅ [V1 FALLBACK] Response status: ${v1Response.status}`);
+
+            if (v1Json.error) {
+              console.error('❌ [V1 ERROR]:', v1Json.error);
+              return { result: null, error: v1Json.error };
+            }
+
+            return v1Json;
+          }
+
+          console.log(`✅ [V2 SUCCESS] Got response`);
+          return v2Json;
+        } catch (err) {
+          console.error('❌ [FETCH ERROR]:', err);
+          return { result: null };
+        }
+      })(),
+
+      // 2. Get all KOLs with token mint addresses from database
+      prisma.trader.findMany({
+        where: {
+          tokenMintAddress: { not: null },
+          period: 'DAILY'
+        },
+        select: {
+          name: true,
+          ticker: true,
+          tokenMintAddress: true,
+          poolAddress: true,
+          avatarUrl: true
+        }
+      }),
+
+      // 3. Get SOL price for USD calculations
+      meteoraClient.getSOLPriceUSD()
+    ]);
+
+    console.log(`📊 [api/user/portfolio] Found ${kolsWithTokens.length} KOLs with tokens`);
 
     if (kolsWithTokens.length === 0) {
       return NextResponse.json({
@@ -61,106 +147,89 @@ export async function POST(request: Request) {
       }, { status: 200 });
     }
 
-    const userPublicKey = new PublicKey(userPrivyWalletAddress);
+    // Create a map of mint address to KOL data for fast lookups
+    const mintToKolMap = new Map<string, typeof kolsWithTokens[0]>();
+    kolsWithTokens.forEach(kol => {
+      if (kol.tokenMintAddress) {
+        mintToKolMap.set(kol.tokenMintAddress, kol);
+      }
+    });
 
-    // Pre-compute all ATAs and create mapping
-    const ataPromises = kolsWithTokens
-      .filter(kol => kol.tokenMintAddress)
-      .map(async (kol) => {
-        try {
-          const mintAddress = new PublicKey(kol.tokenMintAddress!);
-          const ataAddress = await getAssociatedTokenAddress(mintAddress, userPublicKey);
-          return { kol, ataAddress };
-        } catch (error) {
-          console.warn(`Invalid mint address for ${kol.ticker}: ${kol.tokenMintAddress}`);
-          return null;
-        }
-      });
-
-    const ataResults = (await Promise.all(ataPromises)).filter(Boolean) as Array<{
-      kol: typeof kolsWithTokens[0];
-      ataAddress: PublicKey;
-    }>;
-
-    // Batch the RPC calls to get balances
+    // Parse token accounts response and filter for KOL tokens only
     const holdings: TokenHolding[] = [];
 
-    for (let i = 0; i < ataResults.length; i += BATCH_SIZE) {
-      const batch = ataResults.slice(i, i + BATCH_SIZE);
-      const ataAddresses = batch.map(item => item.ataAddress);
+    // FIXED: result.value.accounts contains the array, not result.value directly!
+    if (tokenAccountsResponse.result?.value?.accounts && Array.isArray(tokenAccountsResponse.result.value.accounts)) {
+      const accountsArray = tokenAccountsResponse.result.value.accounts;
 
-      try {
-        // Batch fetch all accounts in this batch
-        const accounts = await connection.getMultipleAccountsInfo(
-          ataAddresses,
-          { commitment: "confirmed" } as GetMultipleAccountsConfig
-        );
+      console.log(`📊 [TOKEN PARSE] Processing ${accountsArray.length} token accounts from result.value.accounts`);
 
-        // Process results
-        for (let j = 0; j < accounts.length; j++) {
-          const account = accounts[j];
-          const { kol } = batch[j];
+      accountsArray.forEach((account: any) => {
+        try {
+          const parsedInfo = account.account.data.parsed.info;
+          const tokenAmount = parsedInfo.tokenAmount;
+          const mintAddress = parsedInfo.mint;
 
-          if (account && account.data.length > 0) {
-            try {
-              // Parse SPL token account data (balance is at bytes 64-72)
-              const balanceBuffer = account.data.slice(64, 72);
-              const balance = Buffer.from(balanceBuffer).readBigUInt64LE().toString();
-
-              if (balance !== '0') {
-                holdings.push({
-                  ticker: kol.ticker || 'UNKNOWN',
-                  name: kol.name,
-                  balance: balance,
-                  mintAddress: kol.tokenMintAddress!,
-                  poolAddress: kol.poolAddress || undefined,
-                  avatarUrl: kol.avatarUrl || undefined
-                });
-              }
-            } catch (parseError) {
-              console.warn(`Error parsing account data for ${kol.ticker}:`, parseError);
-            }
+          // Only include if it's a KOL token and has non-zero balance
+          const kolInfo = mintToKolMap.get(mintAddress);
+          if (kolInfo && tokenAmount.amount !== '0') {
+            holdings.push({
+              ticker: kolInfo.ticker || 'UNKNOWN',
+              name: kolInfo.name,
+              balance: tokenAmount.amount,
+              mintAddress: mintAddress,
+              poolAddress: kolInfo.poolAddress || undefined,
+              avatarUrl: kolInfo.avatarUrl || undefined
+            });
           }
+        } catch (parseError) {
+          console.warn(`⚠️ [TOKEN PARSE] Error parsing token account:`, parseError);
         }
-      } catch (batchError) {
-        console.error(`Error in batch ${i}-${i + BATCH_SIZE}:`, batchError);
-        // Continue with next batch instead of failing entirely
+      });
+    } else {
+      console.error(`❌ [TOKEN PARSE] No result.value.accounts array in response!`);
+      if (tokenAccountsResponse.error) {
+        console.error(`❌ [TOKEN PARSE] API Error:`, tokenAccountsResponse.error);
       }
     }
 
-    console.log(`✅ [api/user/portfolio] Found ${holdings.length} token holdings`);
+    console.log(`✅ [api/user/portfolio] Found ${holdings.length} KOL token holdings`);
 
-    // ⚡ PERFORMANCE FIX: Batch ALL price fetches in parallel instead of sequential
+    if (holdings.length === 0) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          holdings: [],
+          totalHoldings: 0,
+          totalValueUSD: 0,
+          totalValueSOL: 0
+        }
+      }, { status: 200 });
+    }
+
+    // ⚡ OPTIMIZATION: Use batchGetTokenPriceData for parallel price fetching
+    // NOTE: Don't pass mintAddresses to skip expensive holders count calculation (takes ~500ms per token!)
+    const poolAddresses = holdings
+      .filter(h => h.poolAddress)
+      .map(h => h.poolAddress!);
+
+    console.log(`💹 [api/user/portfolio] Fetching prices for ${poolAddresses.length} tokens in parallel (skipping holders count)...`);
+
+    const priceDataMap = await meteoraClient.batchGetTokenPriceData(poolAddresses);
+
+    // Process results and calculate totals
     const enrichedHoldings: EnrichedTokenHolding[] = [];
     let totalValueUSD = 0;
     let totalValueSOL = 0;
 
-    // Get SOL price once for all calculations
-    const solPriceUSD = await meteoraClient.getSOLPriceUSD();
-
-    // Fetch ALL prices in parallel
-    const pricePromises = holdings.map(async (holding) => {
+    for (const holding of holdings) {
       if (!holding.poolAddress) {
-        return { holding, priceData: null };
+        enrichedHoldings.push(holding);
+        continue;
       }
 
-      try {
-        const priceData = await meteoraClient.getTokenPriceData(
-          holding.poolAddress,
-          holding.mintAddress
-        );
-        return { holding, priceData };
-      } catch (err) {
-        console.warn(`Failed to fetch price for ${holding.ticker}:`, err);
-        return { holding, priceData: null };
-      }
-    });
+      const priceData = priceDataMap.get(holding.poolAddress);
 
-    // Wait for ALL price fetches to complete
-    const priceResults = await Promise.all(pricePromises);
-
-    // Process results and calculate totals
-    for (const { holding, priceData } of priceResults) {
       if (priceData) {
         // Calculate value based on balance (assuming 6 decimals for KOL tokens)
         const balance = parseFloat(holding.balance) / 1_000_000;

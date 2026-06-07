@@ -1,4 +1,4 @@
-# KolScan - Solana Trading Competition Platform
+# TraderDraft - Solana Trading Competition Platform
 
 A Next.js-based platform for tracking top Solana traders (KOLs), creating tokenized representations, and running competitive trading windows.
 

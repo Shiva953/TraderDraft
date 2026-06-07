@@ -25,7 +25,7 @@ const robotoMono = Roboto_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Kolscan",
+  title: "TraderDraft",
   description: "Play with trader tokens and collect packs!",
 };
 

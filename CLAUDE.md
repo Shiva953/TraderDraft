@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-KolScan is a Next.js-based Solana trading competition platform that tracks top traders (KOLs - Key Opinion Leaders), creates tokenized representations of them, and runs competitive trading windows where users can collect and trade KOL tokens via a pack-opening system.
+TraderDraft is a Next.js-based Solana trading competition platform that tracks top traders (KOLs - Key Opinion Leaders), creates tokenized representations of them, and runs competitive trading windows where users can collect and trade KOL tokens via a pack-opening system.
 
 **Tech Stack:** Next.js 15, TypeScript, Prisma (PostgreSQL), Solana Web3.js, Anchor, Playwright, Privy Auth, Meteora DEX integration
 

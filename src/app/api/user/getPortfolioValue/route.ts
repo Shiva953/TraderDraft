@@ -60,15 +60,59 @@ export async function POST(request: Request) {
 
     const userPublicKey = new PublicKey(userPrivyWalletAddress);
 
-    // Step 1: Get SOL price in USD
-    const solPriceUSD = await meteoraClient.getSOLPriceUSD();
+    // OPTIMIZATION: Parallelize all independent data fetching operations
+    console.log(`⚡ [OPTIMIZATION] Fetching SOL price, SOL balance, token accounts, and KOL data in parallel...`);
+
+    const [solPriceUSD, solBalance, tokenAccountsResponse, kolsWithTokens] = await Promise.all([
+      // 1. Get SOL price in USD
+      meteoraClient.getSOLPriceUSD(),
+
+      // 2. Get SOL balance
+      connection.getBalance(userPublicKey),
+
+      // 3. Get token accounts using Helius getTokenAccountsByOwnerV2 API
+      fetch(HELIUS_RPC_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 'portfolio-value',
+          method: 'getTokenAccountsByOwnerV2',
+          params: [
+            userPrivyWalletAddress, 
+            { programId: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' }, 
+            {
+              encoding: 'jsonParsed',
+              limit: 1000
+            }
+          ]
+        })
+      }).then(res => res.json()).catch(err => {
+        console.error('❌ [getPortfolioValue] Error fetching token accounts:', err);
+        return { result: null };
+      }),
+
+      // 4. Get KOL token data from database
+      prisma.trader.findMany({
+        where: {
+          tokenMintAddress: { not: null },
+          period: 'DAILY'
+        },
+        select: {
+          name: true,
+          ticker: true,
+          tokenMintAddress: true,
+          poolAddress: true,
+        }
+      })
+    ]);
+
     console.log(`💵 [getPortfolioValue] SOL price: $${solPriceUSD.toFixed(2)}`);
 
-    // Step 2: Get SOL balance
-    const solBalance = await connection.getBalance(userPublicKey);
+    // Process SOL balance
     const solAmount = solBalance / LAMPORTS_PER_SOL;
     const solValueUSD = solAmount * solPriceUSD;
-    
+
     console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
     console.log(`💰 [SOL BALANCE]`);
     console.log(`   Raw balance: ${solBalance} lamports`);
@@ -77,66 +121,33 @@ export async function POST(request: Request) {
     console.log(`   Value: $${solValueUSD.toFixed(2)}`);
     console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
 
-    // Step 2: Use Helius DAS API to get all token accounts efficiently
+    // Process token accounts response
     let tokenBalances: TokenBalance[] = [];
-    
-    try {
-      // Use getTokenAccounts from Helius DAS API for efficient token account fetching
-      const response = await fetch(HELIUS_RPC_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 'portfolio-value',
-          method: 'getTokenAccountsByOwner',
-          params: [
-            userPrivyWalletAddress,
-            { programId: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' },
-            { encoding: 'jsonParsed' }
-          ]
+
+    if (tokenAccountsResponse.result?.value) {
+      // getTokenAccountsByOwnerV2 returns accounts in result.value array with jsonParsed data
+      tokenBalances = tokenAccountsResponse.result.value
+        .map((account: any) => {
+          const parsedInfo = account.account.data.parsed.info;
+          const tokenAmount = parsedInfo.tokenAmount;
+
+          return {
+            mint: parsedInfo.mint,
+            amount: tokenAmount.amount,
+            decimals: tokenAmount.decimals,
+          };
         })
+        .filter((token: TokenBalance) => token.amount !== '0'); // Filter out zero balances
+
+      console.log(`📊 [TOKEN ACCOUNTS] Found ${tokenBalances.length} non-zero token balances (via getTokenAccountsByOwnerV2)`);
+      tokenBalances.forEach((token, idx) => {
+        const humanReadable = Number(token.amount) / Math.pow(10, token.decimals);
+        console.log(`   ${idx + 1}. Mint: ${token.mint.slice(0, 8)}...`);
+        console.log(`      Raw amount: ${token.amount}`);
+        console.log(`      Decimals: ${token.decimals}`);
+        console.log(`      Human amount: ${humanReadable.toFixed(token.decimals)} (${token.amount} ÷ 10^${token.decimals})`);
       });
-
-      const data = await response.json();
-      
-      if (data.result?.value) {
-        tokenBalances = data.result.value
-          .map((account: any) => {
-            const parsedInfo = account.account.data.parsed.info;
-            return {
-              mint: parsedInfo.mint,
-              amount: parsedInfo.tokenAmount.amount,
-              decimals: parsedInfo.tokenAmount.decimals,
-            };
-          })
-          .filter((token: TokenBalance) => token.amount !== '0');
-
-        console.log(`\n📊 [TOKEN ACCOUNTS] Found ${tokenBalances.length} non-zero token balances`);
-        tokenBalances.forEach((token, idx) => {
-          const humanReadable = Number(token.amount) / Math.pow(10, token.decimals);
-          console.log(`   ${idx + 1}. Mint: ${token.mint.slice(0, 8)}...`);
-          console.log(`      Raw amount: ${token.amount}`);
-          console.log(`      Decimals: ${token.decimals}`);
-          console.log(`      Human amount: ${humanReadable.toFixed(token.decimals)} (${token.amount} ÷ 10^${token.decimals})`);
-        });
-      }
-    } catch (error) {
-      console.error('❌ [getPortfolioValue] Error fetching token accounts:', error);
     }
-
-    // Step 3: Get KOL token data from database to match mint addresses
-    const kolsWithTokens = await prisma.trader.findMany({
-      where: {
-        tokenMintAddress: { not: null },
-        period: 'DAILY'
-      },
-      select: {
-        name: true,
-        ticker: true,
-        tokenMintAddress: true,
-        poolAddress: true,
-      }
-    });
 
     // Create a map of mint address to pool address and ticker
     const mintToPoolMap = new Map<string, { poolAddress: string; ticker: string; name: string }>();
@@ -151,13 +162,20 @@ export async function POST(request: Request) {
     });
 
     // Step 4: Get prices for all KOL tokens user holds
-    const poolAddresses = tokenBalances
-      .map(token => mintToPoolMap.get(token.mint)?.poolAddress)
-      .filter(Boolean) as string[];
+    const poolAddresses: string[] = [];
+    const mintAddresses: string[] = [];
+
+    tokenBalances.forEach(token => {
+      const kolInfo = mintToPoolMap.get(token.mint);
+      if (kolInfo?.poolAddress) {
+        poolAddresses.push(kolInfo.poolAddress);
+        mintAddresses.push(token.mint);
+      }
+    });
 
     console.log(`\n📈 [PRICE DATA] Fetching prices for ${poolAddresses.length} KOL token pools...`);
 
-    const priceDataMap = await meteoraClient.batchGetTokenPriceData(poolAddresses);
+    const priceDataMap = await meteoraClient.batchGetTokenPriceData(poolAddresses, mintAddresses);
 
     // Step 5: Calculate portfolio value in USD
     console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);

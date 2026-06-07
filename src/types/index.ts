@@ -1,5 +1,5 @@
 /**
- * Centralized type exports for KolScan
+ * Centralized type exports for TraderDraft
  *
  * Import from this file to access all type definitions:
  * import { KolData, UserPacksData, ... } from '@/types';

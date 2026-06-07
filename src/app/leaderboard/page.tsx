@@ -29,7 +29,7 @@ export default function LeaderboardPage() {
           {/* Logo or icon area */}
           <div className="space-y-3">
             <h1 className="text-5xl font-bold tracking-tight bg-gradient-to-r from-pink-400 via-rose-400 to-pink-500 bg-clip-text text-transparent animate-fade-in">
-              Kolscan
+              TraderDraft
             </h1>
             <p className="text-neutral-400 text-lg">
               Please log in to view the leaderboard

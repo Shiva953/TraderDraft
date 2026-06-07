@@ -53,17 +53,72 @@ export class MeteoraAPIClient {
 
   // Cache for individual token prices (poolAddress -> TokenPriceData)
   private tokenPriceCache: Map<string, { data: TokenPriceData; timestamp: number }> = new Map();
-  private readonly TOKEN_PRICE_CACHE_MS = 120000; // 2 minutes cache for token prices
+  private readonly TOKEN_PRICE_CACHE_MS = 600000; // 10 minutes cache for token prices (increased from 2 min)
+
+  // Cache for pool states fetched on-chain
+  private poolStateCache: Map<string, { data: MeteoraPoolInfo; timestamp: number }> = new Map();
+  private readonly POOL_STATE_CACHE_MS = 300000; // 5 minutes cache for on-chain pool states
 
   constructor(private apiKey?: string) {
     this.connection = new Connection("https://devnet.helius-rpc.com/?api-key=017f56ed-c6c1-480a-8c11-dbc09ab2358d", "confirmed");
     this.cpAmm = new CpAmm(this.connection);
+
+    // Auto-cleanup stale cache entries every 5 minutes to prevent memory bloat
+    setInterval(() => this.cleanupCache(), 300000);
+  }
+
+  /**
+   * Clean up expired cache entries to prevent memory bloat
+   */
+  private cleanupCache(): void {
+    const now = Date.now();
+    let cleaned = 0;
+
+    // Clean token price cache
+    for (const [key, value] of this.tokenPriceCache.entries()) {
+      if (now - value.timestamp >= this.TOKEN_PRICE_CACHE_MS) {
+        this.tokenPriceCache.delete(key);
+        cleaned++;
+      }
+    }
+
+    // Clean pool state cache
+    for (const [key, value] of this.poolStateCache.entries()) {
+      if (now - value.timestamp >= this.POOL_STATE_CACHE_MS) {
+        this.poolStateCache.delete(key);
+        cleaned++;
+      }
+    }
+
+    if (cleaned > 0) {
+      console.log(`🧹 [CACHE CLEANUP] Removed ${cleaned} expired cache entries`);
+    }
+  }
+
+  /**
+   * Manually clear all caches (useful for testing or forced refresh)
+   */
+  clearAllCaches(): void {
+    this.solPriceCache = null;
+    this.tokenPriceCache.clear();
+    this.poolStateCache.clear();
+    console.log('🗑️ [CACHE] All caches cleared');
   }
 
   /**
    * Fetch pool state directly from on-chain (fallback when API is down/slow)
+   * Now with caching to avoid redundant RPC calls
    */
   async getPoolStateOnChain(poolAddress: string): Promise<MeteoraPoolInfo | null> {
+    // Check cache first
+    const now = Date.now();
+    const cached = this.poolStateCache.get(poolAddress);
+    if (cached && (now - cached.timestamp < this.POOL_STATE_CACHE_MS)) {
+      const ageSeconds = Math.floor((now - cached.timestamp) / 1000);
+      console.log(`✅ [CACHE] Using cached on-chain pool state for ${poolAddress.slice(0, 8)}... (age: ${ageSeconds}s)`);
+      return cached.data;
+    }
+
     try {
       console.log(`🔗 [ON-CHAIN] Fetching pool state directly for ${poolAddress}`);
       const poolPubkey = new PublicKey(poolAddress);
@@ -81,7 +136,7 @@ export class MeteoraAPIClient {
       });
 
       // Convert on-chain data to API format
-      return {
+      const poolInfo: MeteoraPoolInfo = {
         pool_address: poolAddress,
         token_a_mint: poolState.tokenAMint.toBase58(),
         token_b_mint: poolState.tokenBMint.toBase58(),
@@ -92,10 +147,41 @@ export class MeteoraAPIClient {
         liquidity_usd: 0,
         tvl: 0
       };
+
+      // Cache the result
+      this.poolStateCache.set(poolAddress, { data: poolInfo, timestamp: now });
+      console.log(`💾 [CACHE] Cached on-chain pool state for ${poolAddress.slice(0, 8)}...`);
+
+      return poolInfo;
     } catch (error) {
       console.error(`❌ [ON-CHAIN] Error fetching pool state:`, error);
       return null;
     }
+  }
+
+  /**
+   * Batch fetch multiple pool states on-chain in parallel
+   * Much faster than individual sequential calls
+   */
+  async batchGetPoolStatesOnChain(poolAddresses: string[]): Promise<Map<string, MeteoraPoolInfo>> {
+    const results = new Map<string, MeteoraPoolInfo>();
+
+    console.log(`🔗 [ON-CHAIN BATCH] Fetching ${poolAddresses.length} pool states in parallel...`);
+
+    // Fetch all pools in parallel (no batching needed as these are read operations)
+    const promises = poolAddresses.map(async (poolAddress) => {
+      const poolInfo = await this.getPoolStateOnChain(poolAddress);
+      if (poolInfo) {
+        results.set(poolAddress, poolInfo);
+      }
+      return { poolAddress, poolInfo };
+    });
+
+    await Promise.allSettled(promises);
+
+    console.log(`✅ [ON-CHAIN BATCH] Successfully fetched ${results.size}/${poolAddresses.length} pool states`);
+
+    return results;
   }
 
   /**
@@ -114,8 +200,10 @@ export class MeteoraAPIClient {
       });
 
       if (!response.ok) {
-        if (response.status === 404) {
-          console.warn(`⚠️ [API] Pool ${poolAddress} not indexed yet (404), falling back to on-chain`);
+        // Fallback to on-chain for 404 (not indexed) and 500 (API errors)
+        if (response.status === 404 || response.status === 500) {
+          const reason = response.status === 404 ? 'not indexed yet' : 'API error';
+          console.warn(`⚠️ [API] Pool ${poolAddress} ${reason} (${response.status}), falling back to on-chain`);
           return await this.getPoolStateOnChain(poolAddress);
         }
         console.error(`Failed to fetch pool info for ${poolAddress}: ${response.status}`);
@@ -131,9 +219,9 @@ export class MeteoraAPIClient {
 
       return poolData;
     } catch (error) {
-      console.error(`Error fetching pool info for ${poolAddress}:`, error);
+      console.error(`❌ [API] Error fetching pool info for ${poolAddress}:`, error);
       // Try on-chain fallback on network errors too
-      console.warn(`⚠️ [API] Network error, trying on-chain fallback`);
+      console.warn(`⚠️ [API] Network/fetch error, falling back to on-chain`);
       return await this.getPoolStateOnChain(poolAddress);
     }
   }
@@ -588,28 +676,49 @@ export class MeteoraAPIClient {
 
   /**
    * Batch fetch price data for multiple pools
+   * OPTIMIZED: No artificial delays, uses caching, parallel execution
    */
-  async batchGetTokenPriceData(poolAddresses: string[]): Promise<Map<string, TokenPriceData>> {
+  async batchGetTokenPriceData(poolAddresses: string[], mintAddresses?: string[]): Promise<Map<string, TokenPriceData>> {
     const results = new Map<string, TokenPriceData>();
-    const batchSize = 5; // Reduced batch size to be more conservative
 
-    for (let i = 0; i < poolAddresses.length; i += batchSize) {
-      const batch = poolAddresses.slice(i, i + batchSize);
-      const promises = batch.map(async (poolAddress) => {
-        const priceData = await this.getTokenPriceData(poolAddress);
-        if (priceData) {
-          results.set(poolAddress, priceData);
+    console.log(`💹 [BATCH PRICE] Fetching prices for ${poolAddresses.length} pools...`);
+
+    // Filter out pools that are already cached
+    const now = Date.now();
+    const uncachedPools: string[] = [];
+    const uncachedMints: string[] = [];
+
+    poolAddresses.forEach((poolAddress, index) => {
+      const cached = this.tokenPriceCache.get(poolAddress);
+      if (cached && (now - cached.timestamp < this.TOKEN_PRICE_CACHE_MS)) {
+        results.set(poolAddress, cached.data);
+      } else {
+        uncachedPools.push(poolAddress);
+        if (mintAddresses && mintAddresses[index]) {
+          uncachedMints.push(mintAddresses[index]);
         }
-        return { poolAddress, priceData };
-      });
-
-      await Promise.allSettled(promises);
-      
-      // Rate limiting delay between batches
-      if (i + batchSize < poolAddresses.length) {
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Increased delay
       }
+    });
+
+    console.log(`💾 [CACHE] ${results.size} pools from cache, ${uncachedPools.length} need fetching`);
+
+    if (uncachedPools.length === 0) {
+      return results;
     }
+
+    // Fetch ALL prices in parallel (no batching, no delays - much faster!)
+    const promises = uncachedPools.map(async (poolAddress, index) => {
+      const mintAddress = uncachedMints[index];
+      const priceData = await this.getTokenPriceData(poolAddress, mintAddress);
+      if (priceData) {
+        results.set(poolAddress, priceData);
+      }
+      return { poolAddress, priceData };
+    });
+
+    await Promise.allSettled(promises);
+
+    console.log(`✅ [BATCH PRICE] Successfully fetched ${results.size}/${poolAddresses.length} prices (${uncachedPools.length} new, ${poolAddresses.length - uncachedPools.length} cached)`);
 
     return results;
   }
