@@ -190,7 +190,7 @@ export default function PortfolioPage() {
   }, [fullWalletAddress])
 
   const formatAddress = (address: string) => {
-    return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`
+    return `${address.substring(0, 6)} ...${address.substring(address.length - 4)}`
   }
 
   const solscanUrl = fullWalletAddress
@@ -294,7 +294,7 @@ export default function PortfolioPage() {
                         href={solscanUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className={`${geistMono.className} text-sm transition-all cursor-pointer hover:underline`}
+                        className={`${geistMono.className} text-xl font-semibold transition-all cursor-pointer hover:underline`}
                         style={{ color: '#FFF4E0' }}
                         onMouseEnter={(e) => e.currentTarget.style.color = '#D4B888'}
                         onMouseLeave={(e) => e.currentTarget.style.color = '#FFF4E0'}
@@ -316,24 +316,6 @@ export default function PortfolioPage() {
                       >
                         <ExternalLink className="h-4 w-4 text-neutral-400" />
                       </a>
-                    </div>
-
-                    {/* 24hr Portfolio Change - Below wallet address */}
-                    <div className="mt-0.5">
-                      {portfolioLoading ? (
-                        <Skeleton className="h-5 w-24" />
-                      ) : (
-                        <span
-                          className={`${geistMono.className} font-bold tracking-tight`}
-                          style={{
-                            color: '#97fc4e',
-                            textShadow: '0 0 8px rgba(151, 252, 78, 0.5)',
-                            fontSize: '1.25rem'
-                          }}
-                        >
-                          +0.00%
-                        </span>
-                      )}
                     </div>
                   </div>
                 </div>

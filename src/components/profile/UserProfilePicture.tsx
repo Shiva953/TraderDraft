@@ -43,12 +43,12 @@ export default function UserProfilePicture({
   const [xProfilePictureUrl, setXProfilePictureUrl] = useState<string | null>(null)
   const [xProfileLoading, setXProfileLoading] = useState(false)
 
-  // Fast-path: fetch cached portfolio value (or first-time compute) from getPortfolioValue
+  // Fast-path: fetch cached portfolio value (or first-time compute) from portfolio
   const fetchPortfolioFast = async () => {
     if (!userPrivyWalletAddress) return;
     try {
       const [portfolioResponse, solPrice] = await Promise.all([
-        fetch('/api/user/getPortfolioValue', {
+        fetch('/api/user/portfolio', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userPrivyWalletAddress })
@@ -109,7 +109,7 @@ export default function UserProfilePicture({
   return (
     <div className="flex items-center gap-6">
       {/* Portfolio Value Button */}
-      <div className="flex items-center gap-3 rounded-md border border-border bg-card px-4 h-11 shadow-sm">
+      {/* <div className="flex items-center gap-3 rounded-md border border-border bg-card px-4 h-11 shadow-sm">
         <span className={`${geistMono.className} tracking-tight font-bold`} style={{ color: '#dbf7be', fontSize: '1.1rem' }}>
           {isLoadingPortfolio ? (
             <span className="flex items-center gap-1">
@@ -121,7 +121,7 @@ export default function UserProfilePicture({
             `${(portfolioValueSOL ?? 0).toFixed(2)} SOL`
           )}
         </span>
-      </div>
+      </div> */}
 
       {/* User Profile Button */}
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>

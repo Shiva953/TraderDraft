@@ -195,7 +195,7 @@ export default function UserProfileSheet({
     try {
       console.log(`🔍 Fetching fresh portfolio value...`);
       const [portfolioResponse, solPrice] = await Promise.all([
-        fetch('/api/user/getPortfolioValue', {
+        fetch('/api/user/portfolio', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userPrivyWalletAddress })
@@ -221,7 +221,7 @@ export default function UserProfileSheet({
   };
 
   const formatAddress = (address: string) => {
-    return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`
+    return `${address.substring(0, 6)} ...${address.substring(address.length - 4)}`
   }
 
   const solscanUrl = `https://orb.helius.dev/account/${userPrivyWalletAddress}?cluster=devnet`

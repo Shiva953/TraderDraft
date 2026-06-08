@@ -47,11 +47,14 @@ export async function POST(request: Request) {
         body: JSON.stringify({
           jsonrpc: '2.0',
           id: 'portfolio-update',
-          method: 'getTokenAccountsByOwner',
+          method: 'getTokenAccountsByOwnerV2',
           params: [
             userPrivyWalletAddress,
             { programId: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' },
-            { encoding: 'jsonParsed' }
+            {
+              encoding: 'jsonParsed',
+              limit: 10000
+            }
           ]
         })
       });
