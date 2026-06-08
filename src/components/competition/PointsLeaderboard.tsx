@@ -483,7 +483,7 @@ export function PointsLeaderboard() {
                                     {holdings.map((holding) => (
                                       <div
                                         key={holding.mintAddress}
-                                        className="relative group flex items-center justify-between px-4 py-3 rounded-lg border border-neutral-800 bg-[#0A0A0A] overflow-hidden transition-all duration-200 hover:border-neutral-700 hover:bg-[#0F0F0F] flex-shrink-0 cursor-pointer"
+                                        className="relative group flex items-center justify-between px-4 py-3 rounded-lg border border-neutral-800 bg-[#0A0A0A] overflow-hidden transition-all duration-200 hover:border-neutral-700 hover:bg-[#0A0A0A] flex-shrink-0 cursor-pointer"
                                       >
                                         {/* Top-left white radial gradient */}
                                         <div

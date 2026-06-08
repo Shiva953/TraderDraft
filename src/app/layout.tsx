@@ -39,7 +39,7 @@ export default function RootLayout({
     <html lang="en" http-equiv="Content-Security-Policy">
       <body
         className={`${geistSans.className} ${geistMono.variable} ${robotoMono.variable}`}
-        style={{ backgroundColor: '#0F0F0F' }}
+        style={{ backgroundColor: '#0A0A0A' }}
       >
         <ChunkErrorBoundary>
           <Providers appId={appId}>

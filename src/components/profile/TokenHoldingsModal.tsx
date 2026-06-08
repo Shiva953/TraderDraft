@@ -126,7 +126,7 @@ export default function TokenHoldingsModal({ isOpen, onClose, tokenHoldings, loa
               {tokenHoldings.map((holding, index) => (
                 <div
                   key={`${holding.mintAddress}-${index}`}
-                  className="relative group flex items-center justify-between px-4 py-3 rounded-lg border border-neutral-800 bg-[#0A0A0A] overflow-hidden transition-all duration-200 hover:border-neutral-700 hover:bg-[#0F0F0F] cursor-pointer"
+                  className="relative group flex items-center justify-between px-4 py-3 rounded-lg border border-neutral-800 bg-[#0A0A0A] overflow-hidden transition-all duration-200 hover:border-neutral-700 hover:bg-[#0A0A0A] cursor-pointer"
                 >
                   {/* Top-left white radial gradient */}
                   <div

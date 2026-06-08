@@ -55,7 +55,7 @@ export function NavigationHeader() {
 
   return (
     <>
-      <header className="bg-[#0F0F0F] backdrop-blur-sm sticky top-0 w-full z-50 border-b border-neutral-800">
+      <header className="bg-[#0A0A0A] backdrop-blur-sm sticky top-0 w-full z-50 border-b border-neutral-800">
         <div className="flex items-center justify-between w-full px-4 h-16">
           {/* Left spacer to balance layout when sidebar is collapsed */}
           <div className="flex-shrink-0" style={{ width: state === 'collapsed' ? '0' : '0' }}></div>
@@ -149,13 +149,13 @@ export function Navigation() {
       {/* Sidebar */}
       <Sidebar 
         collapsible="icon" 
-        className="z-100 border-r border-neutral-800 [&_[data-sidebar=sidebar-inner]]:bg-[#0F0F0F]"
+        className="z-100 border-r border-neutral-800 [&_[data-sidebar=sidebar-inner]]:bg-[#0A0A0A]"
         style={{ '--sidebar-width-icon': '4.5rem' } as React.CSSProperties}
       >
-        <SidebarHeader className="cursor-pointer bg-[#0F0F0F] border-b border-neutral-800 relative h-16 p-0">
+        <SidebarHeader className="cursor-pointer bg-[#0A0A0A] border-b border-neutral-800 relative h-16 p-0">
           <button
             onClick={toggleSidebar}
-            className="absolute -right-4 top-1/2 -translate-y-1/2 bg-[#0F0F0F] text-white border border-1 border-opacity-50 border-white hover:bg-neutral-800 cursor-pointer p-2 rounded-md transition-colors flex items-center justify-center"
+            className="absolute -right-4 top-1/2 -translate-y-1/2 bg-[#0A0A0A] text-white border border-1 border-opacity-50 border-white hover:bg-neutral-800 cursor-pointer p-2 rounded-md transition-colors flex items-center justify-center"
             aria-label="Toggle sidebar"
           >
             {state === 'expanded' ? (
@@ -166,7 +166,7 @@ export function Navigation() {
           </button>
         </SidebarHeader>
         
-        <SidebarContent className="bg-[#0F0F0F]">
+        <SidebarContent className="bg-[#0A0A0A]">
           <SidebarGroup>
             <SidebarGroupContent>
               <SidebarMenu className="gap-[2px] py-6 px-2">
