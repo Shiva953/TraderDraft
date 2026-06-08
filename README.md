@@ -2,6 +2,11 @@
 
 A Next.js-based platform for tracking top Solana traders (KOLs), creating tokenized representations, and running competitive trading windows.
 
+## DEMO
+
+https://github.com/user-attachments/assets/c4bcc494-2a73-4b46-a2b1-bbdab25d8d5d
+
+
 ## Tech Stack
 
 - **Framework:** Next.js 15 (App Router)
