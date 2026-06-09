@@ -222,32 +222,6 @@ After the dev server is running:
 
 ---
 
-## Project Structure
-
-```
-app/
-  api/
-    competitions/
-      [id]/
-        dailyUserScore/   ← daily on-chain snapshot + scoring
-        end/              ← ACTIVE → ENDED transition
-        finalize/         ← compute TP + LP, write results
-    cron/
-      phaseManager/       ← auto state transitions (every 5 min)
-      updateDB/           ← refresh KOL PnL (every 6 hrs)
-      startCompetition/   ← open new window (Mon + Thu)
-      calculateDailyScores/ ← daily snapshot trigger (14:00 UTC)
-      finalizeCompetition/  ← close window (Sun + Wed)
-    createTokensAndPoolImproved/ ← mint tokens + Meteora pools
-    swapMeteoraToken/     ← build unsigned swap tx for frontend
-    scrapeAndPushToDB/    ← KOLScan scraper → Postgres
-lib/
-  idl.ts                  ← Anchor IDL for pnlpackprogram
-  rarity.ts               ← rank → rarity tier mapping
-```
-
----
-
 ## Further Reading
 
 - [Solana Docs](https://docs.solana.com)
