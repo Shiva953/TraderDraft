@@ -1,143 +1,257 @@
-# TraderDraft - Solana Trading Competition Platform
+# TraderDraft — Solana KOL Trading Competition Platform
 
-A Next.js-based platform for tracking top Solana traders (KOLs), creating tokenized representations, and running competitive trading windows.
+TraderDraft is a Next.js platform where real on-chain trader performance becomes a competitive game. The system scrapes top Solana wallet performers (KOLs), mints an SPL token for each one on Solana using a custom Anchor program, and runs biweekly competitions where users hold those tokens and earn scores proportional to their KOL's real PnL.
 
-## DEMO
+## Demo
 
 https://github.com/user-attachments/assets/c4bcc494-2a73-4b46-a2b1-bbdab25d8d5d
 
+---
+
+## How It Works — End-to-End
+
+```
+  ┌─────────────────────────────────────────────────────────────────┐
+  │                        PLATFORM LIFECYCLE                        │
+  └─────────────────────────────────────────────────────────────────┘
+
+  [1] Scrape KOLScan leaderboard (Daily / Weekly / Monthly)
+         │
+         ▼
+  [2] Store KOL wallet addresses, PnL, win-rate in Postgres
+         │
+         ▼
+  [3] For each unique KOL name → mint SPL token via Anchor program
+      + create Meteora DAMMv2 liquidity pool (token / SOL pair)
+         │
+         ▼
+  [4] Users buy KOL packs (0.1 SOL) → receive 4 random KOL tokens
+      (rarity-weighted: LEGENDARY > EPIC > RARE > COMMON)
+         │
+         ▼
+  [5] Biweekly competition window opens (Mon–Thu or Thu–Sun)
+         │
+         ▼
+  [6] Daily at 14:00 UTC → snapshot on-chain balances,
+      calculate each user's daily score from KOL PnL × token share
+         │
+         ▼
+  [7] Competition ends → finalize TP + LP for all participants,
+      update global tournament points leaderboard
+```
+
+---
+
+## Token Creation & Meteora DAMMv2 Pools
+
+Each KOL gets a unique SPL token minted via the `pnlpackprogram` Anchor program and an AMM pool created through [Meteora DAMMv2 (cp-amm-sdk)](https://github.com/MeteoraAg/cp-amm-sdk).
+
+### Token Distribution (per KOL)
+
+```
+  Total Supply: 1,000,000,000 tokens (6 decimals)
+
+  ┌──────────────────────────────────────────────┐
+  │  94% → Token Vault PDA  (pack rewards pool)  │
+  │   6% → Meteora AMM pool (initial liquidity)  │
+  └──────────────────────────────────────────────┘
+```
+
+### Pool Creation Flow
+
+```
+  Admin wallet
+      │
+      ├─[1]─ createMint()               → new SPL mint keypair
+      │
+      ├─[2]─ createMetadata()           → Metaplex metadata PDA
+      │         name = KOL name
+      │         symbol = generated ticker (e.g. "ANSEM")
+      │
+      ├─[3]─ setAuthority()             → transfer mint authority
+      │         from: admin wallet
+      │         to:   global_pack_pool PDA
+      │
+      ├─[4]─ initKolVaultAndTransferV2  → Anchor instruction
+      │         • mints full supply
+      │         • 94% → token_vault PDA
+      │         • 6%  → poolTokenAccount (ATA owned by admin)
+      │         • transfers SOL from global_pack_pool → admin
+      │           (to fund Meteora pool creation)
+      │
+      └─[5]─ cpAmm.createCustomPool()  → Meteora DAMMv2 pool
+                tokenA = KOL token  (6 decimals)
+                tokenB = NATIVE_MINT / SOL (9 decimals)
+                range  = MIN_SQRT_PRICE → MAX_SQRT_PRICE (full-range)
+                fees   = 5% base + 5% partner + up to 1% dynamic
+```
+
+The partner fee (5%) routes to a designated fee wallet on every swap via the `referralTokenAccount` parameter, giving the protocol a sustainable revenue stream.
+
+---
+
+## Pack System
+
+Users purchase packs via the `transferToPackPool` instruction (0.1 SOL each). The admin's `packReveal` instruction then selects 4 KOL tokens weighted by rarity and calls `transferFromKolVaultToUser` for each, moving tokens from the vault PDAs directly into the user's associated token accounts.
+
+```
+  Rarity tiers (determined by KOL leaderboard rank):
+
+  Rank  1–5    →  LEGENDARY
+  Rank  6–15   →  EPIC
+  Rank 16–30   →  RARE
+  Rank 31+     →  COMMON
+```
+
+---
+
+## Competition Logic
+
+### Schedule (production cron)
+
+```
+  Mon 00:00 UTC  → startCompetition   (window 1: Mon–Thu)
+  Thu 00:00 UTC  → startCompetition   (window 2: Thu–Sun)
+
+  Daily 14:00 UTC → calculateDailyScores  (snapshot)
+
+  Sun 12:00 UTC  → finalizeCompetition (window 1)
+  Wed 12:00 UTC  → finalizeCompetition (window 2)
+
+  Every 5 min    → phaseManager  (auto-transition states)
+  Every 6 hrs    → updateDB      (refresh KOL PnL from scraper)
+```
+
+> Cron jobs are currently driven by node-cron (Vercel crons require a paid plan).
+
+### Daily Score Snapshot (`calculateDailyScores`)
+
+Every day the system reads **actual on-chain balances** for all users across all KOL token mints — not just what was purchased during the current competition. Users who hold tokens but haven't explicitly joined are auto-enrolled.
+
+```
+  For each KOL token T with participants holding it:
+
+    totalSupply_T  = Σ (balance of T across all participants)
+
+    dailyScore_T(user) = PnL_T  ×  (userBalance_T / totalSupply_T)
+
+  User's total daily score = Σ dailyScore_T(user)  over all held tokens
+```
+
+One `DailyScoreSnapshot` row is written per user per day (upserted, keyed on `userId + competitionId + snapshotDate`).
+
+```
+  Example (2 users, 1 KOL with PnL = +500):
+
+  User A holds 60,000 tokens  →  share = 60%  →  daily score = 300
+  User B holds 40,000 tokens  →  share = 40%  →  daily score = 200
+```
+
+### Competition Finalization (`finalizeCompetition`)
+
+After the window ends, window scores are aggregated and two metrics are computed for every participant:
+
+```
+  WindowScore(u)  = Σ dailyScore(u, day)  over all days in window
+
+  TP(u) = TP_POOL  ×  WindowScore(u) / Σ WindowScore(v)
+                                         (all participants)
+
+  LP(u) = 100  ×  WindowScore(u) / max(WindowScore)
+```
+
+`TP` (Tournament Points) are proportional — the pool is shared relative to contribution. `LP` (Leaderboard Points, 0–100%) reflects performance relative to the top scorer. Both are written to `CompetitionEntry` and the user's `totalTournamentPoints` is incremented atomically.
+
+```
+  State machine for a competition:
+
+  ACTIVE ──[end window]──► ACTIVE (expired, pending finalize)
+         ──[finalizeCompetition]──► FINALIZED
+```
+
+---
 
 ## Tech Stack
 
-- **Framework:** Next.js 15 (App Router)
-- **Database:** PostgreSQL with Prisma ORM
-- **Blockchain:** Solana (Web3.js + Anchor)
-- **Auth:** Privy (Wallet + Social Login)
-- **Package Manager:** Bun
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 15 (App Router) |
+| Database | PostgreSQL + Prisma ORM |
+| Blockchain | Solana — Web3.js, Anchor, SPL Token |
+| AMM | Meteora DAMMv2 (`@meteora-ag/cp-amm-sdk`) |
+| Auth | Privy (wallet + social login) |
+| Scraping | Playwright + Cheerio (KOLScan leaderboard) |
+| Package manager | Bun |
 
-## Prerequisites
-
-- [Bun](https://bun.sh) installed
-- PostgreSQL database (local or hosted)
-- Privy account with app credentials
-- Solana wallet keypair for admin operations
+---
 
 ## Getting Started
 
 ### 1. Environment Setup
 
-Copy `.env.example` to `.env` and fill in your credentials:
-
 ```bash
 cp .env.example .env
 ```
 
-Required environment variables:
-- `DATABASE_URL` - PostgreSQL connection string
-- `NEXT_PUBLIC_PRIVY_APP_ID` - Privy app ID
-- `PRIVY_APP_SECRET` - Privy app secret
-- `ADMIN_KEYPAIR` - Solana admin wallet keypair array
-- `NEXT_PUBLIC_APP_URL` - App URL (auto-set by Vercel in production)
+Required variables:
 
-### 2. Install Dependencies
+- `DATABASE_URL` — PostgreSQL connection string
+- `NEXT_PUBLIC_PRIVY_APP_ID` — Privy app ID
+- `PRIVY_APP_SECRET` — Privy app secret
+- `ADMIN_KEYPAIR` — Solana admin wallet keypair (JSON array)
+- `NEXT_PUBLIC_SOLANA_RPC_URL` — Solana RPC endpoint
+
+### 2. Install & Run
 
 ```bash
 bun install
-```
-
-### 3. Database Setup
-
-```bash
-# Generate Prisma client
 bunx prisma generate
-
-# Push schema to database
 bunx prisma db push
-```
-
-### 4. Run Development Server
-
-```bash
 bun run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to view the app.
+Open [http://localhost:3000](http://localhost:3000).
 
-## Build Commands
+### 3. Seed Initial Data
 
-```bash
-# Full build (includes Prisma generation and DB push)
-bun run build
+After the dev server is running:
 
-# Development server without logs
-bun run dev-nolog
+1. `POST /api/scrapeAndPushToDB` — scrape KOLScan and populate the `Trader` table
+2. `POST /api/createTokensAndPoolImproved` — mint SPL tokens + Meteora pools for all KOLs
+3. `POST /api/competitions/start` — open the first competition window
 
-# Build for production (Next.js only)
-bun run build-nolog
-```
-
-## Deployment on Vercel
-
-This project is configured for deployment on Vercel with the following optimizations:
-
-### Automatic Configuration
-
-- TypeScript and ESLint errors are ignored during builds (configured in `next.config.ts`)
-- Prisma client generation happens automatically via `vercel-build` script
-- Bun is used as the package manager
-
-### Vercel Environment Variables
-
-Add these environment variables in your Vercel project settings:
-
-1. `DATABASE_URL` - Your production PostgreSQL connection string
-2. `NEXT_PUBLIC_PRIVY_APP_ID` - Privy app ID
-3. `PRIVY_APP_SECRET` - Privy app secret
-4. `ADMIN_KEYPAIR` - Admin Solana keypair (JSON array format)
-5. `UPSTASH_REDIS_REST_URL` - Upstash Redis URL (if using)
-6. `UPSTASH_REDIS_REST_TOKEN` - Upstash Redis token (if using)
-7. `NEXT_PUBLIC_CRON_SECRET` - Secret for cron endpoints (optional but recommended)
-
-**Note:** `NEXT_PUBLIC_APP_URL` will be automatically set by Vercel to your deployment URL.
-
-### Deploy Steps
-
-1. Push your code to GitHub
-2. Import the repository in Vercel
-3. Set the **Install Command** to: `bun install`
-4. Set the **Build Command** to: `bun run vercel-build`
-5. Add all required environment variables
-6. Deploy!
-
-### Post-Deployment
-
-After deployment, you may need to:
-1. Run initial data scraping via `/api/scrapeAndPushToDB`
-2. Set up cron jobs for automated scoring (see CLAUDE.md for details)
-
-### Important Notes for Production
-
-**Playwright & Web Scraping:**
-- The scraping functionality uses Playwright which requires browser binaries
-- Vercel has size and execution time limits that may affect scraping operations
-- Consider moving heavy scraping tasks to:
-  - Vercel Cron Jobs (for scheduled tasks)
-  - External service (like AWS Lambda, Railway, or Render)
-  - Background job queue system
-- Alternative: Use Vercel's `maxDuration` config for serverless functions if on Pro plan
+---
 
 ## Project Structure
 
-See [CLAUDE.md](./CLAUDE.md) for detailed project documentation including:
-- Architecture overview
-- API routes structure
-- Database schema
-- Development notes
-- Testing guidelines
+```
+app/
+  api/
+    competitions/
+      [id]/
+        dailyUserScore/   ← daily on-chain snapshot + scoring
+        end/              ← ACTIVE → ENDED transition
+        finalize/         ← compute TP + LP, write results
+    cron/
+      phaseManager/       ← auto state transitions (every 5 min)
+      updateDB/           ← refresh KOL PnL (every 6 hrs)
+      startCompetition/   ← open new window (Mon + Thu)
+      calculateDailyScores/ ← daily snapshot trigger (14:00 UTC)
+      finalizeCompetition/  ← close window (Sun + Wed)
+    createTokensAndPoolImproved/ ← mint tokens + Meteora pools
+    swapMeteoraToken/     ← build unsigned swap tx for frontend
+    scrapeAndPushToDB/    ← KOLScan scraper → Postgres
+lib/
+  idl.ts                  ← Anchor IDL for pnlpackprogram
+  rarity.ts               ← rank → rarity tier mapping
+```
 
-## Learn More
+---
 
-- [Next.js Documentation](https://nextjs.org/docs)
-- [Privy Documentation](https://docs.privy.io)
-- [Solana Documentation](https://docs.solana.com)
-- [Prisma Documentation](https://www.prisma.io/docs)
+## Further Reading
+
+- [Solana Docs](https://docs.solana.com)
+- [Anchor Framework](https://www.anchor-lang.com)
+- [Meteora DAMMv2 SDK](https://github.com/MeteoraAg/cp-amm-sdk)
+- [Privy Docs](https://docs.privy.io)
+- [Prisma Docs](https://www.prisma.io/docs)
