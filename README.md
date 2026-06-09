@@ -221,11 +221,3 @@ After the dev server is running:
 3. `POST /api/competitions/start` — open the first competition window
 
 ---
-
-## Further Reading
-
-- [Solana Docs](https://docs.solana.com)
-- [Anchor Framework](https://www.anchor-lang.com)
-- [Meteora DAMMv2 SDK](https://github.com/MeteoraAg/cp-amm-sdk)
-- [Privy Docs](https://docs.privy.io)
-- [Prisma Docs](https://www.prisma.io/docs)
